@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Audio Labelling</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65"
+      crossorigin="anonymous"
+    />
+
+    <!-- <link rel="stylesheet" href="style.css"> -->
+
+    <!--Waveform JS-->
+    <script src="https://unpkg.com/wavesurfer.js@6.4.0/dist/wavesurfer.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.minimap.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.regions.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.spectrogram.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.regions.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.timeline.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.cursor.js"></script>
+  </head>
+
+  <body>
+    <div class="container">
+      <div class="row">
+        <div class="col-12">
+          <h1>Audio</h1>
+        </div>
+      </div>
+      {% for audiofile in audiolist %} {% with forloop.counter as count %}
+      <div class="row">
+        <div class="col-12">
+          <h2>{{ audiofile.filename }}</h2>
+          <div id="wave-timeline{{count}}"></div>
+          <div id="waveform{{count}}"></div>
+          <div id="wave-spectrogram{{count}}"></div>
+          <div id="wave-minimap{{count}}"></div>
+          <div class="controls">
+            <div class="row">
+              <div class="col-sm-7">
+                <button
+                  id="button{{count}}"
+                  class="btn btn-primary"
+                  data-action="play"
+                >
+                  <i class="glyphicon glyphicon-play"></i>
+                  Play /
+                  <i class="glyphicon glyphicon-pause"></i>
+                  Pause
+                </button>
+              </div>
+
+              <div class="col-sm-1">
+                <i class="glyphicon glyphicon-zoom-in"></i>
+              </div>
+
+              <div class="col-sm-3">
+                <input
+                  id="slider{{count}}"
+                  data-action="zoom"
+                  type="range"
+                  min="20"
+                  max="1000"
+                  value="0"
+                  style="width: 100%"
+                />
+              </div>
+
+              <div class="col-sm-1">
+                <i class="glyphicon glyphicon-zoom-out"></i>
+              </div>
+            </div>
+          </div>
+          <div>
+            <p id="regions-text{{count}}"></p>
+          </div>
+        </div>
+      </div>
+      {% endwith %} {% endfor %}
+      <div class="row">
+        <div class="col-12">
+          <h3>JSON</h3>
+          <div id="json-master"></div>
+          <div>
+            <button type="submit" id="save">Save</button><span> </span
+            ><span id="savestatus"></span>
+          </div>
+        </div>
+      </div>
+      <div class="row mb-5 mt-5">
+        <div class="col-12">
+          <nav aria-label="Page navigation example">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page=1">&laquo; first</a></li>
+                  <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">previous</a></li>
+                {% endif %}
+
+                {% for page_num in page_obj.paginator.page_range %}
+                {% if page_num == page.number %}
+                  <li class="page-item active">
+                    <a class="page-link" href="#">{{ page_num }}</a>
+                  </li>
+                {% else %}
+                  <li class="page-item">
+                    <a class="page-link" href="?page={{ page_num }}">{{ page_num }}</a>
+                  </li>
+                {% endif %}
+              {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">next</a></li>
+                <liclass="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">last &raquo;</a></li>
+                {% endif %}
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+
+    <script>
+
+
+      /**
+       * Random RGBA color.
+       */
+      function randomColor(alpha) {
+          return (
+              'rgba(' +
+              [
+                  ~~(Math.random() * 255),
+                  ~~(Math.random() * 255),
+                  ~~(Math.random() * 255),
+                  alpha || 1
+              ] +
+              ')'
+          );
+      }
+
+      {% load static %}
+
+
+      //var MinimapPlugin = window.WaveSurfer.minimap;
+      var activewaveform;
+      var regions_master = [];
+
+      {% for audiofile in audiolist  %}
+      {% with forloop.counter as count %}
+
+      var wavesurfer{{ count }} = WaveSurfer.create({
+          container: '#waveform{{count}}',
+          waveColor: 'violet',
+          progressColor: 'purple',
+          mediaControls: 'true',
+          height: 200,
+          plugins: [
+              WaveSurfer.regions.create(),
+              WaveSurfer.minimap.create({
+                  container: '#wave-minimap{{count}}',
+                  waveColor: '#777',
+                  progressColor: '#222',
+                  height: 50
+              }),
+              WaveSurfer.spectrogram.create({
+                  wavesurfer: wavesurfer{{ count }},
+          container: "#wave-spectrogram{{count}}",
+          labels: true,
+          height: 75,
+              }),
+          WaveSurfer.timeline.create({
+              container: '#wave-timeline{{count}}',
+          }),
+          WaveSurfer.cursor.create({
+              showTime: false,
+              opacity: 1,
+              customShowTimeStyle: {
+                  'background-color': '#000',
+                  'opacity': '0.5',
+                  color: '#fff',
+                  padding: '2px',
+                  'font-size': '10px'
+              }
+          })
+          ]
+      });
+      // wavesurfer.load('{% static 'sample.wav' %}');
+      wavesurfer{{ count }}.load('{% static "" %}{{ audiofile.filename }} ');
+      wavesurfer{{ count }}.on('ready', function () {
+          wavesurfer{{ count }}.enableDragSelection({});
+              //wavesurfer.play();
+              {% for region in audiofile.regions %}
+          wavesurfer{{ count }}.addRegion({ start: {{ region.start }}, end: {{ region.end }}, color: randomColor(0.1) });
+      {% endfor %}
+          saveRegions{{ count }} ();
+      });
+
+      // listen for doubleclick on region, for region delete
+      wavesurfer{{ count }}.on('region-dblclick', function (region) {
+
+          region.remove();
+
+      });
+
+
+      document.querySelector('#slider{{count}}').oninput = function () {
+          wavesurfer{{ count }}.zoom(Number(this.value));
+      };
+
+      // Zoom slider
+      let slider{{ count }} = document.querySelector('#slider{{count}}');
+
+      wavesurfer{{ count }}.zslider = slider{{ count }};
+
+      slider{{ count }}.value = wavesurfer{{ count }}.params.minPxPerSec;
+      slider{{ count }}.min = wavesurfer{{ count }}.params.minPxPerSec;
+      // Allow extreme zoom-in, to see individual samples
+      slider{{ count }}.max = 1000;
+
+      // slider.addEventListener('input', function () {
+      //     wavesurfer{{count}}.zoom(Number(this.value));
+      // });
+      slider{{ count }}.addEventListener('change', function () {
+          wavesurfer{{ count }}.zoom(Number(this.value));
+          //console.log(slider{{count}}.value);
+      });
+
+      // set initial zoom to match slider value
+      wavesurfer{{ count }}.zoom(slider{{ count }}.value);
+
+      // Zoom to location on minimap using scroll wheel
+      document.querySelector('#wave-minimap{{count}}').onwheel = function (event) {
+          event.preventDefault();
+          wavesurfer{{ count }}.pause();
+          slider{{ count }}.value = parseInt(slider{{ count }}.value) + parseInt(event.deltaY);
+          wavesurfer{{ count }}.zoom(Number(slider{{ count }}.value));
+          wavesurfer{{ count }}.seekAndCenter((event.offsetX / document.getElementById('waveform{{count}}').offsetWidth))
+      }
+
+
+      // Play button
+      let button{{ count }} = document.querySelector('#button{{count}}');
+      button{{ count }}.addEventListener('click', wavesurfer{{ count }}.playPause.bind(wavesurfer{{ count }}));
+
+
+
+
+
+      // Region Functions / Events
+
+      //Play on region click
+
+      wavesurfer{{ count }}.on('region-click', function (region, e) {
+          e.stopPropagation();
+          // Play on click, loop on shift click
+          e.shiftKey ? region.playLoop() : console.log("");
+      });
+
+
+      // Random colour on region creation
+      wavesurfer{{ count }}.on('region-created', function (region, e) {
+          region.color = randomColor(0.1);
+      })
+
+
+      wavesurfer{{ count }}.on('region-updated', saveRegions{{ count }});
+      wavesurfer{{ count }}.on('region-removed', saveRegions{{ count }});
+      function saveRegions{{ count }} () {
+          regions_master[{{ forloop.counter0 }}] =
+      {
+          filename: '{{audiofile.filename}}',
+              regions: Object.keys(wavesurfer{{ count }}.regions.list).map(function (id) {
+                  let region = wavesurfer{{ count }}.regions.list[id];
+      return {
+          start: region.start,
+          end: region.end,
+          //attributes: region.attributes,
+          //data: region.data
+      };
+              })
+          }
+      document.getElementById('json-master').innerHTML = JSON.stringify(regions_master);
+      document.querySelector('#regions-text{{count}}').innerHTML = JSON.stringify(
+          Object.keys(wavesurfer{{ count }}.regions.list).map(function (id) {
+              let region = wavesurfer{{ count }}.regions.list[id];
+      return {
+          start: region.start,
+          end: region.end,
+          //attributes: region.attributes,
+          //data: region.data
+      };
+              })
+          );
+      }
+
+      wavesurfer{{ count }}.on('interaction', function () {
+          activewaveform = wavesurfer{{ count }};
+      })
+
+      {% endwith %}
+      {% endfor %}
+
+      //playpause with spacebar
+
+      activewaveform = wavesurfer1;
+
+      //playpause with spacebar
+      document.addEventListener('keydown', e => {
+          if (e.code == "Space") {
+              event.preventDefault();
+              activewaveform.playPause()
+          }
+
+          if (e.code == "ArrowLeft") {
+              event.preventDefault();
+              activewaveform.skipBackward();
+          }
+          if (e.code == "ArrowRight") {
+              event.preventDefault();
+              activewaveform.skipForward();
+          }
+          if (e.code == "ArrowUp") {
+              activewaveform.zslider.value = parseInt(activewaveform.zslider.value) + parseInt(100);
+              activewaveform.zoom(Number(activewaveform.zslider.value));
+          }
+          if (e.code == "ArrowDown") {
+              activewaveform.zslider.value -= 100;
+              activewaveform.zoom(Number(activewaveform.zslider.value));
+          }
+      })
+
+
+      // function handleSubmit(){
+      //     var xhr = new XMLHttpRequest();
+      //     xhr.open("Post","api/json", true);
+      //     xhr.setRequestHeader('Content-Type','application/json');
+      //     xhr.send(JSON.stringify(regions_master));
+      // }
+      function handleSubmit() {
+          fetch("api/json", {
+              method: "POST",
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(regions_master)
+          }).then(res => {
+              console.log("Request complete! response:", res);
+              if (res.status == 200) {
+                  var today = new Date();
+                  var date = today.getFullYear() + '-' + (today.getMonth() + 1) + '-' + today.getDate();
+                  var time = today.getHours() + ":" + today.getMinutes() + ":" + today.getSeconds();
+                  var dateTime = date + ' ' + time;
+                  document.getElementById('savestatus').innerHTML = "Saved " + dateTime;
+              }
+          });
+      }
+      document.getElementById('save').onclick = handleSubmit;
+    </script>
+
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4"
+      crossorigin="anonymous"
+    ></script>
+  </body>
+</html>

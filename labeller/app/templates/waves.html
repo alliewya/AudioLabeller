@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Audio Labelling</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
+
+    <!-- <link rel="stylesheet" href="style.css"> -->
+
+    <!--Waveform JS-->
+    <script src="https://unpkg.com/wavesurfer.js@6.4.0/dist/wavesurfer.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.minimap.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.regions.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.spectrogram.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.regions.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.timeline.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.cursor.js"></script>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <h1>Audio</h1>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12">
+                <h2>{{ audiofile.filename }}</h2>
+                <div id="wave-timeline"></div>
+                <div id="waveform"></div>
+                <div id="wave-spectrogram"></div>
+                <div id="wave-minimap"></div>
+                <div class="controls">
+                    <div class="row">
+                        <div class="col-sm-7">
+                            <button class="btn btn-primary" data-action="play">
+                                <i class="glyphicon glyphicon-play"></i>
+                                Play
+                                /
+                                <i class="glyphicon glyphicon-pause"></i>
+                                Pause
+                            </button>
+                        </div>
+
+                        <div class="col-sm-1">
+                            <i class="glyphicon glyphicon-zoom-in"></i>
+                        </div>
+
+                        <div class="col-sm-3">
+                            <input id="slider" data-action="zoom" type="range" min="20" max="1000" value="0"
+                                style="width: 100%">
+                        </div>
+
+                        <div class="col-sm-1">
+                            <i class="glyphicon glyphicon-zoom-out"></i>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <p id="regions-text"></P>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+
+        /**
+         * Random RGBA color.
+         */
+        function randomColor(alpha) {
+            return (
+                'rgba(' +
+                [
+                    ~~(Math.random() * 255),
+                    ~~(Math.random() * 255),
+                    ~~(Math.random() * 255),
+                    alpha || 1
+                ] +
+                ')'
+            );
+        }
+
+        {% load static %}
+        //console.log('{{ audiofile.filename }}');
+        //console.log('{{audiofile.regions.0}}')
+        //console.log('{{audiofile.regions.0.start}}')
+
+        //var MinimapPlugin = window.WaveSurfer.minimap;
+
+        var activewaveform;
+
+        var wavesurfer = WaveSurfer.create({
+            container: '#waveform',
+            waveColor: 'violet',
+            progressColor: 'purple',
+            mediaControls: 'true',
+            height: 200,
+            plugins: [
+                WaveSurfer.regions.create(),
+                WaveSurfer.minimap.create({
+                    container: '#wave-minimap',
+                    waveColor: '#777',
+                    progressColor: '#222',
+                    height: 50
+                }),
+                WaveSurfer.spectrogram.create({
+                    wavesurfer: wavesurfer,
+                    container: "#wave-spectrogram",
+                    labels: true,
+                    height: 75,
+                }),
+                WaveSurfer.timeline.create({
+                    container: '#wave-timeline',
+                }),
+                WaveSurfer.cursor.create({
+                    showTime: false,
+                    opacity: 1,
+                    customShowTimeStyle: {
+                        'background-color': '#000',
+                        'opacity': '0.5',
+                        color: '#fff',
+                        padding: '2px',
+                        'font-size': '10px'
+                    }
+                }) 
+            ]
+        });
+        // wavesurfer.load('{% static 'sample.wav' %}');
+        wavesurfer.load('{% static "" %}{{ audiofile.filename }} ');
+        wavesurfer.on('ready', function () {
+            wavesurfer.enableDragSelection({});
+            //wavesurfer.play();
+            wavesurfer.addRegion({ start: {{ audiofile.regions.0.start }}, end: {{ audiofile.regions.0.end }} })
+            saveRegions1();
+        });
+
+        // listen for doubleclick on region, for region delete
+        wavesurfer.on('region-dblclick',function(region){
+           
+            region.remove();
+           
+        });
+
+
+        document.querySelector('#slider').oninput = function () {
+            wavesurfer.zoom(Number(this.value));
+        };
+
+        // Zoom slider
+        let slider = document.querySelector('[data-action="zoom"]');
+
+        slider.value = wavesurfer.params.minPxPerSec;
+        slider.min = wavesurfer.params.minPxPerSec;
+        // Allow extreme zoom-in, to see individual samples
+        slider.max = 1000;
+
+        // slider.addEventListener('input', function () {
+        //     wavesurfer.zoom(Number(this.value));
+        // });
+        slider.addEventListener('change', function () {
+            wavesurfer.zoom(Number(this.value));
+            console.log(slider.value);
+        });
+
+        // set initial zoom to match slider value
+        wavesurfer.zoom(slider.value);
+
+        // Zoom to location on minimap using scroll wheel
+        document.querySelector('#wave-minimap').onwheel = function(event){
+            wavesurfer.pause();
+            slider.value = parseInt(slider.value) + parseInt(event.deltaY);
+            wavesurfer.zoom(Number(slider.value));
+            wavesurfer.seekAndCenter((event.offsetX/document.getElementById('waveform').offsetWidth))
+        }
+
+
+        // Play button
+        let button = document.querySelector('[data-action="play"]');
+        button.addEventListener('click', wavesurfer.playPause.bind(wavesurfer));
+        
+
+        
+
+
+        // Region Functions / Events
+
+        //Play on region click
+        // wavesurfer.on('region-click', function(region, e) {
+        // e.stopPropagation();
+        // // Play on click, loop on shift click
+        // e.shiftKey ? region.playLoop() : region.play();   
+        // });
+        wavesurfer.on('region-click', function(region, e) {
+        e.stopPropagation();
+        // Play on click, loop on shift click
+        e.shiftKey ? region.play() : console.log("") ;   
+        });
+
+
+        // Random colour on region creation
+        wavesurfer.on('region-created',function(region, e){
+            region.color = randomColor(0.1);
+        })
+
+
+        wavesurfer.on('region-updated', saveRegions1);
+        wavesurfer.on('region-removed', saveRegions1);
+        function saveRegions1() {
+            document.querySelector('#regions-text').innerHTML = JSON.stringify(
+                Object.keys(wavesurfer.regions.list).map(function(id) {
+                    let region = wavesurfer.regions.list[id];
+                    return {
+                        start: region.start,
+                        end: region.end,
+                        //attributes: region.attributes,
+                        //data: region.data
+                    };
+                })
+            );
+        }
+
+        wavesurfer.on('interaction', function(){
+            activewaveform = wavesurfer;
+            console.log("boop");
+        })
+
+
+        activewaveform = wavesurfer;
+
+        //playpause with spacebar
+        document.addEventListener('keydown',e =>{
+            if(e.code == "Space"){
+                activewaveform.playPause()} 
+            })
+
+    </script>
+        <style>div#waveform:focus {
+            border: 1px solid red;
+        }</style>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4"
+        crossorigin="anonymous"></script>
+</body>
+
+</html>
