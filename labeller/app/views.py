@@ -13,13 +13,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
 
-from .consumers import ProgressConsumer
 
 import json
 import librosa
 import pickle
 from sklearn.neighbors import KNeighborsClassifier
-import math, time
+import math, time, copy
 import numpy as np
 from app import functions
 
@@ -220,6 +219,7 @@ def audiowavespaginated(request):
             audiopredictions.append({'filename':file,'regions':json.loads(labels.labelregions),'labelusername':'Model'})
         else:
             pred = functions.returnPredictions(knnmodel, file)
+            pred['labelusername'] = "New Model Prediction"
             audiopredictions.append(pred)
             AudioLabels.objects.create(filename=file,labeluser="2",labelusername="Model",labelregions=json.dumps(pred['regions']))
     # do something with the processed data
@@ -262,31 +262,6 @@ def save_events_json(request):
     return HttpResponse("OK")
 
 
-# @csrf_exempt
-# def generate_all_model_predictions(request):
-#     if request.method == 'POST':
-#         try:
-#             data = json.loads(request.body)
-#             print(request.body)
-#             print("Go")
-#             consumer = ProgressConsumer()
-#             print("Consumer")
-#             audiofiles = os.listdir("app\static")
-#             length = len(audiofiles)
-#             for i, audio in enumerate(audiofiles):
-#                 #print(audio)
-#                 percentage = (i / length) * 100
-#                 consumer.update_progress(percentage)
-#                 print("Percentage 1"+ str(percentage))
-#                 #consumer.send_progress({'progress': str(percentage)})
-#                 time.sleep(0.3)
-#                 #AudioLabels.objects.update_or_create(filename=audio['filename'],labeluser=request.user.id, defaults={'updatedate':timezone.now,'labelregions':json.dumps(audio['regions']),'labelusername':request.user.username,})
-#             consumer.update_progress(100)
-#             #consumer.disconnect(1000)
-                
-#         except json.JSONDecodeError as e:
-#             return JsonResponse({'status': 'error', 'message': 'Invalid JSON'})
-#     return HttpResponse("OK")
 
 @csrf_exempt
 def generate_all_model_predictions(request):
@@ -295,21 +270,32 @@ def generate_all_model_predictions(request):
             data = json.loads(request.body)
             audiofiles = os.listdir("app\static")
             length = len(audiofiles)
-            progress = TaskProgress.objects.filter(Progressname="PredictDataset").first()
-            progress.Progress = 0
+            progress = TaskProgress.objects.filter(progressname="PredictDataset").first()
+            progress.progress = 0
             progress.save()
             for i, audio in enumerate(audiofiles):
-                #print(audio)
                 percentage = (i / length) * 100
-                print("Percentage 1: "+ str(percentage))
 
-                if AudioLabels.objects.filter(filename=audio, labeluser ='2').exists():
-                    print("skip")
-                else:
+                if not AudioLabels.objects.filter(filename=audio, labeluser ='2').exists():
                     pred = functions.returnPredictions(knnmodel, audio)
-                    AudioLabels.objects.update_or_create(filename=audio,labeluser="2", defaults={'updatedate':timezone.now,'labelregions':json.dumps(pred['regions']),'labelusername':'Model',})
-            #consumer.disconnect(1000)
+                    AudioLabels.objects.update_or_create(filename=audio,labeluser="2", defaults={'updatedate':timezone.now,'labelregions':json.dumps(pred['regions']),'labelusername':'Model',})   
+
+                if(i%5 == 0):
+                    progress.progress = percentage
+                    progress.save()
+
+            progress.progress = 100
+            progress.save()
                 
         except json.JSONDecodeError as e:
             return JsonResponse({'status': 'error', 'message': 'Invalid JSON'})
     return HttpResponse("OK")
+
+@csrf_exempt
+def return_progress(request):
+    #data = json.loads(request.body)
+    print(request)
+    process = copy.copy(TaskProgress.objects.filter(progressname="PredictDataset").first())
+
+
+    return JsonResponse({'progress': process.progress, 'task': process.progressname})

@@ -14,5 +14,6 @@ urlpatterns = [
     path('<userid>/audiolabelled', views.audiowavesbyuser,name="audiolabelledbyuser"),
     path('api/json', views.save_events_json, name='jsonsave'),
     path('api/runpredictions', views.generate_all_model_predictions, name='runpredictions'),
+    path('api/taskprogress', views.return_progress, name='taskprogress'),
 ]
 

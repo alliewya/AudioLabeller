@@ -1,0 +1,124 @@
+{% extends 'base.html' %} {% block title %}Utilities{% endblock %}
+
+<!---->
+
+{% block content%} {% if user.id == 1 %}
+
+<div class="Row">
+  <div class="col-12">
+    <div class="d-flex justify-content-center align-items-center p-3">
+      <div>
+        <h2>Utilities</h2>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="Row">
+  <div class="col-12">
+    <div class="d-flex justify-content-center align-items-center p-3">
+      <div>
+        <h3>Generate Model Predictions</h3>
+        <p>Create predictions for all audio files using the stored model</p>
+        <button
+          type="button"
+          class="btn btn-primary text-center pd-3"
+          id="btn-pred"
+        >
+          Go!
+        </button>
+        <div class="progress mt-3">
+          <div
+            class="progress-bar"
+            role="progressbar"
+            style="width: 0%"
+            aria-valuenow="0"
+            aria-valuemin="0"
+            aria-valuemax="100"
+          >
+            0%
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  var xhrPMP = new XMLHttpRequest();
+  function postModelPrediction() {
+    console.log("Go");
+    xhrPMP.open("POST", "api/runpredictions");
+    xhrPMP.setRequestHeader("Content-Type", "application/json");
+    xhrPMP.send(JSON.stringify({ data: "Go" }));
+    console.log("Sent");
+    {% comment %} //var ws = new WebSocket("ws://127.0.0.1:8000/app/ws/progress/");
+    var socket = new WebSocket(
+      "ws://" + window.location.host + "/ws/progress/"
+    );
+    socket.onopen = function(e) {
+        console.log("[open] Connection established");
+        start();
+        //alert("Sending to server");
+        //socket.send("My name is John");
+      };
+    socket.onmessage = function(event) {
+        console.log(event);
+        console.log("joij");
+        //alert("[message] Data received from server: ${event.data}");
+      };
+     socket.onclose = function(event) {
+        if (event.wasClean) {
+            console.log("[close] Connection closed cleanly, code=${event.code} reason=${event.reason}");
+        } else {
+          // e.g. server process killed or network down
+          // event.code is usually 1006 in this case
+          console.log('[close] Connection died');
+        }
+      };
+      socket.onerror = function(error) {
+        alert("[error]");
+      };
+
+    socket.onmessage = function (e) {
+        console.log("hoihj")
+        console.log(e.data)
+      //var data = JSON.parse(e.data);
+      console.log(e);
+    //document.querySelector(".progress-bar").setAttribute("aria-valuenow", data.progress);
+    //document.querySelector(".progress-bar").setAttribute("style", "width: 200px;") = data.progress;
+    };
+
+    var intervalID;
+    function start(){
+        intervalID = setInterval(function() {
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send("Request!");
+            } else {
+                stop();
+            }
+        }, 500);
+    }
+
+    function stop(){
+        clearInterval(intervalID);
+    } {% endcomment %}
+    //setInterval(function(){socket.send("joij");console.log("loop")},500);
+  }
+  document
+    .getElementById("btn-pred")
+    .addEventListener("click", postModelPrediction);
+</script>
+
+{% else %} .
+<div class="Row">
+  <div class="col-12">
+    <div class="d-flex justify-content-center align-items-center p-3">
+      <div>
+        <h2><a href="/accounts/login">Access Denied</a></h2>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endif %} {% endblock %}

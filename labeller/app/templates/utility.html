@@ -30,6 +30,7 @@
         <div class="progress mt-3">
           <div
             class="progress-bar"
+            id="modelpred-bar"
             role="progressbar"
             style="width: 0%"
             aria-valuenow="0"
@@ -47,63 +48,46 @@
 <script>
   var xhrPMP = new XMLHttpRequest();
   function postModelPrediction() {
-    console.log("Go");
     xhrPMP.open("POST", "api/runpredictions");
     xhrPMP.setRequestHeader("Content-Type", "application/json");
     xhrPMP.send(JSON.stringify({ data: "Go" }));
-    console.log("Sent");
-    {% comment %} //var ws = new WebSocket("ws://127.0.0.1:8000/app/ws/progress/");
-    var socket = new WebSocket(
-      "ws://" + window.location.host + "/ws/progress/"
-    );
-    socket.onopen = function(e) {
-        console.log("[open] Connection established");
-        start();
-        //alert("Sending to server");
-        //socket.send("My name is John");
-      };
-    socket.onmessage = function(event) {
-        console.log(event);
-        console.log("joij");
-        //alert("[message] Data received from server: ${event.data}");
-      };
-     socket.onclose = function(event) {
-        if (event.wasClean) {
-            console.log("[close] Connection closed cleanly, code=${event.code} reason=${event.reason}");
-        } else {
-          // e.g. server process killed or network down
-          // event.code is usually 1006 in this case
-          console.log('[close] Connection died');
-        }
-      };
-      socket.onerror = function(error) {
-        alert("[error]");
-      };
 
-    socket.onmessage = function (e) {
-        console.log("hoihj")
-        console.log(e.data)
-      //var data = JSON.parse(e.data);
-      console.log(e);
-    //document.querySelector(".progress-bar").setAttribute("aria-valuenow", data.progress);
-    //document.querySelector(".progress-bar").setAttribute("style", "width: 200px;") = data.progress;
-    };
-
+    var xhrProgress;
     var intervalID;
-    function start(){
-        intervalID = setInterval(function() {
-            if (socket.readyState === WebSocket.OPEN) {
-                socket.send("Request!");
-            } else {
-                stop();
+
+    progressbar = document.getElementById("modelpred-bar");
+
+    function start() {
+      progressbar.setAttribute("aria-valuenow", 0);
+      progressbar.setAttribute("width", 0);
+      intervalID = setInterval(function () {
+        xhrProgress = new XMLHttpRequest();
+        xhrProgress.open("GET", "api/taskprogress", true);
+        xhrProgress.setRequestHeader("Content-Type", "application/json");
+        xhrProgress.onload = function () {
+          if (xhrProgress.status === 200) {
+            let response = JSON.parse(xhrProgress.responseText);
+            progressbar.setAttribute("aria-valuenow", response.progress);
+            progressbar.style.width = response.progress + "%";
+            progressbar.innerText = Math.round(response.progress) + "%";
+            if (response.progress == 100) {
+              stop();
             }
-        }, 500);
+          } else {
+            console.error(xhrProgress.statusText);
+          }
+        };
+        xhrProgress.send(JSON.stringify({ processname: "PredictDataset" }));
+      }, 500);
     }
 
-    function stop(){
-        clearInterval(intervalID);
-    } {% endcomment %}
-    //setInterval(function(){socket.send("joij");console.log("loop")},500);
+    function stop() {
+      clearInterval(intervalID);
+    }
+
+    //Delay start to allow initial setting of progress to 0
+    setTimeout(start(), 700);
+
   }
   document
     .getElementById("btn-pred")
