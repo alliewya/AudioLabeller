@@ -1,0 +1,31 @@
+{% extends 'base.html' %} {% block title %}Home{% endblock %}
+
+<!---->
+
+{% block content%} {% if user.is_authenticated %} 
+<div class="Row">
+    <div class="col-12">
+      <div class="d-flex justify-content-center align-items-center p-3">
+        <div>
+          <h2>Audio Labelling</h2>
+            <div><a href="/app/audiopages">Label Dataset</div>
+            <div><a href="/app/{{user.id }}/audiolabelled">View your labels</div>
+            <div><a href="/accounts/logout">Logout</div>
+            <div><a href="/app/utilities">Utilities</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+{% else %} .
+<div class="Row">
+  <div class="col-12">
+    <div class="d-flex justify-content-center align-items-center p-3">
+      <div>
+        <h2><a href="/accounts/login">Login</a></h2>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endif %} {% endblock %}

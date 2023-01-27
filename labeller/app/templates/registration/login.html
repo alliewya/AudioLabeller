@@ -1,0 +1,31 @@
+{% extends 'base.html' %} {% block title %}Login{% endblock %}
+
+<!---->
+
+{% block content%} {% if form.errors %}
+<p>Your username and password didn't match. Please try again.</p>
+{% endif %}
+
+<div class="Row">
+  <div class="col-12">
+    <div class="d-flex justify-content-center align-items-center p-3">
+      <div>
+        <h2>Login</h2>
+        <form method="post">
+          {% csrf_token %} {% for field in form %}
+          <p class="form-group d-grid">
+            <label for="{{ field.auto_id }}" class="form-control-label"
+              >{{ field.label }}</label
+            >
+            {{ field }} {% for error in field.errors %}
+            <span class="text-danger">{{ error }}</span>
+            {% endfor %}
+          </p>
+          {% endfor %}
+          <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

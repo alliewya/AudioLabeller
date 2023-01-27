@@ -26,15 +26,22 @@
 
   <body>
     <div class="container">
-      <div class="row">
-        <div class="col-12">
+      <div class="row mb-2">
+        <div class="col-6">
           <h1>Audio</h1>
         </div>
+        <div class="col-6 d-flex align-items-center justify-content-end" ><div class="text-right"> {% if user.is_authenticated %}
+          <Small>Logged in as: </small>{{ user.username }}
+            {% else %}
+            <a href="/accounts/login">You are not logged in</a>
+          {% endif %}
+        </div></div>
       </div>
+      {% if audiolist %}
       {% for audiofile in audiolist %} {% with forloop.counter as count %}
       <div class="row">
         <div class="col-12">
-          <h2>{{ audiofile.filename }}</h2>
+          <h2 class="float-start">{{ audiofile.filename }}</h2><span class="float-end badge rounded-pill text-bg-info">{{ audiofile.labelusername }}</span>
           <div id="wave-timeline{{count}}"></div>
           <div id="waveform{{count}}"></div>
           <div id="wave-spectrogram{{count}}"></div>
@@ -81,6 +88,9 @@
         </div>
       </div>
       {% endwith %} {% endfor %}
+      {% else %}
+      <div>No files found</div>
+      {% endif %}
       <div class="row">
         <div class="col-12">
           <h3>JSON</h3>

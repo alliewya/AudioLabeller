@@ -34,7 +34,8 @@
       {% for audiofile in audiofilelist %} {% with forloop.counter as count %}
       <div class="row">
         <div class="col-12">
-          <h2>{{ audiofile.filename }}</h2>
+          <h2 class="float-start">{{ audiofile.filename }}</h2>
+          <span class="float-end badge rounded-pill text-bg-info">{{ audiofile.labelusername }} </span>
           <div id="wave-timeline{{count}}"></div>
           <div id="waveform{{count}}"></div>
           <div id="wave-spectrogram{{count}}"></div>

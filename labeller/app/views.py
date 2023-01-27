@@ -11,21 +11,35 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.views.decorators.csrf import csrf_exempt
 from django.core.paginator import Paginator
+from django.contrib.auth.decorators import login_required
 
+from .consumers import ProgressConsumer
 
+import json
 import librosa
 import pickle
 from sklearn.neighbors import KNeighborsClassifier
-import math
+import math, time
 import numpy as np
 from app import functions
+
+from django.utils import timezone
+from .models import AudioLabels,TaskProgress
+
 
 with open("app\models\coughknn5mfcc40.bark", "rb") as f:
     knnmodel = pickle.load(f)
 
 
 def index(request):
-    return HttpResponse("Hello, world. You're at the polls index.")
+    context = {'user':request.user}
+    return render(request, "home.html", context)
+
+
+
+def utilities(request):
+    context = {'user':request.user}
+    return render(request, "utility.html", context) 
 
 
 def audiowaves(request):
@@ -141,15 +155,52 @@ def audiowaves3(request):
     return render(request, "waves2.html", {'audiofilelist': audiofilelist})
 
 
+# def audiowaves4(request):
+
+#     audiofiles = os.listdir("app\static")
+#     audiopredictions = []
+#     for file in audiofiles:
+#         audiopredictions.append(functions.returnPredictions(knnmodel, file))
+
+#     return render(request, "waves2.html", {'audiofilelist': audiopredictions})
+
 def audiowaves4(request):
 
     audiofiles = os.listdir("app\static")
+    audiofiles = audiofiles[:5]
     audiopredictions = []
     for file in audiofiles:
-        audiopredictions.append(functions.returnPredictions(knnmodel, file))
+        if AudioLabels.objects.filter(filename=file, labeluser ='2').exists():
+            labels = AudioLabels.objects.filter(filename=file, labeluser='2').first()
+            
+            audiopredictions.append({'filename':file,'regions':json.loads(labels.labelregions),'labelusername':'Model'})
+        else:
+            pred = functions.returnPredictions(knnmodel, file)
+            audiopredictions.append(pred)
+            AudioLabels.objects.create(filename=file,labeluser="2",labelusername="Model",labelregions=json.dumps(pred['regions']))
 
     return render(request, "waves2.html", {'audiofilelist': audiopredictions})
 
+
+# def audiowavespaginated(request):
+#     audiofiles = os.listdir("app\static")
+#     paginator = Paginator(audiofiles, 5)
+
+#     page_number = request.GET.get('page')
+
+#     # get the current page
+#     page_obj = paginator.get_page(page_number)
+#     print(page_obj)
+#     # loop through the items on the current page
+#     audiolist = []
+#     for item in page_obj:
+#         print(item)
+#         # process the data
+#         audiolist.append(functions.returnPredictions(knnmodel, item))
+#         print(audiolist)
+#     # do something with the processed data
+#     print(page_obj)
+#     return render(request, 'waves3.html', {'page_obj': page_obj, 'audiolist': audiolist, 'user': request.user})
 
 def audiowavespaginated(request):
     audiofiles = os.listdir("app\static")
@@ -161,19 +212,104 @@ def audiowavespaginated(request):
     page_obj = paginator.get_page(page_number)
     print(page_obj)
     # loop through the items on the current page
+    audiopredictions = []
+    for file in page_obj:
+        if AudioLabels.objects.filter(filename=file, labeluser ='2').exists():
+            labels = AudioLabels.objects.filter(filename=file, labeluser='2').first()
+            
+            audiopredictions.append({'filename':file,'regions':json.loads(labels.labelregions),'labelusername':'Model'})
+        else:
+            pred = functions.returnPredictions(knnmodel, file)
+            audiopredictions.append(pred)
+            AudioLabels.objects.create(filename=file,labeluser="2",labelusername="Model",labelregions=json.dumps(pred['regions']))
+    # do something with the processed data
+    print(page_obj)
+    return render(request, 'waves3.html', {'page_obj': page_obj, 'audiolist': audiopredictions, 'user': request.user})
+
+
+def audiowavesbyuser(request, userid):
+    audiofiles = AudioLabels.objects.filter(labeluser = userid)
+    paginator = Paginator(audiofiles, 10)
+
+    page_number = request.GET.get('page')
+
+    # get the current page
+    page_obj = paginator.get_page(page_number)
+    print(page_obj)
+    # loop through the items on the current page
     audiolist = []
     for item in page_obj:
         print(item)
-        # process the data
-        audiolist.append(functions.returnPredictions(knnmodel, item))
-        print(item)
+        reg = item.labelregions
+        regions = json.loads(item.labelregions)
+        audiolist.append({'filename':item.filename,'regions':json.loads(item.labelregions),'labelusername':item.labelusername})
     # do something with the processed data
     print(page_obj)
-    return render(request, 'waves3.html', {'page_obj': page_obj, 'audiolist': audiolist})
+    return render(request, 'waves3.html', {'page_obj': page_obj, 'audiolist': audiolist, 'user': request.user})
 
 
 @csrf_exempt
 def save_events_json(request):
     if request.method == 'POST':
-        print(request.body)
+
+        try:
+            data = json.loads(request.body)
+            for audio in data:
+                AudioLabels.objects.update_or_create(filename=audio['filename'],labeluser=request.user.id, defaults={'updatedate':timezone.now,'labelregions':json.dumps(audio['regions']),'labelusername':request.user.username,})
+            return JsonResponse({'status': 'success'})
+        except json.JSONDecodeError as e:
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON'})
+    return HttpResponse("OK")
+
+
+# @csrf_exempt
+# def generate_all_model_predictions(request):
+#     if request.method == 'POST':
+#         try:
+#             data = json.loads(request.body)
+#             print(request.body)
+#             print("Go")
+#             consumer = ProgressConsumer()
+#             print("Consumer")
+#             audiofiles = os.listdir("app\static")
+#             length = len(audiofiles)
+#             for i, audio in enumerate(audiofiles):
+#                 #print(audio)
+#                 percentage = (i / length) * 100
+#                 consumer.update_progress(percentage)
+#                 print("Percentage 1"+ str(percentage))
+#                 #consumer.send_progress({'progress': str(percentage)})
+#                 time.sleep(0.3)
+#                 #AudioLabels.objects.update_or_create(filename=audio['filename'],labeluser=request.user.id, defaults={'updatedate':timezone.now,'labelregions':json.dumps(audio['regions']),'labelusername':request.user.username,})
+#             consumer.update_progress(100)
+#             #consumer.disconnect(1000)
+                
+#         except json.JSONDecodeError as e:
+#             return JsonResponse({'status': 'error', 'message': 'Invalid JSON'})
+#     return HttpResponse("OK")
+
+@csrf_exempt
+def generate_all_model_predictions(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            audiofiles = os.listdir("app\static")
+            length = len(audiofiles)
+            progress = TaskProgress.objects.filter(Progressname="PredictDataset").first()
+            progress.Progress = 0
+            progress.save()
+            for i, audio in enumerate(audiofiles):
+                #print(audio)
+                percentage = (i / length) * 100
+                print("Percentage 1: "+ str(percentage))
+
+                if AudioLabels.objects.filter(filename=audio, labeluser ='2').exists():
+                    print("skip")
+                else:
+                    pred = functions.returnPredictions(knnmodel, audio)
+                    AudioLabels.objects.update_or_create(filename=audio,labeluser="2", defaults={'updatedate':timezone.now,'labelregions':json.dumps(pred['regions']),'labelusername':'Model',})
+            #consumer.disconnect(1000)
+                
+        except json.JSONDecodeError as e:
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON'})
     return HttpResponse("OK")
