@@ -274,7 +274,6 @@ def singlefilewave(request, fname):
     for file in audiofiles:
         if AudioLabels.objects.filter(filename=file, labeluser ='2').exists():
             labels = AudioLabels.objects.filter(filename=file, labeluser='2').first()
-            print(labels.lowquality)
             audiopredictions.append({'filename':file,'regions':json.loads(labels.labelregions),'labelusername':'Model','lowquality':labels.lowquality,'unclear':labels.unclear})
         else:
             pred = functions.returnPredictions(knnmodel, file)
@@ -366,7 +365,7 @@ def generate_all_model_predictions(request):
 @csrf_exempt
 def return_progress(request):
     #data = json.loads(request.body)
-    print(request)
+    #print(request)
     process = copy.copy(TaskProgress.objects.filter(progressname="PredictDataset").first())
 
 
