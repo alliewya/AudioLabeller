@@ -1,0 +1,28 @@
+To Do
+
+
+Add playback speed control
+
+
+Increase number on page maybe? Maybe dynamic?
+Colour Spectrograms
+Drop down selector of user for labels
+Better display of marked regions text
+
+Save and next
+Pagination shorten
+
+Home/other navigation links
+
+Clear regions
+Revert to generated
+Normalise for playback
+
+----------
+DONE
+----------
+
+Add unclear flag
+Low Quality / Noisy Flag
+
+List view of yet to be labelled

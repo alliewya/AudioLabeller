@@ -204,6 +204,7 @@ def audiowaves4(request):
 def audiowavespaginated(request):
     audiofiles = os.listdir("app\static")
     paginator = Paginator(audiofiles, 5)
+    paginator.limit_pagination_display = 5
 
     page_number = request.GET.get('page')
 
@@ -226,10 +227,29 @@ def audiowavespaginated(request):
     print(page_obj)
     return render(request, 'waves3.html', {'page_obj': page_obj, 'audiolist': audiopredictions, 'user': request.user})
 
+def audiowavesnewtouser(request, userid):
+    audiofiles = AudioLabels.objects.filter(labeluser='2').exclude(filename__in=AudioLabels.objects.filter(labeluser=userid).values('filename'))
+    paginator = Paginator(audiofiles, 5)
+    paginator.limit_pagination_display = 5
+
+    page_number = request.GET.get('page')
+
+    # get the current page
+    page_obj = paginator.get_page(page_number)
+    print(page_obj)
+    # loop through the items on the current page
+    audiopredictions = []
+    for file in page_obj:
+        audiopredictions.append({'filename':file.filename,'regions':json.loads(file.labelregions),'labelusername': file.labelusername,'lowquality':file.lowquality,'unclear':file.unclear})
+        
+    # do something with the processed data
+    print(page_obj)
+    return render(request, 'waves3.html', {'page_obj': page_obj, 'audiolist': audiopredictions, 'user': request.user})
 
 def audiowavesbyuser(request, userid):
-    audiofiles = AudioLabels.objects.filter(labeluser = userid)
+    audiofiles = AudioLabels.objects.filter(labeluser = userid).order_by("-updatedate")
     paginator = Paginator(audiofiles, 10)
+    paginator.limit_pagination_display = 5
 
     page_number = request.GET.get('page')
 
@@ -242,20 +262,72 @@ def audiowavesbyuser(request, userid):
         print(item)
         reg = item.labelregions
         regions = json.loads(item.labelregions)
-        audiolist.append({'filename':item.filename,'regions':json.loads(item.labelregions),'labelusername':item.labelusername})
+        audiolist.append({'filename':item.filename,'regions':json.loads(item.labelregions),'labelusername':item.labelusername,'lowquality':item.lowquality,'unclear':item.unclear})
     # do something with the processed data
     print(page_obj)
     return render(request, 'waves3.html', {'page_obj': page_obj, 'audiolist': audiolist, 'user': request.user})
 
+def singlefilewave(request, fname):
+    audiofiles = [fname]
+    
+    audiopredictions = []
+    for file in audiofiles:
+        if AudioLabels.objects.filter(filename=file, labeluser ='2').exists():
+            labels = AudioLabels.objects.filter(filename=file, labeluser='2').first()
+            print(labels.lowquality)
+            audiopredictions.append({'filename':file,'regions':json.loads(labels.labelregions),'labelusername':'Model','lowquality':labels.lowquality,'unclear':labels.unclear})
+        else:
+            pred = functions.returnPredictions(knnmodel, file)
+            pred['labelusername'] = "New Model Prediction"
+            audiopredictions.append(pred)
+            AudioLabels.objects.create(filename=file,labeluser="2",labelusername="Model",labelregions=json.dumps(pred['regions']))
+    # do something with the processed data
+    
+    return render(request, 'waves3.html', {'page_obj': audiopredictions, 'audiolist': audiopredictions, 'user': request.user})
+
+
+
+def datasetlist(request):
+    audiofiles = os.listdir("app\static")
+
+    tableobjs = []
+    for file in audiofiles:
+        tablerow = {'id':'','filename':'','labelledby':[],'modelregions':"",'humanregions':[],'variation':''}
+        tablerow['filename'] = file
+        tablerow['lowquality'] = False
+        tablerow['unclear'] = False
+        labels = AudioLabels.objects.filter(filename=file)
+        
+        for label in labels:
+            tablerow['id'] = label.id
+            tablerow['labelledby'].append(label.labelusername)
+            if(label.labelusername == "Model"):
+                tablerow['modelregions'] = (len(json.loads(label.labelregions)))
+            else:
+                tablerow['humanregions'].append(len(json.loads(label.labelregions)))
+            if(label.lowquality):
+                tablerow['lowquality'] = True
+            if(label.unclear):
+                tablerow['unclear'] = True
+            
+        if (bool(tablerow['humanregions'])):
+            if tablerow['modelregions'] != "":
+                tablerow['variation'] = int(tablerow['modelregions'])- int(max(tablerow['humanregions']))
+        tableobjs.append(tablerow)
+        tablejson = json.dumps(tableobjs)
+        
+    
+    return render(request, 'datasetlist.html',{'tableobjs':tableobjs,'tablejson':tablejson})
+
 
 @csrf_exempt
-def save_events_json(request):
+def save_events_json(request, userid = None):
     if request.method == 'POST':
 
         try:
             data = json.loads(request.body)
             for audio in data:
-                AudioLabels.objects.update_or_create(filename=audio['filename'],labeluser=request.user.id, defaults={'updatedate':timezone.now,'labelregions':json.dumps(audio['regions']),'labelusername':request.user.username,})
+                AudioLabels.objects.update_or_create(filename=audio['filename'],labeluser=request.user.id, defaults={'updatedate':timezone.now,'labelregions':json.dumps(audio['regions']),'labelusername':request.user.username,'lowquality':audio['lowquality'],'unclear':audio['unclear']})
             return JsonResponse({'status': 'success'})
         except json.JSONDecodeError as e:
             return JsonResponse({'status': 'error', 'message': 'Invalid JSON'})

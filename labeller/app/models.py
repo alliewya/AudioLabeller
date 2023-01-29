@@ -13,6 +13,8 @@ class AudioLabels(models.Model):
     labeluser = models.CharField(max_length=255, blank=False, default="System")
     labelusername = models.CharField(max_length=255, blank=False, default="")
     labelregions = models.TextField()
+    lowquality = models.BooleanField(blank=False, default=False)
+    unclear = models.BooleanField(blank=False, default=False)
 
 class TaskProgress(models.Model):
     id = models.AutoField(primary_key=True)
