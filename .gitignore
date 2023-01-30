@@ -153,5 +153,5 @@ cython_debug/
 
 
 #Static for audio files for now! Fix this 
-static/
-static/*
+static/audiofiles/
+static/audiofiles/*

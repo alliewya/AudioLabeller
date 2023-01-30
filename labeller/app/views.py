@@ -2,6 +2,7 @@ import os
 
 from django.shortcuts import render
 from django.http import HttpResponse
+from django.conf import settings
 from .apps import AppConfig
 
 from django.http import HttpResponse, JsonResponse
@@ -26,7 +27,7 @@ from django.utils import timezone
 from .models import AudioLabels,TaskProgress
 
 
-with open(os.path.join("app","models","coughknn5mfcc40.bark"), "rb") as f:
+with open(os.path.join(settings.BASE_DIR,"app","models","coughknn5mfcc40.bark"), "rb") as f:
     knnmodel = pickle.load(f)
 
 
@@ -165,7 +166,7 @@ def audiowaves3(request):
 
 def audiowaves4(request):
 
-    audiofiles = os.listdir(os.path.join("app","static"))
+    audiofiles = os.listdir(os.path.join("app","static","audiofiles"))
     audiofiles = audiofiles[:5]
     audiopredictions = []
     for file in audiofiles:
@@ -202,7 +203,7 @@ def audiowaves4(request):
 #     return render(request, 'waves3.html', {'page_obj': page_obj, 'audiolist': audiolist, 'user': request.user})
 
 def audiowavespaginated(request):
-    audiofiles = os.listdir(os.path.join("app","static"))
+    audiofiles = os.listdir(os.path.join("app","static","audiofiles"))
     paginator = Paginator(audiofiles, 5)
     paginator.limit_pagination_display = 5
 
@@ -287,7 +288,7 @@ def singlefilewave(request, fname):
 
 
 def datasetlist(request):
-    audiofiles = os.listdir(os.path.join("app","static"))
+    audiofiles = os.listdir(os.path.join("app","static","audiofiles"))
 
     tableobjs = []
     for file in audiofiles:
@@ -339,7 +340,7 @@ def generate_all_model_predictions(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            audiofiles = os.listdir(os.path.join("app","static"))
+            audiofiles = os.listdir(os.path.join("app","static","audiofiles"))
             length = len(audiofiles)
             progress = TaskProgress.objects.filter(progressname="PredictDataset").first()
             progress.progress = 0
