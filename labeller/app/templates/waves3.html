@@ -268,7 +268,7 @@
       wavesurferobjects.push(wavesurfer{{ count }})
 
       // wavesurfer.load('{% static 'sample.wav' %}');
-      wavesurfer{{ count }}.load('{% static "" %}{{ audiofile.filename }} ');
+      wavesurfer{{ count }}.load('{% static "/audiofiles/" %}{{ audiofile.filename }} ');
       wavesurfer{{ count }}.on('ready', function () {
           wavesurfer{{ count }}.enableDragSelection({});
               //wavesurfer.play();
