@@ -19,5 +19,6 @@ urlpatterns = [
     path('<userid>/api/json', views.save_events_json, name='jsonsave2'),
     path('api/runpredictions', views.generate_all_model_predictions, name='runpredictions'),
     path('api/taskprogress', views.return_progress, name='taskprogress'),
+    path('api/databasebackup',views.DownloadDBView.as_view(), name="dbbackup"),
 ]
 

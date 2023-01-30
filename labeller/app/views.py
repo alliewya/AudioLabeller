@@ -371,3 +371,12 @@ def return_progress(request):
 
 
     return JsonResponse({'progress': process.progress, 'task': process.progressname})
+
+
+class DownloadDBView(APIView):
+    def get(self, request):
+        file_path = os.path.join(settings.BASE_DIR,"db.sqlite3")
+        with open(file_path, 'rb') as fh:
+            response = HttpResponse(fh.read(), content_type="application/vnd.ms-excel")
+            response['Content-Disposition'] = 'inline; filename=' + os.path.basename(file_path)
+            return response    
