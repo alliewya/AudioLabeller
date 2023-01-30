@@ -6,13 +6,14 @@ from django.conf import settings
 from .apps import AppConfig
 
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.views.decorators.csrf import csrf_exempt
 from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import UserCreationForm
 
 
 import json
@@ -40,6 +41,16 @@ def index(request):
 def utilities(request):
     context = {'user':request.user}
     return render(request, "utility.html", context) 
+
+
+def register(request):
+    form = UserCreationForm()
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('login')
+    return render(request, 'registration/registration_form.html', {'form': form})
 
 
 def audiowaves(request):
@@ -351,6 +362,10 @@ def generate_all_model_predictions(request):
                 if not AudioLabels.objects.filter(filename=audio, labeluser ='2').exists():
                     pred = functions.returnPredictions(knnmodel, audio)
                     AudioLabels.objects.update_or_create(filename=audio,labeluser="2", defaults={'updatedate':timezone.now,'labelregions':json.dumps(pred['regions']),'labelusername':'Model',})   
+                elif(data['overwrite']):
+                    pred = functions.returnPredictions(knnmodel, audio)
+                    AudioLabels.objects.update_or_create(filename=audio,labeluser="2", defaults={'updatedate':timezone.now,'labelregions':json.dumps(pred['regions']),'labelusername':'Model',})   
+
 
                 if(i%5 == 0):
                     progress.progress = percentage

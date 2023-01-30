@@ -130,3 +130,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Redirect to home URL after login (Default redirects to /accounts/profile/)
 LOGIN_REDIRECT_URL = '/app/'
+
+
+# Registration Form
+
+REGISTRATION_EMAIL_HTML = False
+REGISTRATION_EMAIL_PLAIN = False
+REGISTRATION_FORM = 'app.forms.RegistrationForm'

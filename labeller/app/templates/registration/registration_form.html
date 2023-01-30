@@ -1,0 +1,24 @@
+{% extends 'base.html' %} {% block title %}Login{% endblock %}
+
+<!---->
+
+{% block content%} {% if form.errors %}
+<p>Error</p>
+{% endif %}
+
+<div class="Row">
+  <div class="col-12">
+    <div class="d-flex justify-content-center align-items-center p-3">
+      <div>
+        <h2>Register</h2>
+        <form method="post">
+          <p class="form-group d-grid">
+            {% csrf_token %} {{ form.as_p }}
+            <input type="submit" class="btn btn-primary" value="Register" />
+          </p>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

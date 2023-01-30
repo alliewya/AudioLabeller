@@ -5,13 +5,15 @@ import os
 
 
 def returnPredictions(classifier, filename):
+    
+
+#FIX OVERLAPPING FRAMES!!
 
     regions = []
-    pat1 = "app/static"
-    filepath = os.path.join(pat1, filename)
+    filepath = os.path.join("app", "static", "audiofiles", filename)
     audio, sr = librosa.load(filepath)
     framelength = sr // 2
-    hop_lenght = sr // 4
+    hop_lenght = sr // 8
 
     # Pad up to nearest second
     audioduration = librosa.get_duration(y=audio, sr=sr)

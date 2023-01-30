@@ -17,12 +17,13 @@ from django.contrib import admin
 from django.urls import path, include,re_path
 from django.shortcuts import redirect
 from asgiref.sync import async_to_sync
-
+from app import views
 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('app/', include('app.urls')),
-    path('/', include('app.urls')),
+    #path('/', include('app.urls')),
+    path('', views.index, name='index'),
     path('accounts/', include('django.contrib.auth.urls')),
 ]
