@@ -66,6 +66,33 @@
       </div>
     </div>
   </div>
+
+  <div class="Row">
+    <div class="col-12">
+      <div class="d-flex justify-content-center align-items-center p-3">
+        <h2>JSON Backups Download</h2>
+      </div>
+      <div class="col-12">
+        <div class="d-flex justify-content-center align-items-center p-3">
+          <a class="btn btn-primary"  role="button" href="/app/api/copylabelsfromexternal/8634982/yes">Sync from local</a><span class="p-3"></span> <a class="btn btn-primary"  role="button" href="/app/api/copylabelsfromexternal/8634982/yes">Sync from remote</a>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="d-flex justify-content-center align-items-center p-3">
+        <ul>
+          {% for backup in backupfiles %}
+        <li>
+          <a role="button" href="/app/backups/{{ backup }}">{{ backup }}</a>
+        </li>
+        {% endfor %}
+        </ul>
+      </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
 </div>
 <script>
   var xhrPMP = new XMLHttpRequest();

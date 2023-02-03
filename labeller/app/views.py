@@ -5,7 +5,7 @@ from django.http import HttpResponse
 from django.conf import settings
 from .apps import AppConfig
 
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, FileResponse
 from django.shortcuts import get_object_or_404, redirect
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -16,11 +16,13 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 
 
+import requests
 import json
 import librosa
 import pickle
 from sklearn.neighbors import KNeighborsClassifier
 import math, time, copy
+from datetime import datetime
 import numpy as np
 from app import functions
 
@@ -39,8 +41,16 @@ def index(request):
 
 
 def utilities(request):
-    context = {'user':request.user}
+    backups = os.listdir(os.path.join("app","backups",))
+    context = {'user':request.user,'backupfiles':backups}
     return render(request, "utility.html", context) 
+
+
+def jsonbackupdownload(request,backup):
+    fpath = os.path.join("app","backups",backup)
+    response = FileResponse(open(fpath, 'rb'))
+    response['Content-Disposition'] = f'attachment; filename="{backup}"'
+    return response
 
 
 def register(request):
@@ -395,3 +405,70 @@ class DownloadDBView(APIView):
             response = HttpResponse(fh.read(), content_type="application/vnd.ms-excel")
             response['Content-Disposition'] = 'inline; filename=' + os.path.basename(file_path)
             return response    
+
+def providelabelsforcopy(request,key):
+    if(key != "8634982"):
+        return HttpResponse("Fail")
+    else:
+        data = AudioLabels.objects.all().values()
+        for item in data:
+            item['updatedate'] = item['updatedate'].astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+            item['labelregions'] = json.loads(item['labelregions'])
+        data = list(data)
+        return JsonResponse(data, safe=False)
+
+def copylabelsfromexternal(request,key,local):
+
+    if(key != "8634982"):
+        return HttpResponse("Fail")
+    else:
+        backupdata = AudioLabels.objects.all().values()
+        backupdata = list(backupdata)
+        fname = "{}.txt".format(datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
+        fpath = os.path.join("app","backups", fname)
+        for item in backupdata:
+            item['updatedate'] = item['updatedate'].astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+            item['labelregions'] = json.loads(item['labelregions'])
+        with open(fpath, 'w') as f:
+            f.write(json.dumps(backupdata))
+
+        if( local == "no"):
+            response = requests.get('http://audio.catbusiness.net/app/api/providelabelsforcopy/8634982')
+            if response.status_code == 200:
+                json_data = response.json()
+                print(json_data[4])
+                created = 0
+                updated = 0
+                for record in json_data:
+                    instance, created = AudioLabels.objects.update_or_create(filename= record['filename'], labeluser = record['labeluser'], defaults={'updatedate':datetime.strptime(record['updatedate'], "%Y-%m-%dT%H:%M:%S.%fZ"),'labelregions':json.dumps(record['labelregions']),'labelusername':record['labelusername'],'lowquality':record['lowquality'],'unclear':record['unclear']})
+                    if (instance):
+                        updated = updated + 1
+                    if (created):
+                        created = created + 1
+                print("Updated {}", updated)
+                print("Created {}", created)
+                return JsonResponse({"Updated":updated,"Created":created})
+            else :
+                return JsonResponse({"Status":"Fail"})
+        elif (local == "yes"):
+            response = requests.get('http://127.0.0.1:8000/app/api/providelabelsforcopy/8634982')
+            if response.status_code == 200:
+                json_data = response.json()
+                print(json_data[4])
+                created = 0
+                updated = 0
+                for record in json_data:
+                    instance, created = AudioLabels.objects.update_or_create(filename= record['filename'], labeluser = record['labeluser'], defaults={'updatedate':datetime.strptime(record['updatedate'], "%Y-%m-%dT%H:%M:%S.%fZ"),'labelregions':json.dumps(record['labelregions']),'labelusername':record['labelusername'],'lowquality':record['lowquality'],'unclear':record['unclear']})
+                    if (instance):
+                        updated = updated + 1
+                    if (created):
+                        created = created + 1
+                print("Updated ", updated)
+                print("Created ", created)
+                return JsonResponse({"Timestamp":timezone.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ"),"Updated":updated,"Created":created})
+            else :
+                return JsonResponse({"Status":"Fail"})
+
+        return JsonResponse(backupdata, safe=False)
+
+
