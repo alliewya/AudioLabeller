@@ -38,6 +38,9 @@ def index(request):
     context = {'user':request.user}
     return render(request, "home.html", context)
 
+def tutorial(request):
+    context = {'user':request.user}
+    return render(request, "tutorial.html", context)
 
 
 def utilities(request):

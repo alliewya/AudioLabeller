@@ -1,0 +1,249 @@
+{% extends 'tutorial.html' %} {% block title %}wavesurfer-single{% endblock %}
+
+<!---->
+
+{% block content%}
+
+<div class="row">
+  <div class="col-12 mt-3 mb-4">
+    <h2 class="float-start">{{ filename }}</h2>
+    <span class="float-end badge rounded-pill text-bg-info">Username</span>
+    <div id="wave-timeline{{count}}"></div>
+    <div id="waveform{{count}}"></div>
+    <div id="wave-spectrogram{{count}}"></div>
+    <div id="wave-minimap{{count}}"></div>
+    <div class="controls">
+      <div class="row mt-2 mb-3">
+        <div class="col-sm-2">
+          <button
+            id="button{{count}}"
+            class="btn btn-primary"
+            data-action="play"
+          >
+            <i class="glyphicon glyphicon-play"></i>
+            Play /
+            <i class="glyphicon glyphicon-pause"></i>
+            Pause
+          </button>
+        </div>
+        <div class="col-sm-5">
+          <div class="form-check">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              value=""
+              id="LowQCheck{{count}}"
+            />
+            <label class="form-check-label" for="LowQCheck{{count}}">
+              Low Quality
+            </label>
+          </div>
+          <div class="form-check">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              value=""
+              id="UnclearCheck{{count}}"
+            />
+            <label class="form-check-label" for="UnclearCheck{{count}}">
+              Unclear
+            </label>
+          </div>
+        </div>
+        <div class="col-sm-1">
+          <i class="glyphicon glyphicon-zoom-in"></i>
+        </div>
+
+        <div class="col-sm-3">
+          <input
+            id="slider{{count}}"
+            data-action="zoom"
+            type="range"
+            min="20"
+            max="1000"
+            value="0"
+            style="width: 100%"
+          />
+        </div>
+
+        <div class="col-sm-1">
+          <i class="glyphicon glyphicon-zoom-out"></i>
+        </div>
+      </div>
+    </div>
+    <div>
+      <p id="regions-text{{count}}"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+  //mediaControls: false,
+  //normalize:true,
+  //backend: 'MediaElement',
+
+  var wavesurfer{{ count }} = WaveSurfer.create({
+      container: '#waveform{{count}}',
+      waveColor: 'violet',
+      progressColor: 'purple',
+      height: 200,
+      plugins: [
+          WaveSurfer.regions.create(),
+          WaveSurfer.minimap.create({
+              container: '#wave-minimap{{count}}',
+              waveColor: '#777',
+              progressColor: '#222',
+              height: 50
+          }),
+          WaveSurfer.spectrogram.create({
+              wavesurfer: wavesurfer{{ count }},
+      container: "#wave-spectrogram{{count}}",
+      labels: true,
+      height: 75,
+          }),
+      WaveSurfer.timeline.create({
+          container: '#wave-timeline{{count}}',
+      }),
+      WaveSurfer.cursor.create({
+          showTime: false,
+          opacity: 1,
+          customShowTimeStyle: {
+              'background-color': '#000',
+              'opacity': '0.5',
+              color: '#fff',
+              padding: '2px',
+              'font-size': '10px'
+          }
+      })
+      ]
+  });
+
+  // Add to list of wavesurefers
+  wavesurferobjects.push(wavesurfer{{ count }})
+
+  // wavesurfer.load('{% static 'sample.wav' %}');
+  wavesurfer{{ count }}.load('{% static "/audiofiles/" %}{{ filename }} ');
+  wavesurfer{{ count }}.on('ready', function () {
+      wavesurfer{{ count }}.enableDragSelection({});
+          //wavesurfer.play();
+          {% for region in audiofile.regions %}
+      wavesurfer{{ count }}.addRegion({ start: {{ region.start }}, end: {{ region.end }}, color: randomColor(0.1) });
+  {% endfor %}
+      saveRegions{{ count }} ();
+  });
+
+  // listen for doubleclick on region, for region delete
+  wavesurfer{{ count }}.on('region-dblclick', function (region) {
+
+      region.remove();
+
+  });
+
+
+  document.querySelector('#slider{{count}}').oninput = function () {
+      wavesurfer{{ count }}.zoom(Number(this.value));
+  };
+
+  // Zoom slider
+  let slider{{ count }} = document.querySelector('#slider{{count}}');
+
+  wavesurfer{{ count }}.zslider = slider{{ count }};
+
+  slider{{ count }}.value = wavesurfer{{ count }}.params.minPxPerSec;
+  slider{{ count }}.min = wavesurfer{{ count }}.params.minPxPerSec;
+  // Allow extreme zoom-in, to see individual samples
+  slider{{ count }}.max = 1000;
+
+  // slider.addEventListener('input', function () {
+  //     wavesurfer{{count}}.zoom(Number(this.value));
+  // });
+  slider{{ count }}.addEventListener('change', function () {
+      wavesurfer{{ count }}.zoom(Number(this.value));
+      //console.log(slider{{count}}.value);
+  });
+
+  // set initial zoom to match slider value
+  wavesurfer{{ count }}.zoom(slider{{ count }}.value);
+
+  // Zoom to location on minimap using scroll wheel
+  document.querySelector('#wave-minimap{{count}}').onwheel = function (event) {
+      event.preventDefault();
+      wavesurfer{{ count }}.pause();
+      slider{{ count }}.value = parseInt(slider{{ count }}.value) + parseInt(event.deltaY);
+      wavesurfer{{ count }}.zoom(Number(slider{{ count }}.value));
+      wavesurfer{{ count }}.seekAndCenter((event.offsetX / document.getElementById('waveform{{count}}').offsetWidth))
+  }
+
+
+  // Play button
+  let button{{ count }} = document.querySelector('#button{{count}}');
+  button{{ count }}.addEventListener('click', wavesurfer{{ count }}.playPause.bind(wavesurfer{{ count }}));
+
+  //Checkboxes
+  lowqualitycheck{{count}} = document.getElementById('LowQCheck{{ count }}');
+  lowqualitycheck{{count}}.checked = {% if audiofile.lowquality %}true{% else %}false{% endif %};
+  lowqualitycheck{{count}}.addEventListener('click',saveRegions{{ count }});
+  unclearcheck{{count}} = document.getElementById('UnclearCheck{{ count }}');
+  unclearcheck{{count}}.checked = {% if audiofile.unclear %}true{% else %}false{% endif %};
+  unclearcheck{{count}}.addEventListener('click',saveRegions{{ count }});
+
+
+  // Region Functions / Events
+
+  //Play on region click
+
+  wavesurfer{{ count }}.on('region-click', function (region, e) {
+      e.stopPropagation();
+      // Play on click, loop on shift click
+      e.shiftKey ? region.playLoop() : console.log("");
+      if(e.ctrlKey){
+        region.remove() ;
+        saveRegions{{ count }}();
+      }
+  });
+
+
+  // Random colour on region creation
+  wavesurfer{{ count }}.on('region-created', function (region, e) {
+      region.color = randomColor(0.1);
+  })
+
+  //unclear: document.getElementById('UnclearCheck').checked,
+  wavesurfer{{ count }}.on('region-updated', saveRegions{{ count }});
+  wavesurfer{{ count }}.on('region-removed', saveRegions{{ count }});
+  function saveRegions{{ count }} () {
+      regions_master[{{ forloop.counter0 }}] =
+  {
+      filename: '{{filename}}',
+      lowquality: lowqualitycheck{{count}}.checked,
+      unclear:  unclearcheck{{count}}.checked,
+          regions: Object.keys(wavesurfer{{ count }}.regions.list).map(function (id) {
+              let region = wavesurfer{{ count }}.regions.list[id];
+  return {
+      start: region.start,
+      end: region.end,
+      //attributes: region.attributes,
+      //data: region.data
+  };
+          })
+      }
+  document.getElementById('json-master').innerHTML = JSON.stringify(regions_master);
+  document.querySelector('#regions-text{{count}}').innerHTML = JSON.stringify(
+      Object.keys(wavesurfer{{ count }}.regions.list).map(function (id) {
+          let region = wavesurfer{{ count }}.regions.list[id];
+  return {
+      start: region.start,
+      end: region.end,
+      //attributes: region.attributes,
+      //data: region.data
+  };
+          })
+      );
+  }
+
+  wavesurfer{{ count }}.on('interaction', function () {
+      activewaveform = wavesurfer{{ count }};
+  })
+</script>
+
+{% endblock %}

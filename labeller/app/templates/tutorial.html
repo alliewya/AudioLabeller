@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>How to - Audio Labelling</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65"
+      crossorigin="anonymous"
+    />
+    {% load static %}
+    <link rel="shortcut icon" href="{% static 'favicon.ico' %}">
+    <!-- <link rel="stylesheet" href="style.css"> -->
+
+    <!--Waveform JS-->
+    <script src="https://unpkg.com/wavesurfer.js@6.4.0/dist/wavesurfer.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.minimap.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.regions.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.spectrogram.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.regions.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.timeline.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.cursor.js"></script>
+
+<script>      /**
+  * Random RGBA color.
+  */
+ function randomColor(alpha) {
+     return (
+         'rgba(' +
+         [
+             ~~(Math.random() * 255),
+             ~~(Math.random() * 255),
+             ~~(Math.random() * 255),
+             alpha || 1
+         ] +
+         ')'
+     );
+ }
+
+
+ //var MinimapPlugin = window.WaveSurfer.minimap;
+ var activewaveform;
+ var regions_master = [];
+ var wavesurferobjects = [];</script>
+
+
+  </head>
+
+  {% if user.is_authenticated %}
+  <body>
+    <div class="container">
+      <div class="row mb-2">
+        <div class="col-6">
+          <h1><a href="/app/" class="text-decoration-none"><- Back to homepage</a></h1>
+        </div>
+        <div class="col-6 d-flex align-items-center justify-content-end" >
+          
+          <div class="text-right"> {% if user.is_authenticated %}
+          <Small>Logged in as: </small>{{ user.username }}
+            {% else %}
+            <a href="/accounts/login">You are not logged in</a>
+          {% endif %}
+        </div></div>
+      </div>
+     
+      <div class="row">
+        <div class="row mt-3">
+          <hr>
+          <h3>How to</h3>
+          <hr>
+        </div>
+      </div>
+      {% with filename="036d875c-d39b-45f1-a17f-7f7badf0aa42.wav" %}
+      {% with count=1 %}
+      <div class="row">
+        <div class="col-12 mt-3 mb-4">
+          <h2 class="float-start">{{ filename }}</h2>
+          <span class="float-end badge rounded-pill text-bg-info">Username</span>
+          <div id="wave-timeline{{count}}"></div>
+          <div id="waveform{{count}}"></div>
+          <div id="wave-spectrogram{{count}}"></div>
+          <div id="wave-minimap{{count}}"></div>
+          <div class="controls">
+            <div class="row mt-2 mb-3">
+              <div class="col-sm-2">
+                <button
+                  id="button{{count}}"
+                  class="btn btn-primary"
+                  data-action="play"
+                >
+                  <i class="glyphicon glyphicon-play"></i>
+                  Play /
+                  <i class="glyphicon glyphicon-pause"></i>
+                  Pause
+                </button>
+              </div>
+              <div class="col-sm-5">
+                <div class="form-check">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    value=""
+                    id="LowQCheck{{count}}"
+                  />
+                  <label class="form-check-label" for="LowQCheck{{count}}">
+                    Low Quality
+                  </label>
+                </div>
+                <div class="form-check">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    value=""
+                    id="UnclearCheck{{count}}"
+                  />
+                  <label class="form-check-label" for="UnclearCheck{{count}}">
+                    Unclear
+                  </label>
+                </div>
+              </div>
+              <div class="col-sm-1">
+                <i class="glyphicon glyphicon-zoom-in"></i>
+              </div>
+      
+              <div class="col-sm-3">
+                <input
+                  id="slider{{count}}"
+                  data-action="zoom"
+                  type="range"
+                  min="20"
+                  max="1000"
+                  value="0"
+                  style="width: 100%"
+                />
+              </div>
+      
+              <div class="col-sm-1">
+                <i class="glyphicon glyphicon-zoom-out"></i>
+              </div>
+            </div>
+          </div>
+          <div>
+            <p id="regions-text{{count}}"></p>
+          </div>
+        </div>
+      </div>
+      
+      <script>
+        //mediaControls: false,
+        //normalize:true,
+        //backend: 'MediaElement',
+      
+        var wavesurfer{{ count }} = WaveSurfer.create({
+            container: '#waveform{{count}}',
+            waveColor: 'violet',
+            progressColor: 'purple',
+            height: 200,
+            plugins: [
+                WaveSurfer.regions.create(),
+                WaveSurfer.minimap.create({
+                    container: '#wave-minimap{{count}}',
+                    waveColor: '#777',
+                    progressColor: '#222',
+                    height: 50
+                }),
+                WaveSurfer.spectrogram.create({
+                    wavesurfer: wavesurfer{{ count }},
+            container: "#wave-spectrogram{{count}}",
+            labels: true,
+            height: 75,
+                }),
+            WaveSurfer.timeline.create({
+                container: '#wave-timeline{{count}}',
+            }),
+            WaveSurfer.cursor.create({
+                showTime: false,
+                opacity: 1,
+                customShowTimeStyle: {
+                    'background-color': '#000',
+                    'opacity': '0.5',
+                    color: '#fff',
+                    padding: '2px',
+                    'font-size': '10px'
+                }
+            })
+            ]
+        });
+      
+        // Add to list of wavesurefers
+        wavesurferobjects.push(wavesurfer{{ count }})
+      
+        // wavesurfer.load('{% static 'sample.wav' %}');
+        wavesurfer{{ count }}.load('{% static "/audiofiles/" %}{{ filename }} ');
+        wavesurfer{{ count }}.on('ready', function () {
+            wavesurfer{{ count }}.enableDragSelection({});
+                //wavesurfer.play();
+                {% for region in audiofile.regions %}
+            wavesurfer{{ count }}.addRegion({ start: {{ region.start }}, end: {{ region.end }}, color: randomColor(0.1) });
+        {% endfor %}
+            saveRegions{{ count }} ();
+        });
+      
+        // listen for doubleclick on region, for region delete
+        wavesurfer{{ count }}.on('region-dblclick', function (region) {
+      
+            region.remove();
+      
+        });
+      
+      
+        document.querySelector('#slider{{count}}').oninput = function () {
+            wavesurfer{{ count }}.zoom(Number(this.value));
+        };
+      
+        // Zoom slider
+        let slider{{ count }} = document.querySelector('#slider{{count}}');
+      
+        wavesurfer{{ count }}.zslider = slider{{ count }};
+      
+        slider{{ count }}.value = wavesurfer{{ count }}.params.minPxPerSec;
+        slider{{ count }}.min = wavesurfer{{ count }}.params.minPxPerSec;
+        // Allow extreme zoom-in, to see individual samples
+        slider{{ count }}.max = 1000;
+      
+        // slider.addEventListener('input', function () {
+        //     wavesurfer{{count}}.zoom(Number(this.value));
+        // });
+        slider{{ count }}.addEventListener('change', function () {
+            wavesurfer{{ count }}.zoom(Number(this.value));
+            //console.log(slider{{count}}.value);
+        });
+      
+        // set initial zoom to match slider value
+        wavesurfer{{ count }}.zoom(slider{{ count }}.value);
+      
+        // Zoom to location on minimap using scroll wheel
+        document.querySelector('#wave-minimap{{count}}').onwheel = function (event) {
+            event.preventDefault();
+            wavesurfer{{ count }}.pause();
+            slider{{ count }}.value = parseInt(slider{{ count }}.value) + parseInt(event.deltaY);
+            wavesurfer{{ count }}.zoom(Number(slider{{ count }}.value));
+            wavesurfer{{ count }}.seekAndCenter((event.offsetX / document.getElementById('waveform{{count}}').offsetWidth))
+        }
+      
+      
+        // Play button
+        let button{{ count }} = document.querySelector('#button{{count}}');
+        button{{ count }}.addEventListener('click', wavesurfer{{ count }}.playPause.bind(wavesurfer{{ count }}));
+      
+        //Checkboxes
+        lowqualitycheck{{count}} = document.getElementById('LowQCheck{{ count }}');
+        lowqualitycheck{{count}}.checked = {% if audiofile.lowquality %}true{% else %}false{% endif %};
+        lowqualitycheck{{count}}.addEventListener('click',saveRegions{{ count }});
+        unclearcheck{{count}} = document.getElementById('UnclearCheck{{ count }}');
+        unclearcheck{{count}}.checked = {% if audiofile.unclear %}true{% else %}false{% endif %};
+        unclearcheck{{count}}.addEventListener('click',saveRegions{{ count }});
+      
+      
+        // Region Functions / Events
+      
+        //Play on region click
+      
+        wavesurfer{{ count }}.on('region-click', function (region, e) {
+            e.stopPropagation();
+            // Play on click, loop on shift click
+            e.shiftKey ? region.playLoop() : console.log("");
+            if(e.ctrlKey){
+              region.remove() ;
+              saveRegions{{ count }}();
+            }
+        });
+      
+      
+        // Random colour on region creation
+        wavesurfer{{ count }}.on('region-created', function (region, e) {
+            region.color = randomColor(0.1);
+        })
+      
+        //unclear: document.getElementById('UnclearCheck').checked,
+        wavesurfer{{ count }}.on('region-updated', saveRegions{{ count }});
+        wavesurfer{{ count }}.on('region-removed', saveRegions{{ count }});
+        function saveRegions{{ count }} () {
+            regions_master[{{ count }}] =
+        {
+            filename: '{{ filename }}',
+            lowquality: lowqualitycheck{{count}}.checked,
+            unclear:  unclearcheck{{count}}.checked,
+                regions: Object.keys(wavesurfer{{ count }}.regions.list).map(function (id) {
+                    let region = wavesurfer{{ count }}.regions.list[id];
+        return {
+            start: region.start,
+            end: region.end,
+            //attributes: region.attributes,
+            //data: region.data
+        };
+                })
+            }
+        document.getElementById('json-master').innerHTML = JSON.stringify(regions_master);
+        document.querySelector('#regions-text{{count}}').innerHTML = JSON.stringify(
+            Object.keys(wavesurfer{{ count }}.regions.list).map(function (id) {
+                let region = wavesurfer{{ count }}.regions.list[id];
+        return {
+            start: region.start,
+            end: region.end,
+            //attributes: region.attributes,
+            //data: region.data
+        };
+                })
+            );
+        }
+      
+        wavesurfer{{ count }}.on('interaction', function () {
+            activewaveform = wavesurfer{{ count }};
+        })
+      </script>
+
+
+      <div class="row">
+        <div class="row mt-3">
+          <hr>
+          <h3>JSON</h3>
+          <div class="col-6 mb-2">
+            <button class="btn btn-primary" type="submit" id="save">Save</button>  
+            <button class="btn btn-secondary m-1" type="button" data-bs-toggle="collapse" data-bs-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample">
+              Show / Hide JSON
+            </button><span> </span
+            ><span id="savestatus"></span>
+          </div>
+          <div class="col-6"><div class="d-grid" style="grid-template-columns: 1fr 1fr">
+            <label for="playbackspeedslider" class="form-label">Playback Speed  <span><small id="playbackspeedlabel"></small><small>x</small></span></label>
+            <button id="resetspeed">Reset</button>
+            <input type="range" class="form-range" min="0.1" max="3" step="0.1" id="playbackspeedslider" style="grid-column:span 2;">
+          </div></div>
+          <div class="collapse" id="collapseExample">
+          <div id="json-master" class="card card-body mb-3"></div>
+          </div>
+          <hr>
+        </div>
+      </div>
+      <div class="row mb-5 mt-5">
+        <div class="col-12">
+          <nav aria-label="Page navigation example">
+            <ul class="pagination pagination-lg justify-content-center">
+                {% if page_obj.has_previous %}
+                  <li class="page-item"><a id="save-prev" class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous"><span aria-hidden="true">&laquo;</span> Save & Previous</a></li>
+                {% endif %}
+
+                
+                {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" id="save-next"  href="?page={{ page_obj.next_page_number }}" aria-label="Next">Save & Next <span aria-hidden="true">&raquo;</span></a></li>
+                {% endif %}
+            </div>
+          </nav>
+        </div>
+        <nav aria-label="Page navigation example">
+            <ul class="pagination justify-content-center">
+              {% if page_obj.has_previous %}
+              <li class="page-item"><a class="page-link" href="?page=1">&laquo; first</a></li>
+                  <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">previous</a></li>
+            
+              {% if page_obj.number > 3 %}
+              <li class="page-item">
+                <a  class="page-link" href="?page=1">1</a>
+              </li>
+                {% if page_obj.number > 4 %}
+                <li class="page-item">
+                  <span>...</span>
+                </li>
+                {% endif %}
+              {% endif %}
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+              {% if page_obj.number == num %}
+              <li class="page-item active">
+                <a class="page-link" href="#">{{ num }}</a>
+              </li>
+              {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+              </li>
+              {% endif %}
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+              {% if page_obj.number < page_obj.paginator.num_pages|add:'-3' %}
+              <li class="page-item">
+              <span>...</span>
+            </li>
+                <li class="page-item">
+                <a  class="page-link" href="?page={{ page_obj.paginator.num_pages }}">{{ page_obj.paginator.num_pages }}</a>
+                </li>
+                {% elif page_obj.number < page_obj.paginator.num_pages|add:'-2' %}
+                <li class="page-item">
+                <a href="?page={{ page_obj.paginator.num_pages }}">{{ page_obj.paginator.num_pages }}</a>
+                </li>
+                {% endif %}
+              <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">next</a></li>
+              <liclass="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">last &raquo;</a></li>
+            {% endif %}
+            </div>
+          </nav>
+      </div>
+    </div>
+    {% endwith %}
+    {% endwith %}
+
+
+
+    <script>
+
+
+
+
+     
+
+      //set playback speed from local storage or set to 1 if not present
+      var playbackspeed;
+      if(localStorage.getItem("playbackspeed")){
+          playbackspeed = parseFloat(localStorage.getItem("playbackspeed")) ;
+          if(isNaN(playbackspeed)){
+            playbackspeed = 1;
+          }}
+      else{
+        localStorage.setItem("playbackspeed","1");
+        playbackspeed = 1;
+      }
+
+      playbackspeedslider = document.getElementById('playbackspeedslider')
+      playbackspeedslider.value = playbackspeed;
+      document.getElementById('playbackspeedlabel').innerText = playbackspeed;
+
+      playbackspeedslider.addEventListener('change', updatePlaybackSpeeds)
+
+      resetspeed = document.getElementById('resetspeed');
+      resetspeed.addEventListener('click', function(){
+        playbackspeedslider.value = 1;
+        updatePlaybackSpeeds();
+      })
+
+      function updatePlaybackSpeeds(){
+      playbackspeed = playbackspeedslider.value;
+      document.getElementById('playbackspeedlabel').innerText = playbackspeed;
+      wavesurferobjects.forEach(surfer => surfer.setPlaybackRate(playbackspeed));
+      localStorage.setItem("playbackspeed",playbackspeed);
+    };
+
+      //playpause with spacebar
+
+      activewaveform = wavesurfer1;
+
+      //playpause with spacebar
+      document.addEventListener('keydown', e => {
+          if (e.code == "Space") {
+              event.preventDefault();
+              activewaveform.playPause()
+          }
+
+          if (e.code == "ArrowLeft") {
+              event.preventDefault();
+              activewaveform.skipBackward();
+          }
+          if (e.code == "ArrowRight") {
+              event.preventDefault();
+              activewaveform.skipForward();
+          }
+          if (e.code == "ArrowUp") {
+              activewaveform.zslider.value = parseInt(activewaveform.zslider.value) + parseInt(100);
+              activewaveform.zoom(Number(activewaveform.zslider.value));
+          }
+          if (e.code == "ArrowDown") {
+              activewaveform.zslider.value -= 100;
+              activewaveform.zoom(Number(activewaveform.zslider.value));
+          }
+      })
+
+
+
+    </script>
+
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4"
+      crossorigin="anonymous"
+    ></script>
+  </body>
+{% else %}
+<body>
+  <div class="Row">
+    <div class="col-12">
+      <div class="d-flex justify-content-center align-items-center p-3">
+        <div>
+          <h2><a href="/accounts/login">Login</a></h2>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="d-flex justify-content-center align-items-center p-3">
+          <div>
+            <h2><a href="/app/register">Register</a></h2>
+          </div>
+        </div>
+    </div>
+  </div>
+  </body>
+{% endif %}
+
+  
+</html>

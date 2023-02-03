@@ -6,6 +6,7 @@ from . import views
 urlpatterns = [
     path('', views.index, name='index'),
     path('utilities',views.utilities,name='utilities'),
+    path('tutorial',views.tutorial,name='tutorial'),
     #path('audio', views.audiowaves, name='audiowaves'),
     #path('audio2', views.audiowaves2, name='audiowaves2'),
     #path('audio3', views.audiowaves3, name='audiowaves3'),
