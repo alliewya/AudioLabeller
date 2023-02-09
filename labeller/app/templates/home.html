@@ -2,23 +2,48 @@
 
 <!---->
 
-{% block content%} {% if user.is_authenticated %} 
+{% block content%} {% if user.is_authenticated %}
 <div class="Row">
-    <div class="col-12">
-      <div class="d-flex justify-content-center align-items-center p-3">
+  <div class="col-12">
+    <div class="d-flex justify-content-center align-items-center p-3">
+      <div class="card p-3">
+        <h2>Audio Labelling</h2>
+        <hr />
         <div>
-          <h2>Audio Labelling</h2>
-            <div><a href="/app/{{user.id }}/newaudio">Label Dataset</div>
-            <div><a href="/app/audiopages">View Whole Dataset</div>
-            <div><a href="/app/{{user.id }}/audiolabelled">View your labels</div>
-            <div><a href="/app/1/audiolabelled">View Niall labels</div>
-            <div><a href="/app/datasetlist">Dataset List</div>
-            <div><a href="/accounts/logout">Logout</div>
-            <div><a href="/app/utilities">Utilities</div>
+          <a href="/app/{{user.id }}/newaudio">Label Dataset</a
+          ><span class="text-right">
+            - Shows the audio that you have not labelled
+          </span>
         </div>
+        <div>
+          <a href="/app/audiopages">View Whole Dataset</a> - Shows all of the
+          audio
+        </div>
+        <hr />
+        <div>
+          <a href="/app/{{user.id }}/audiolabelled">View your labels</a> - Shows
+          the audio which you have labelled, with your labels
+        </div>
+        <hr />
+        <div>
+          <a href="/app/1/audiolabelled">View Niall labels</a> - Shows the audio
+          Niall has labelled, with his labels
+        </div>
+        <div>
+          <a href="/app/{{user.id }}/newaudio/1"
+            >View Unverified Niall labels</a
+          >
+          - Shows the audio Niall has labelled which does not also have a label
+          by you.
+        </div>
+        <hr />
+        <div><a href="/app/datasetlist">Dataset List</a></div>
+        <div><a href="/accounts/logout">Logout</a></div>
+        <div><a href="/app/utilities">Utilities</a></div>
       </div>
     </div>
   </div>
+</div>
 
 {% else %} .
 <div class="Row">
@@ -34,7 +59,8 @@
           <h2><a href="/app/register">Register</a></h2>
         </div>
       </div>
+    </div>
   </div>
-</div>
 
-{% endif %} {% endblock %}
+  {% endif %} {% endblock %}
+</div>

@@ -43,7 +43,7 @@
               <td>{{ row.id }}</td>
               <td><a href="/app/singlewave/{{ row.filename }}" class="text-decoration-none">{{ row.filename }}</a></td>
               <td>
-                {% for name in row.labelledby %}<span class="badge rounded-pill {{ name }}-colour">{{ name }}</span>
+                {% for name in row.labelledby %}<a href="/app/singlewave/{{ row.filename }}/{{ name }}"><span class="badge rounded-pill {{ name }}-colour">{{ name }}</span></a>
                 {% endfor %}
               </td>
               <td>{{ row.modelregions }}</td>

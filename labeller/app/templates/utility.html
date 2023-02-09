@@ -21,14 +21,24 @@
           <h3>Generate Model Predictions</h3>
           <p>Create predictions for all audio files using the stored model</p>
           <div class=" row" >
-          <div class=" col 6"><button
+          <div class=" col 4"><button
             type="button"
             class="btn btn-primary text-center pd-3 "
             id="btn-pred"
           >
             Go!
           </button></div>
-          <div class="form-check col-6">
+          <div class="col-4">  <div class="form-group">
+            <label for="usermodelselect">Model Userid select</label>
+            <select class="form-control" id="usermodelselect">
+              <option>2</option>
+              <option>3</option>
+              <option>4</option>
+              <option>5</option>
+              <option>6</option>
+            </select>
+          </div></div>
+          <div class="form-check col-4">
             <input class="form-check-input" type="checkbox" value="" id="OverwriteExisting">
             <label class="form-check-label" for="OverwriteExisting">
               Overwrite Existing
@@ -97,7 +107,9 @@
 <script>
   var xhrPMP = new XMLHttpRequest();
   function postModelPrediction() {
-    json = { data: "go", overwrite: false}
+    var select1 = document.getElementById("usermodelselect")
+    userselected = select1.options[select1.selectedIndex].value;
+    json = { "data": "go", overwrite: false, "userselected" : userselected}
     if(document.getElementById('OverwriteExisting').checked){
       json['overwrite'] = true;
     }
@@ -115,7 +127,7 @@
       progressbar.setAttribute("width", 0);
       intervalID = setInterval(function () {
         xhrProgress = new XMLHttpRequest();
-        xhrProgress.open("GET", "api/taskprogress", true);
+        xhrProgress.open("POST", "api/taskprogress", true);
         xhrProgress.setRequestHeader("Content-Type", "application/json");
         xhrProgress.onload = function () {
           if (xhrProgress.status === 200) {

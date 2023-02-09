@@ -33,6 +33,18 @@ from .models import AudioLabels,TaskProgress
 with open(os.path.join(settings.BASE_DIR,"app","models","coughknn5mfcc40.bark"), "rb") as f:
     knnmodel = pickle.load(f)
 
+with open(os.path.join(settings.BASE_DIR,"app","models","knn5mfcc40Coughvid.bark"), "rb") as f:
+    knnmodel2 = pickle.load(f)
+
+with open(os.path.join(settings.BASE_DIR,"app","models","knn5mfcc40Coughvid1.bark"), "rb") as f:
+    knnmodel3 = pickle.load(f)
+
+with open(os.path.join(settings.BASE_DIR,"app","models","SVMmfcc40Coughvid.bark"), "rb") as f:
+    svmmodel1 = pickle.load(f)
+
+with open(os.path.join(settings.BASE_DIR,"app","models","SVMmfcc40CoughvidFrames.bark"), "rb") as f:
+    svmmodel2 = pickle.load(f)
+
 
 def index(request):
     context = {'user':request.user}
@@ -271,6 +283,26 @@ def audiowavesnewtouser(request, userid):
     print(page_obj)
     return render(request, 'waves3.html', {'page_obj': page_obj, 'audiolist': audiopredictions, 'user': request.user})
 
+
+def audiowavesnewtouserfromtarget(request, userid, targetuser):
+    audiofiles = AudioLabels.objects.filter(labeluser=targetuser).exclude(filename__in=AudioLabels.objects.filter(labeluser=userid).values('filename'))
+    paginator = Paginator(audiofiles, 5)
+    paginator.limit_pagination_display = 5
+
+    page_number = request.GET.get('page')
+
+    # get the current page
+    page_obj = paginator.get_page(page_number)
+    print(page_obj)
+    # loop through the items on the current page
+    audiopredictions = []
+    for file in page_obj:
+        audiopredictions.append({'filename':file.filename,'regions':json.loads(file.labelregions),'labelusername': file.labelusername,'lowquality':file.lowquality,'unclear':file.unclear})
+        
+    # do something with the processed data
+    print(page_obj)
+    return render(request, 'waves3.html', {'page_obj': page_obj, 'audiolist': audiopredictions, 'user': request.user})
+
 def audiowavesbyuser(request, userid):
     audiofiles = AudioLabels.objects.filter(labeluser = userid).order_by("-updatedate")
     paginator = Paginator(audiofiles, 10)
@@ -309,6 +341,28 @@ def singlefilewave(request, fname):
     
     return render(request, 'waves3.html', {'page_obj': audiopredictions, 'audiolist': audiopredictions, 'user': request.user})
 
+def singlefilewaveuser(request, fname, userid):
+    audiofiles = [fname]
+    
+    audiopredictions = []
+    for file in audiofiles:
+        try:
+            id = int(userid)
+            if AudioLabels.objects.filter(filename=file, labeluser =userid).exists():
+                labels = AudioLabels.objects.filter(filename=file, labeluser=userid).first()
+                audiopredictions.append({'filename':file,'regions':json.loads(labels.labelregions),'labelusername':'','lowquality':labels.lowquality,'unclear':labels.unclear})
+        except:
+            if AudioLabels.objects.filter(filename=file, labelusername =userid).exists():
+                labels = AudioLabels.objects.filter(filename=file, labelusername=userid).first()
+                audiopredictions.append({'filename':file,'regions':json.loads(labels.labelregions),'labelusername':'','lowquality':labels.lowquality,'unclear':labels.unclear})
+        # else:
+        #     pred = functions.returnPredictions(knnmodel, file)
+        #     pred['labelusername'] = "New Model Prediction"
+        #     audiopredictions.append(pred)
+        #     AudioLabels.objects.create(filename=file,labeluser="2",labelusername="Model",labelregions=json.dumps(pred['regions']))
+    # do something with the processed data
+    
+    return render(request, 'waves3.html', {'page_obj': audiopredictions, 'audiolist': audiopredictions, 'user': request.user})
 
 
 def datasetlist(request):
@@ -364,20 +418,30 @@ def generate_all_model_predictions(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
+            selecteduserid = int(data['userselected'])
+            modelperid = [{"id":"2","model":knnmodel,"modelname":"Default Model"},{"id":"3","model":knnmodel2,"modelname":"KNN Model 2"},{"id":"4","model":knnmodel3,"modelname":"KNN Model 3 - Augmented"},{"id":"5","model":svmmodel1,"modelname":"SVM Model 1"},{"id":"6","model":svmmodel2,"modelname":"SVM Model 2 - Augmented"}]
+
+            for x in modelperid:
+                if int(x["id"]) == selecteduserid:
+                    selectedmodel = x["model"]
+                    selectedmodelname = x["modelname"]
+
+            print("Reached1")
             audiofiles = os.listdir(os.path.join("app","static","audiofiles"))
             length = len(audiofiles)
             progress = TaskProgress.objects.filter(progressname="PredictDataset").first()
             progress.progress = 0
             progress.save()
+            print("Reached2")
             for i, audio in enumerate(audiofiles):
                 percentage = (i / length) * 100
 
-                if not AudioLabels.objects.filter(filename=audio, labeluser ='2').exists():
-                    pred = functions.returnPredictions(knnmodel, audio)
-                    AudioLabels.objects.update_or_create(filename=audio,labeluser="2", defaults={'updatedate':timezone.now,'labelregions':json.dumps(pred['regions']),'labelusername':'Model',})   
+                if not AudioLabels.objects.filter(filename=audio, labeluser = selecteduserid).exists():
+                    pred = functions.returnPredictions(selectedmodel, audio)
+                    AudioLabels.objects.update_or_create(filename=audio,labeluser= selecteduserid, defaults={'updatedate':timezone.now,'labelregions':json.dumps(pred['regions']),'labelusername':selectedmodelname,})   
                 elif(data['overwrite']):
-                    pred = functions.returnPredictions(knnmodel, audio)
-                    AudioLabels.objects.update_or_create(filename=audio,labeluser="2", defaults={'updatedate':timezone.now,'labelregions':json.dumps(pred['regions']),'labelusername':'Model',})   
+                    pred = functions.returnPredictions(selectedmodel, audio)
+                    AudioLabels.objects.update_or_create(filename=audio,labeluser= selecteduserid, defaults={'updatedate':timezone.now,'labelregions':json.dumps(pred['regions']),'labelusername':selectedmodelname,})   
 
 
                 if(i%5 == 0):
@@ -394,9 +458,12 @@ def generate_all_model_predictions(request):
 @csrf_exempt
 def return_progress(request):
     #data = json.loads(request.body)
-    #print(request)
-    process = copy.copy(TaskProgress.objects.filter(progressname="PredictDataset").first())
-
+    request_body = request.body
+    a = json.loads(request_body.decode())
+    print(a["processname"])
+    if(a["processname"]== "PredictDataset"):
+        process = copy.copy(TaskProgress.objects.filter(progressname="PredictDataset").first())
+        print(process.progress)
 
     return JsonResponse({'progress': process.progress, 'task': process.progressname})
 
@@ -474,4 +541,8 @@ def copylabelsfromexternal(request,key,local):
 
         return JsonResponse(backupdata, safe=False)
 
-
+def generateDatasetFile(request):
+    
+    status = functions.generate_dataset_file()
+    print(status)
+    return JsonResponse({"Bing":"Bong","Count":status["Number"],"Files": status["Files"]}, safe=False)
