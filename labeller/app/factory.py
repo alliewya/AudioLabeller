@@ -1,12 +1,16 @@
 from abc import ABC, abstractmethod
 import librosa
-from IPython.display import Audio
-import matplotlib.pyplot as plt
+#from IPython.display import Audio
+#import matplotlib.pyplot as plt
 import numpy as np
 import os, pickle
 from sklearn.model_selection import KFold
 from sklearn.neighbors import KNeighborsClassifier
 
+
+# ==================================================
+#             Data & Dataset
+# ==================================================
 
 class AudioSample:
 
@@ -149,6 +153,110 @@ class Dataset:
                 y=samp.audiodata, sr=samp.samplerate, n_mfcc=n_mfcc), axis=0)
             print(self.features.shape())
 
+# =======================================================
+#               Features
+# =======================================================
+
+class Featuresbase():
+    """An abstract base class for all feature extractors"""
+
+    @abstractmethod
+    def features_from_dataset():
+        pass
+
+    @abstractmethod
+    def single_features():
+        pass
+
+    @abstractmethod
+    def single_features_from_audio(audiofilepath):
+        pass
+
+class MFCCFeatures(Featuresbase):
+
+    def features_from_dataset(dataset,**kwargs):
+        features = np.empty((0, kwargs.get('n_mfcc', 20)))
+        if(kwargs.get('delta')==True):
+            for audio in dataset.samples:
+                mfcc = librosa.feature.mfcc(
+                    y=audio.audiodata, sr=audio.samplerate, n_mfcc=kwargs.get('n_mfcc', 20)
+                )
+                mfcc_delta = librosa.feature.delta(mfcc)
+                if(kwargs.get('delta2')==True):
+                    mfcc_delta2 = librosa.feature.delta(mfcc, order=2)
+                    mfcc_delta = np.concatenate((mfcc_delta, mfcc_delta2), axis=1)
+                mfcc = np.concatenate((mfcc, mfcc_delta), axis=1)
+                features = np.concatenate((features, mfcc), axis=0)
+        else:    
+            for audio in dataset.samples:
+                mfcc = librosa.feature.mfcc(
+                    y=audio.audiodata, sr=audio.samplerate, n_mfcc=kwargs.get('n_mfcc', 20)
+                )
+                features = np.concatenate((features, mfcc), axis=0)
+            
+        return features
+
+    def single_features(audiosample, **kwargs):
+        features = np.empty((0, kwargs.get('n_mfcc', 20)))
+        np.append(features, librosa.feature.mfcc(
+                y=audiosample.audiodata, sr=audiosample.samplerate, n_mfcc=kwargs.get('n_mfcc', 20)
+            ), axis=0)
+        return features
+
+    def single_features_from_audio(audiofilepath, **kwargs):
+        audiosample = AudioSample(path=audiofilepath, samplerate=kwargs.get('samplerate',22500))
+        features = np.empty((0, kwargs.get('n_mfcc', 20)))
+        np.append(features, librosa.feature.mfcc(
+                y=audiosample.audiodata, sr=audiosample.samplerate, n_mfcc=kwargs.get('n_mfcc', 20)
+            ), axis=0)
+        return features
+
+class MelSpectrogramFeatures(Featuresbase):
+
+    def features_from_dataset(dataset,**kwargs):
+        features = np.empty((0,128))
+        for audio in dataset.samples:
+            melspec = librosa.feature.melspectrogram(
+                y=audio.audiodata, sr=audio.samplerate, n_fft=kwargs.get('n_fft', 2048),hop_length=kwargs.get('hop_length',512),
+                window=kwargs.get('window','hann'),center=kwargs.get('center',True),pad_mode=kwargs.get('pad_mode','constant'),
+                power=kwargs.get('power',2.0)
+            )
+            features = np.concatenate((features, melspec),axis=0)
+        return features
+
+    def single_features(audiosample, **kwargs):
+        features = np.empty((0,128))
+        melspec = librosa.feature.melspectrogram(
+                y=audiosample.audiodata, sr=audiosample.samplerate, n_fft=kwargs.get('n_fft', 2048),hop_length=kwargs.get('hop_length',512),
+                window=kwargs.get('window','hann'),center=kwargs.get('center',True),pad_mode=kwargs.get('pad_mode','constant'),
+                power=kwargs.get('power',2.0)
+            )
+        features = np.concatenate((features, melspec),axis=0)
+        return features
+
+    def single_features_from_audio(audiofilepath, **kwargs):
+        audiosample = AudioSample(path=audiofilepath, samplerate=kwargs.get('samplerate',22500))
+        features = np.empty((0,128))
+        melspec = librosa.feature.melspectrogram(
+                y=audiosample.audiodata, sr=audiosample.samplerate, n_fft=kwargs.get('n_fft', 2048),hop_length=kwargs.get('hop_length',512),
+                window=kwargs.get('window','hann'),center=kwargs.get('center',True),pad_mode=kwargs.get('pad_mode','constant'),
+                power=kwargs.get('power',2.0)
+            )
+        features = np.concatenate((features, melspec),axis=0)
+        return features
+
+class FeaturesFactory():
+    """Features class that returns a feature extractor"""
+
+    def __init__(self, **kwargs):
+        pass
+
+
+
+# =======================================================
+#               Model Section
+# =======================================================
+
 class Modelbase():
     """An abstract base class for all pipeline models"""
 
@@ -192,3 +300,4 @@ class ModelFactory:
 
 
 
+a = MFCCFeatures().features_from_dataset()
