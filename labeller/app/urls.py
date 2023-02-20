@@ -7,6 +7,7 @@ urlpatterns = [
     path('', views.index, name='index'),
     path('utilities',views.utilities,name='utilities'),
     path('tutorial',views.tutorial,name='tutorial'),
+    path('config',views.model_config, name='modelconfig'),
     #path('audio', views.audiowaves, name='audiowaves'),
     #path('audio2', views.audiowaves2, name='audiowaves2'),
     #path('audio3', views.audiowaves3, name='audiowaves3'),
@@ -26,6 +27,7 @@ urlpatterns = [
     path('api/copylabelsfromexternal/<key>/<local>',views.copylabelsfromexternal, name="copylabels"),
     path('api/providelabelsforcopy/<key>',views.providelabelsforcopy, name="providelabelsforcopy"),
     path('api/generateDatasetFile',views.generateDatasetFile, name="generateDatasetFile"),
+    path('api/config',views.modelfromconfig, name="modelfromconfig"),
     path('backups/<backup>', views.jsonbackupdownload, name="jsonbackupdownload"),
     path('register/', views.register, name='register'),
 ]

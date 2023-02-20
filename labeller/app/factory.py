@@ -27,8 +27,6 @@ class AudioSample:
             self.load(path=path, samplerate=samplerate)
             self.frames = self.get_frames_list()
 
-    def play(self):
-        Audio(data=self.audiodata, rate=self.samplerate)
 
     def load(self, path, samplerate=22050):
         self.audiodata, self.samplerate = librosa.load(path, sr=samplerate)
@@ -245,6 +243,13 @@ class MelSpectrogramFeatures(Featuresbase):
         features = np.concatenate((features, melspec),axis=0)
         return features
 
+    def testfeaturekwargs(self, **kwargs):
+        print("hoh")
+        print(f' Kwargs: {kwargs}' )
+        print(kwargs.get('mel_spec_n_fft'))
+        print(kwargs.get('mel_spec_window'))
+
+
 class FeaturesFactory():
     """Features class that returns a feature extractor"""
 
@@ -300,4 +305,4 @@ class ModelFactory:
 
 
 
-a = MFCCFeatures().features_from_dataset()
+#a = MFCCFeatures().features_from_dataset()

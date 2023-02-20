@@ -25,6 +25,7 @@ import math, time, copy
 from datetime import datetime
 import numpy as np
 from app import functions
+from app import factory
 
 from django.utils import timezone
 from .models import AudioLabels,TaskProgress
@@ -54,12 +55,15 @@ def tutorial(request):
     context = {'user':request.user}
     return render(request, "tutorial.html", context)
 
-
 def utilities(request):
     backups = os.listdir(os.path.join("app","backups",))
     context = {'user':request.user,'backupfiles':backups}
     return render(request, "utility.html", context) 
 
+
+def model_config(request):
+
+    return render(request, 'blocks/config.html')
 
 def jsonbackupdownload(request,backup):
     fpath = os.path.join("app","backups",backup)
@@ -189,6 +193,7 @@ def audiowaves3(request):
     audiofilelist.append(audiofile3)
 
     return render(request, "waves2.html", {'audiofilelist': audiofilelist})
+
 
 
 # def audiowaves4(request):
@@ -546,3 +551,19 @@ def generateDatasetFile(request):
     status = functions.generate_dataset_file()
     print(status)
     return JsonResponse({"Bing":"Bong","Count":status["Number"],"Files": status["Files"]}, safe=False)
+
+
+@csrf_exempt
+def modelfromconfig(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            print(data['mel_spec'])
+            a = factory.MelSpectrogramFeatures()
+            print("joij")
+            a.testfeaturekwargs(**data['mel_spec'])
+        except:
+            print("Fail")
+    print(request)
+    return JsonResponse({'ok':'ok'})
+
