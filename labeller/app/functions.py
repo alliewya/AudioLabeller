@@ -2,9 +2,10 @@ import librosa
 import soundfile as sf
 import math
 from pathlib import Path
-import os
+import os, pickle, datetime
 from .models import AudioLabels,TaskProgress
 import json
+from app import factory
 
 def returnPredictions(classifier, filename):
 
@@ -86,7 +87,7 @@ def generate_dataset_file():
             #print(type(json.loads(a.labelregions)))
             if json.loads(a.labelregions):
                 audio, sr = librosa.load(os.path.join("app", "static", "audiofiles", file), sr=22050)
-                file_length = librosa.get_duration(audio)
+                file_length = librosa.get_duration(y=audio)
                 not_coughs = []
                 sorted_regions = sorted(json.loads(a.labelregions), key=lambda x: x['start'])
                 not_coughs.append({"start": 0, "end": sorted_regions[0]["start"]})
@@ -99,11 +100,11 @@ def generate_dataset_file():
                 sorted_regions_samples = list(sorted_regions)
                 for regions in sorted_regions_samples:
                     for key in regions:
-                        regions[key] = librosa.time_to_samples(regions[key], sr)
+                        regions[key] = librosa.time_to_samples(regions[key], sr=sr)
                 sorted_not_cough = list(not_coughs)
                 for regions in sorted_not_cough:
                     for key in regions:
-                        regions[key] = librosa.time_to_samples(regions[key], sr)
+                        regions[key] = librosa.time_to_samples(regions[key], sr=sr)
                 
                 #Remove shorter than 0.5 seconds - only for not coughs!
                 #sorted_regions_samples = [region for region in sorted_regions_samples if region["end"] - region["start"] >= 0.5 * sr]
@@ -127,4 +128,27 @@ def generate_dataset_file():
     print(cough)
     print(not_cough)
     status = {"Number": len(list1), "Files": list1, }
+
+    cough = factory.Dataset(path1=os.path.join("app", "static", "dataset1", "cough"), load=True, samplerate=22500)
+    cough.set_label("1")
+    print(str(len(cough.samples))+" Cough Samples")
+    print(str(len(cough.labels))+" Cough Labels")
+    notcough = factory.Dataset(path1=os.path.join("app", "static", "dataset1", "notcough"),load=True, samplerate=22500)
+    notcough.set_label("0")
+    print(str(len(notcough.samples))+" Not Cough Samples")
+    print(str(len(notcough.labels))+" Not Cough Labels")  
+
+    combineddataset = cough.combine_dataset(notcough)
+    print(str(len(combineddataset.samples))+" Combined Samples")
+    print(str(len(combineddataset.labels))+" Combined Labels")
+
+    try:
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        fname = timestamp + "-ds.pickle"
+        with open(os.path.join("app", "static", "datasetpickles", fname ), "wb") as f:
+            pickle.dump(combineddataset, f)
+        print("Pickled")
+    except:
+        print("Pickle failed")
+    
     return status

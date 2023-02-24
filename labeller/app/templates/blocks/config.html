@@ -1,0 +1,338 @@
+{% extends 'base2.html' %} {% block title %}Configurator{% endblock %}
+
+<!---->
+
+{% block content%}
+
+
+<div class="container">
+    <div class="row mb-3 mt-2">
+        <div class="col">
+            <h1>Configure Model</h1>
+        </div>
+    </div>
+    <div class="row  mb-3 mt-2">
+        <div class="col">
+            <h2>Dataset</h2>
+              <div>
+                <div class="container mt-2 mb-2">
+                    <div class="row">
+                        <label for="colFormLabel" class="col-sm-3 col-form-label">Select Dataset Pickle</label>
+                        <div class=" col-sm-9 ">
+                            <select class="form-select" id="dataset-pickle" aria-label="Default select example">
+                                {% for file in datasetpickleslist %}
+                                <option selected value="{{ file }}">{{ file }}</option>
+                                {% endfor %}
+                              </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <ul class="nav nav-tabs" id="myTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link active" id="framing-tab" data-bs-toggle="tab" data-bs-target="#framing-tab-pane" type="button" role="tab" aria-controls="framing-tab-pane" aria-selected="true">Framing</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="fixed-tab" data-bs-toggle="tab" data-bs-target="#fixed-tab-pane" type="button" role="tab" aria-controls="fixed-tab-pane" aria-selected="false">Fixed Length</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="contact-tab" data-bs-toggle="tab" data-bs-target="#contact-tab-pane" type="button" role="tab" aria-controls="contact-tab-pane" aria-selected="false">Contact</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="disabled-tab" data-bs-toggle="tab" data-bs-target="#disabled-tab-pane" type="button" role="tab" aria-controls="disabled-tab-pane" aria-selected="false" disabled>Disabled</button>
+                </li>
+              </ul>
+              <div class="tab-content" id="myTabContent">
+                <div class="tab-pane fade show active" id="framing-tab-pane" role="tabpanel" aria-labelledby="framing-tab" tabindex="0">
+                    <div class="container mt-2 mb-2">
+                        <div class="row">
+                            <label for="colFormLabel" class="col-sm-3 col-form-label">Enable Framing</label>
+                            <div class=" col-sm-9 ">
+                                <input class="form-check-input" type="checkbox" aria-label="framing_enable"  id="framing_enable" aria-describedby="framing_enable">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <label for="colFormLabel" class="col-sm-3 col-form-label">Frame Size</label>
+                            <div class=" col-sm-9 ">
+                                <input type="text" class="form-control" id="frame_size" aria-describedby="frame_size" value="11250">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <label for="colFormLabel" class="col-sm-3 col-form-label">Hop Length</label>
+                            <div class=" col-sm-9 ">
+                                <input type="text" class="form-control" id="frame_hop_length" aria-describedby="frame_hop_length" value="5625">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="fixed-tab-pane" role="tabpanel" aria-labelledby="fixed-tab" tabindex="0">
+                    <div class="container mt-2 mb-2">
+                        <div class="row">
+                            <label for="colFormLabel" class="col-sm-3 col-form-label">Enable Fixed Length</label>
+                            <div class=" col-sm-9 ">
+                                <input class="form-check-input" type="checkbox" aria-label="fixed_enable"  id="fixed_enable" aria-describedby="fixed_enable">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <label for="colFormLabel" class="col-sm-3 col-form-label">Fixed Length In Seconds</label>
+                            <div class=" col-sm-9 ">
+                                <input type="text" class="form-control" id="fixed_size" aria-describedby="fixed_size" value="1">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+        </div>
+    </div>
+   <div class="row  mb-3 mt-2">
+        <div class="col">
+            <h2>Features</h2>
+            <ul class="nav nav-tabs" id="myTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link active" id="mfcc-tab" data-bs-toggle="tab" data-bs-target="#mfcc-tab-pane" type="button" role="tab" aria-controls="mfcc-tab-pane" aria-selected="true">MFCC</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="mel-spec-tab" data-bs-toggle="tab" data-bs-target="#mel-spec-tab-pane" type="button" role="tab" aria-controls="mel-spec-tab-pane" aria-selected="false">Mel Spectrogram</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="contact-tab" data-bs-toggle="tab" data-bs-target="#contact-tab-pane" type="button" role="tab" aria-controls="contact-tab-pane" aria-selected="false">Contact</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="disabled-tab" data-bs-toggle="tab" data-bs-target="#disabled-tab-pane" type="button" role="tab" aria-controls="disabled-tab-pane" aria-selected="false" disabled>Disabled</button>
+                </li>
+              </ul>
+              <div class="tab-content" id="myTabContent">
+                <div class="tab-pane fade show active" id="mfcc-tab-pane" role="tabpanel" aria-labelledby="mfcc-tab" tabindex="0">
+                    <div class="container mt-2 mb-2">
+                        <div class="row">
+                            <label for="colFormLabel" class="col-sm-3 col-form-label">Enable MFCC</label>
+                            <div class=" col-sm-9 ">
+                                <input class="form-check-input" type="checkbox" aria-label="mfcc_enable"  id="mfcc_enable" aria-describedby="mfcc_enable">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <label for="colFormLabel" class="col-sm-3 col-form-label">Number of MFCC</label>
+                            <div class=" col-sm-9 ">
+                                <input type="text" class="form-control" id="mfcc_n_mfcc" aria-describedby="mfcc_n_mfcc" value="20">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="mel-spec-tab-pane" role="tabpanel" aria-labelledby="mel-spec-tab" tabindex="0">
+                    <div class="container mt-2 mb-2">
+                        <div class="row">
+                            <label for="colFormLabel" class="col-sm-3 col-form-label">Enable Mel Spectrogram</label>
+                            <div class=" col-sm-9 ">
+                                <input class="form-check-input" type="checkbox" aria-label="mel_spec_enable"  id="mel_spec_enable" aria-describedby="mel_spec_enable">
+                            </div>
+                        </div>
+                    <div class="row">
+                        <label for="colFormLabel" class="col-sm-3 col-form-label">Number of FFT</label>
+                        <div class=" col-sm-9 ">
+                            <input type="text" class="form-control" id="mel_spec_n_fft" aria-describedby="mel_spec_n_fft" value="2048">
+                        </div>
+                    </div>
+                      <div class="row">
+                        <label for="colFormLabel" class="col-sm-3 col-form-label">Hop Length</label>
+                        <div class=" col-sm-9 ">
+                            <input type="text" class="form-control" id="mel_spec_hop_length" aria-describedby="mel_spec_hop_length" value="512">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <label for="colFormLabel" class="col-sm-3 col-form-label">Window</label>
+                        <div class=" col-sm-9 ">
+                            <select class="form-select" aria-label="mel_spec_window"  id="mel_spec_window" aria-describedby="mel_spec_window">
+                                <option selected value="hann">hann</option>
+                                <option value="hamming">hamming</option>
+                                <option value="kaiser">kaiser</option>
+                                <option value="boxcar">boxcar</option>
+                              </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <label for="colFormLabel" class="col-sm-3 col-form-label">Center</label>
+                        <div class=" col-sm-9 ">
+                            <input class="form-check-input" type="checkbox" aria-label="mel_spec_center"  id="mel_spec_center" aria-describedby="mel_spec_center" checked>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <label for="colFormLabel" class="col-sm-3 col-form-label">Power</label>
+                        <div class=" col-sm-9 ">
+                            <select class="form-select" aria-label="mel_spec_power"  id="mel_spec_power" aria-describedby="mel_spec_power">
+                                <option selected value="1">1 - Energy</option>
+                                <option value="2">2 - Power</option>
+                              </select>
+                        </div>
+                    </div>
+                        
+                      </div>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="contact-tab-pane" role="tabpanel" aria-labelledby="contact-tab" tabindex="0">...</div>
+                <div class="tab-pane fade" id="disabled-tab-pane" role="tabpanel" aria-labelledby="disabled-tab" tabindex="0">...</div>
+              </div>
+        </div>
+   
+   <div class="row">
+    <div class="col">
+        <h2>Classifier</h2>
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="knn-tab" data-bs-toggle="tab" data-bs-target="#knn-tab-pane" type="button" role="tab" aria-controls="knn-tab-pane" aria-selected="true">KNN</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="svm-tab" data-bs-toggle="tab" data-bs-target="#svm-tab-pane" type="button" role="tab" aria-controls="svm-tab-pane" aria-selected="false">SVM</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="contact-tab" data-bs-toggle="tab" data-bs-target="#contact-tab-pane" type="button" role="tab" aria-controls="contact-tab-pane" aria-selected="false">Contact</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="disabled-tab" data-bs-toggle="tab" data-bs-target="#disabled-tab-pane" type="button" role="tab" aria-controls="disabled-tab-pane" aria-selected="false" disabled>Disabled</button>
+            </li>
+          </ul>
+          <div class="tab-content" id="myTabContent">
+            <div class="tab-pane fade show active" id="knn-tab-pane" role="tabpanel" aria-labelledby="knn-tab" tabindex="0">
+                <div class="container mt-2 mb-2">
+                    <div class="row">
+                        <label for="colFormLabel" class="col-sm-3 col-form-label">Enable KNN</label>
+                        <div class=" col-sm-9 ">
+                            <input class="form-check-input" type="checkbox" aria-label="knn_enable"  id="knn_enable" aria-describedby="knn_enable">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <label for="colFormLabel" class="col-sm-3 col-form-label">Number of K</label>
+                        <div class=" col-sm-9 ">
+                            <input type="text" class="form-control" id="knn_k" aria-describedby="knn_k" value="5">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="svm-tab-pane" role="tabpanel" aria-labelledby="svm-tab-pane" tabindex="0">
+                <div class="container mt-2 mb-2">
+                    <div class="row">
+                        <label for="colFormLabel" class="col-sm-3 col-form-label">Enable Mel Spectrogram</label>
+                        <div class=" col-sm-9 ">
+                            <input class="form-check-input" type="checkbox" aria-label="mel_spec_enable"  id="mel_spec_enable" aria-describedby="mel_spec_enable">
+                        </div>
+                    </div>
+                <div class="row">
+                    <label for="colFormLabel" class="col-sm-3 col-form-label">Number of FFT</label>
+                    <div class=" col-sm-9 ">
+                        <input type="text" class="form-control" id="mel_spec_n_fft" aria-describedby="mel_spec_n_fft" value="2048">
+                    </div>
+                </div>
+                  <div class="row">
+                    <label for="colFormLabel" class="col-sm-3 col-form-label">Hop Length</label>
+                    <div class=" col-sm-9 ">
+                        <input type="text" class="form-control" id="mel_spec_hop_length" aria-describedby="mel_spec_hop_length" value="512">
+                    </div>
+                </div>
+                <div class="row">
+                    <label for="colFormLabel" class="col-sm-3 col-form-label">Window</label>
+                    <div class=" col-sm-9 ">
+                        <select class="form-select" aria-label="mel_spec_window"  id="mel_spec_window" aria-describedby="mel_spec_window">
+                            <option selected value="hann">hann</option>
+                            <option value="hamming">hamming</option>
+                            <option value="kaiser">kaiser</option>
+                            <option value="boxcar">boxcar</option>
+                          </select>
+                    </div>
+                </div>
+                <div class="row">
+                    <label for="colFormLabel" class="col-sm-3 col-form-label">Center</label>
+                    <div class=" col-sm-9 ">
+                        <input class="form-check-input" type="checkbox" aria-label="mel_spec_center"  id="mel_spec_center" aria-describedby="mel_spec_center" checked>
+                    </div>
+                </div>
+                <div class="row">
+                    <label for="colFormLabel" class="col-sm-3 col-form-label">Power</label>
+                    <div class=" col-sm-9 ">
+                        <select class="form-select" aria-label="mel_spec_power"  id="mel_spec_power" aria-describedby="mel_spec_power">
+                            <option selected value="1">1 - Energy</option>
+                            <option value="2">2 - Power</option>
+                          </select>
+                    </div>
+                </div>
+                    
+                  </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="contact-tab-pane" role="tabpanel" aria-labelledby="contact-tab" tabindex="0">...</div>
+            <div class="tab-pane fade" id="disabled-tab-pane" role="tabpanel" aria-labelledby="disabled-tab" tabindex="0">...</div>
+          </div>
+    </div>
+   </div>
+   <div class="row">
+        <button id="submit-config" class="btn btn-primary">Submit Configuration</button>
+   </row>
+</div> 
+</div>
+
+
+<script>
+    async function postConfig(config) {
+        const response = await fetch('/app/api/config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(config)
+        });
+    
+        if (!response.ok) {
+            throw new Error(`Failed to post config: ${response.statusText}`);
+        }
+    
+        const result = await response.json();
+        return result;
+    }
+
+    function getValues() {
+        var config = {};
+        config.dataset = {};
+        config.mfcc = {};
+        config.mel_spec = {};
+
+        // Dataset values
+        var select = document.getElementById("dataset-pickle");
+        config.datasetpickle = select.value;
+
+        // Dataset Entries lenght adjust
+        config.dataset.frame_enable = document.querySelector("#framing_enable").checked;
+        config.dataset.frame_frame_size = document.querySelector("#frame_size").value;
+        config.dataset.frame_hop_length = document.querySelector("#frame_hop_length").value;
+        config.dataset.fixed_enable = document.querySelector("#fixed_enable").checked;
+        config.dataset.fixed_length = document.querySelector("#fixed_size").value;
+      
+        // MFCC tab values
+        config.mfcc.mfcc_enable = document.querySelector("#mfcc_enable").checked;
+        config.mfcc.n_mfcc = document.querySelector("#mfcc_n_mfcc").value;
+      
+        // Mel Spectrogram tab values
+        config.mel_spec.mel_spec_enable = document.querySelector("#mel_spec_enable").checked;
+        config.mel_spec.mel_spec_n_fft = document.querySelector("#mel_spec_n_fft").value;
+        config.mel_spec.mel_spec_hop_length = document.querySelector("#mel_spec_hop_length").value;
+        config.mel_spec.mel_spec_window = document.querySelector("#mel_spec_window").value;
+        config.mel_spec.mel_spec_center = document.querySelector("#mel_spec_center").checked;
+        config.mel_spec.mel_spec_power = document.querySelector("#mel_spec_power").value;
+      
+        return config;
+      }
+
+
+    document.getElementById("submit-config").addEventListener("click", function(){
+        
+    postConfig( getValues())
+    .then(result => {
+    console.log('Success:', result);
+    })
+    .catch(error => {
+    console.error('Error:', error);
+    }
+);
+      });
+</script>
+
+
+{% endblock %}
