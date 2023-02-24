@@ -62,8 +62,8 @@ def utilities(request):
 
 
 def model_config(request):
-
-    return render(request, 'blocks/config.html')
+    datasetpickleslist = os.listdir(os.path.join("app","static","datasetpickles"))
+    return render(request, 'blocks/config.html', {'datasetpickleslist':datasetpickleslist})
 
 def jsonbackupdownload(request,backup):
     fpath = os.path.join("app","backups",backup)
@@ -558,10 +558,34 @@ def modelfromconfig(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
+            print(data)
             print(data['mel_spec'])
             a = factory.MelSpectrogramFeatures()
-            print("joij")
             a.testfeaturekwargs(**data['mel_spec'])
+            print("a")
+            print(data['mfcc'])
+            b = factory.MFCCFeatures(**data['mfcc'])
+            print("b")
+            #b.test()
+            try:
+                path = os.path.join("app", "static", "datasetpickles", data['datasetpickle'] )
+                with open(path, 'rb') as f:
+                    dataset = pickle.load(f)
+                print("Pickleload")
+                print(len(dataset.samples))
+                print(len(dataset.labels))
+                if(bool(data['dataset']['fixed_enable'])):
+                    dataset.fix_length(length=data['dataset']['fixed_length'])
+                    print("fix2")
+                try:
+                    mfc = b.features_from_dataset(dataset=dataset)
+                    print("whoop")
+                    print(type(mfc))
+                    print(len(mfc))
+                except:
+                    print("Features Fail")
+            except:
+                print("Dataset pickle fail")
         except:
             print("Fail")
     print(request)

@@ -115,14 +115,7 @@ class Dataset:
                 count = count + 1
                 if(count % 20 == 0):
                     print(remain-count)
-        if(config["pickled"]["enabled"]==True):
-            with open(config["pickeld"]["filename"], "rb") as f:
-                datasetemp = pickle.load(f)
-                self.samplerate = datasetemp.samplerate
-                self.labels = datasetemp.labels
-                self.samples = datasetemp.samples
-                self.segmented = datasetemp.segmented
-                self.features = datasetemp.features
+
                 
 
     def segment(self, threshold=16):
@@ -141,6 +134,16 @@ class Dataset:
             samp.label = samp.sourcefile
             self.labels.append(samp.sourcefile)
 
+    def set_label(self,label):
+        self.labels = [label for samp in self.samples]
+
+    def combine_dataset(self, dataset):
+        dataset2 = self
+        dataset2.path = ""
+        dataset2.labels.extend(dataset.labels)
+        dataset2.samples.extend(dataset.samples)
+        return dataset2
+
     def k_fold(self, n_k = 5):
         self.crossfolds = KFold(n_splits=n_k, shuffle=True, random_state=5)
 
@@ -150,6 +153,18 @@ class Dataset:
             np.append(self.features, librosa.feature.mfcc(
                 y=samp.audiodata, sr=samp.samplerate, n_mfcc=n_mfcc), axis=0)
             print(self.features.shape())
+    
+    def create_frames(self, frame_size, hop_length):
+        self.frames = []
+    
+    def fix_length(self, length):
+        samples_new = []
+        for audio in self.samples:
+            t_len = float(length)*int(self.samplerate)
+            audio.audiodata = librosa.util.fix_length(audio.audiodata, size=int(t_len))
+            samples_new.append(audio)
+        self.samples = samples_new
+
 
 # =======================================================
 #               Features
@@ -172,15 +187,40 @@ class Featuresbase():
 
 class MFCCFeatures(Featuresbase):
 
-    def features_from_dataset(dataset,**kwargs):
-        features = np.empty((0, kwargs.get('n_mfcc', 20)))
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+        if(self.kwargs.get('n_mfcc')):
+            self.kwargs
+
+
+    def features_from_dataset2(self,dataset, **kwargs):
+        sr = 22500
+        framelength = sr // 2
+        hop_lenght = sr // 4
+        
+        frames = librosa.util.frame(dataset.samples[0], frame_length=framelength, hop_length=hop_lenght)
+        features = np.empty
+
+
+    def features_from_dataset(self, dataset,**kwargs):
+
+
+        #FRAMES!!!
+
+
+        n_mfcc = int(self.kwargs.get('n_mfcc',20))
+        features = []
+        #features = np.empty((0, n_mfcc))
         if(kwargs.get('delta')==True):
+
+            #fix delta!!
+
             for audio in dataset.samples:
                 mfcc = librosa.feature.mfcc(
-                    y=audio.audiodata, sr=audio.samplerate, n_mfcc=kwargs.get('n_mfcc', 20)
+                    y=audio.audiodata, sr=audio.samplerate, n_mfcc=n_mfcc
                 )
                 mfcc_delta = librosa.feature.delta(mfcc)
-                if(kwargs.get('delta2')==True):
+                if(self.kwargs.get('delta2')==True):
                     mfcc_delta2 = librosa.feature.delta(mfcc, order=2)
                     mfcc_delta = np.concatenate((mfcc_delta, mfcc_delta2), axis=1)
                 mfcc = np.concatenate((mfcc, mfcc_delta), axis=1)
@@ -188,57 +228,71 @@ class MFCCFeatures(Featuresbase):
         else:    
             for audio in dataset.samples:
                 mfcc = librosa.feature.mfcc(
-                    y=audio.audiodata, sr=audio.samplerate, n_mfcc=kwargs.get('n_mfcc', 20)
+                    y=audio.audiodata, sr=audio.samplerate, n_mfcc=n_mfcc
                 )
-                features = np.concatenate((features, mfcc), axis=0)
-            
+                mfcc = mfcc.ravel()
+                features.append(mfcc)   
         return features
 
-    def single_features(audiosample, **kwargs):
-        features = np.empty((0, kwargs.get('n_mfcc', 20)))
+    def single_features(self, audiosample, **kwargs):
+        n_mfcc = int(self.kwargs.get('n_mfcc',20))
+        features = np.empty((0, n_mfcc))
         np.append(features, librosa.feature.mfcc(
-                y=audiosample.audiodata, sr=audiosample.samplerate, n_mfcc=kwargs.get('n_mfcc', 20)
+                y=audiosample.audiodata, sr=audiosample.samplerate, n_mfcc=n_mfcc
             ), axis=0)
         return features
 
-    def single_features_from_audio(audiofilepath, **kwargs):
-        audiosample = AudioSample(path=audiofilepath, samplerate=kwargs.get('samplerate',22500))
+    def single_features_from_audio(self, audiofilepath, **kwargs):
+        audiosample = AudioSample(path=audiofilepath, samplerate=self.kwargs.get('samplerate',22500))
         features = np.empty((0, kwargs.get('n_mfcc', 20)))
         np.append(features, librosa.feature.mfcc(
-                y=audiosample.audiodata, sr=audiosample.samplerate, n_mfcc=kwargs.get('n_mfcc', 20)
+                y=audiosample.audiodata, sr=audiosample.samplerate, n_mfcc=n_mfcc
             ), axis=0)
         return features
 
 class MelSpectrogramFeatures(Featuresbase):
 
-    def features_from_dataset(dataset,**kwargs):
-        features = np.empty((0,128))
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+
+
+    def features_from_dataset(self, dataset,**kwargs):
+        #features = np.empty((0,128))
+        features = []
+        n_fft = int(self.kwargs.get('n_fft', 2048))
+        hop_length = int(self.kwargs.get('hop_length',512))
+        window=self.kwargs.get('window','hann')
+        center=bool(self.kwargs.get('center',True))
+        pad_mode=self.kwargs.get('pad_mode','constant')
+        power=float(self.kwargs.get('power',2.0))
+
         for audio in dataset.samples:
             melspec = librosa.feature.melspectrogram(
-                y=audio.audiodata, sr=audio.samplerate, n_fft=kwargs.get('n_fft', 2048),hop_length=kwargs.get('hop_length',512),
-                window=kwargs.get('window','hann'),center=kwargs.get('center',True),pad_mode=kwargs.get('pad_mode','constant'),
-                power=kwargs.get('power',2.0)
+                y=audio.audiodata, sr=audio.samplerate, n_fft=n_fft,hop_length=hop_length,
+                window=window,center=center,pad_mode=pad_mode,
+                power=power
             )
-            features = np.concatenate((features, melspec),axis=0)
+            features.append(melspec)
+            #features = np.concatenate((features, melspec),axis=0)
         return features
 
-    def single_features(audiosample, **kwargs):
+    def single_features(self, audiosample, **kwargs):
         features = np.empty((0,128))
         melspec = librosa.feature.melspectrogram(
-                y=audiosample.audiodata, sr=audiosample.samplerate, n_fft=kwargs.get('n_fft', 2048),hop_length=kwargs.get('hop_length',512),
-                window=kwargs.get('window','hann'),center=kwargs.get('center',True),pad_mode=kwargs.get('pad_mode','constant'),
-                power=kwargs.get('power',2.0)
+                y=audiosample.audiodata, sr=audiosample.samplerate, n_fft=self.kwargs.get('n_fft', 2048),hop_length=self.kwargs.get('hop_length',512),
+                window=self.kwargs.get('window','hann'),center=self.kwargs.get('center',True),pad_mode=self.kwargs.get('pad_mode','constant'),
+                power=self.kwargs.get('power',2.0)
             )
         features = np.concatenate((features, melspec),axis=0)
         return features
 
-    def single_features_from_audio(audiofilepath, **kwargs):
+    def single_features_from_audio(self, audiofilepath, **kwargs):
         audiosample = AudioSample(path=audiofilepath, samplerate=kwargs.get('samplerate',22500))
         features = np.empty((0,128))
         melspec = librosa.feature.melspectrogram(
-                y=audiosample.audiodata, sr=audiosample.samplerate, n_fft=kwargs.get('n_fft', 2048),hop_length=kwargs.get('hop_length',512),
-                window=kwargs.get('window','hann'),center=kwargs.get('center',True),pad_mode=kwargs.get('pad_mode','constant'),
-                power=kwargs.get('power',2.0)
+                y=audiosample.audiodata, sr=audiosample.samplerate, n_fft=self.kwargs.get('n_fft', 2048),hop_length=self.kwargs.get('hop_length',512),
+                window=self.kwargs.get('window','hann'),center=self.kwargs.get('center',True),pad_mode=self.kwargs.get('pad_mode','constant'),
+                power=self.kwargs.get('power',2.0)
             )
         features = np.concatenate((features, melspec),axis=0)
         return features
