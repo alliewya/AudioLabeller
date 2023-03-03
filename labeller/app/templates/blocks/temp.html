@@ -1,0 +1,53 @@
+<div class="row">
+    <label for="colFormLabel" class="col-sm-3 col-form-label" data-toggle="tooltip" data-placement="top" title="Number of Mel-frequency bins">n_mfcc</label>
+    <div class="col-sm-9">
+        <input type="text" class="form-control" id="mfcc_n_mfcc" aria-describedby="mfcc_n_mfcc" value="20">
+    </div>
+</div>
+<div class="row">
+    <label for="colFormLabel" class="col-sm-3 col-form-label" data-toggle="tooltip" data-placement="top" title="If True, the signal y is padded so that frame t is centered at y[t * hop_length]. - If False, then frame t begins at y[t * hop_length]">center</label>
+    <div class="col-sm-9">
+        <input type="text" class="form-control" id="mfcc_center" aria-describedby="mfcc_center" value="True">
+    </div>
+</div>
+<div class="row">
+    <label for="colFormLabel" class="col-sm-3 col-form-label" data-toggle="tooltip" data-placement="top" title="">dct_type</label>
+    <div class="col-sm-9">
+        <select class="form-select" id="mfcc_dct_type" aria-label="MFCC DCT type">
+            <option value="1">1</option>
+            <option selected="" value="2">2</option>
+            <option value="3">3</option>
+        </select>
+    </div>
+</div>
+<div class="row">
+    <label for="colFormLabel" class="col-sm-3 col-form-label" data-toggle="tooltip" data-placement="top" title="If dct_type is 2 or 3, setting norm='ortho' uses an ortho-normal DCT basis. Normalization is not supported for dct_type=1.">norm</label>
+    <div class="col-sm-9">
+        <select class="form-select" id="mfcc_norm" aria-label="MFCC norm">
+            <option selected="" value="ortho">ortho</option>
+            <option value="None">None</option>
+        </select>
+    </div>
+</div>
+<div class="row">
+    <label for="colFormLabel" class="col-sm-3 col-form-label" data-toggle="tooltip" data-placement="top" title="Number of frequency bins">n_fft</label>
+    <div class="col-sm-9">
+        <input type="text" class="form-control" id="mfcc_n_fft" aria-describedby="mfcc_n_fft" value="2048">
+    </div>
+</div>
+<div class="row">
+    <label for="colFormLabel" class="col-sm-3 col-form-label" data-toggle="tooltip" data-placement="top" title="Length of the FFT window in samples">hop_length</label>
+    <div class="col-sm-9">
+        <input type="text" class="form-control" id="mfcc_hop_length" aria-describedby="mfcc_hop_length" value="512">
+    </div>
+</div>
+
+
+
+
+{% comment %} <div class="row">
+    <label for="colFormLabel" class="col-sm-3 col-form-label" data-toggle="tooltip" data-placement="top" title="Number of Mel-frequency bins">n_mels</label>
+    <div class="col-sm-9">
+        <input type="text" class="form-control" id="mfcc_n_mels" aria-describedby="mfcc_n_mels" value="128">
+    </div>
+</div> {% endcomment %}

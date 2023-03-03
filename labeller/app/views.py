@@ -1,4 +1,4 @@
-import os
+import os, time
 
 from django.shortcuts import render
 from django.http import HttpResponse
@@ -20,7 +20,8 @@ import requests
 import json
 import librosa
 import pickle
-from sklearn.neighbors import KNeighborsClassifier
+#from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import train_test_split
 import math, time, copy
 from datetime import datetime
 import numpy as np
@@ -554,19 +555,40 @@ def generateDatasetFile(request):
 
 
 @csrf_exempt
-def modelfromconfig(request):
+def resultsCard(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
+            current_time = str(int(time.time()))
+            cardid = current_time[-5:]
+            return render(request, 'parts/model-results.html', {'results':data, 'cardid': cardid})
+        except:
+            return JsonResponse({"Fail":"Fail"})
+
+
+
+@csrf_exempt
+def modelfromconfig(request):
+    if request.method == 'POST':
+        try:
+            # Load and Parse Config
+            data = json.loads(request.body)
             print(data)
-            print(data['mel_spec'])
+            print(data['features']['mel_spec'])
+            print(data['classifier'])
+
+
+            # Feature Extractors
+            featureconfig = data['features']
             a = factory.MelSpectrogramFeatures()
-            a.testfeaturekwargs(**data['mel_spec'])
+            a.testfeaturekwargs(**featureconfig['mel_spec'])
             print("a")
-            print(data['mfcc'])
-            b = factory.MFCCFeatures(**data['mfcc'])
+            print(featureconfig['mfcc'])
+            b = factory.MFCCFeatures(**featureconfig['mfcc'])
             print("b")
             #b.test()
+
+            # Load dataset from pickle and extract features
             try:
                 path = os.path.join("app", "static", "datasetpickles", data['datasetpickle'] )
                 with open(path, 'rb') as f:
@@ -582,12 +604,108 @@ def modelfromconfig(request):
                     print("whoop")
                     print(type(mfc))
                     print(len(mfc))
-                except:
+
+                    #Classifier
+                    try:
+                        mdl = None
+                        modelfactory = factory.ClassifierFactory(**data['classifier'])
+                        if(bool(data['classifier']['knn']['knn_enable'])):
+                            mdl = modelfactory.create_classifier("knn")
+                            conf = {"Classifier":"Knn","Config":data['classifier']['knn']}
+                            print("knn created")
+                        elif(bool(data['classifier']['svm']['svm_enable'])):
+                            mdl = modelfactory.create_classifier("svm")
+                            conf = {"Classifier":"SVM","Config":data['classifier']['svm']}
+                        elif(bool(data['classifier']['adaboost']['adaboost_enable'])):
+                            mdl = modelfactory.create_classifier("adaboost")
+                            conf = {"Classifier":"Ada","Config":data['classifier']['adaboost']}
+                            print("Adaboos Created")
+                        elif(bool(data['classifier']['decision_tree']['decision_tree_enable'])):
+                            mdl = modelfactory.create_classifier("decision_tree")
+                            conf = {"Classifier":"Decision Tree","Config":data['classifier']['decision_tree']}
+                            print("Tree Created")
+                        print("clf made")
+                        mfc2 =  np.asarray(mfc)
+                        print(mfc2.shape)
+                        mfc2 = mfc2.reshape((mfc2.shape[0], -1))
+                        print("MFC Reshape")
+                        print(mfc2.shape)
+
+                        # Eval
+                        try:
+                            print("Eval Start")
+                            if(bool(data['evaluation']['train_test']['tts_split_enable'])):
+                                print("test train split")
+                                params = data['evaluation']
+                                if(params['train_test']['tts_random_state']=="None"):
+                                    X_train, X_test, y_train, y_test = train_test_split(mfc2, dataset.labels, 
+                                    test_size=float(params['train_test']['tts_test_size']), 
+                                    shuffle=params['train_test']['tts_shuffle'])
+                                else:
+                                    X_train, X_test, y_train, y_test = train_test_split(mfc2, dataset.labels, 
+                                    test_size=float(params['train_test']['tts_test_size']), 
+                                    shuffle=params['train_test']['tts_shuffle'], 
+                                    random_state=params['train_test']['tts_random_state'])
+                                try:
+                                    start_time = time.time()
+                                    clf = mdl.fit(X_train, y_train)
+                                    end_time = time.time()
+                                    timetaken = end_time - start_time
+                                except Exception as e:
+                                    print("fit fail")
+                                    print("An exception occurred:", e)
+                                score = clf.score(X_test, y_test)
+                                print(score)
+                                scores = factory.common_scores(clf,X_test=X_test,y_test=y_test)
+                                scores["Time"] = timetaken
+                                #scores["Classifier"] = conf
+                            elif(bool(data['evaluation']['kfold']['kfold_enable'])):
+                                print("kfold")
+                                cv = factory.CrossVal(**data['evaluation'])
+                                try:
+                                    results = cv.cross_validate(clf=mdl, X=mfc2,y=dataset.labels)
+                                    print(results)
+                                    scores = {}
+                                    scores['test_scores'] = results['test_score'].tolist()
+                                    scores['fit_time'] = results['fit_time'].tolist()
+                                    scores['score_time'] = results['score_time'].tolist()
+                                    print("kfoldbing")
+                                except Exception as e:
+                                    print("Kfold fail")
+                                    print("Exception:",e)
+                            elif(bool(data['evaluation']['stratifiedkfold']['stratifiedkfold_enable'])):
+                                print("Strat Kfold")
+                                cv = factory.CrossVal(**data['evaluation'])
+                                try:
+                                    results = cv.cross_validate(clf=mdl, X=mfc2,y=dataset.labels)
+                                    scores = {}
+                                    scores['test_scores'] = results['test_score'].tolist()
+                                    scores['fit_time'] = results['fit_time'].tolist()
+                                    scores['score_time'] = results['score_time'].tolist()
+                                except Exception as e:
+                                    print("Strat fail")
+                                    print("Exception:",e)
+                        except Exception as e:
+                            print("Eval Split Fail")
+                            print("An exception occurred:", e)
+                        
+
+                        return JsonResponse({"Status": "Success","Scores": scores, "Config": data, "Timestamp": datetime.now().isoformat()})
+
+                        
+                    except Exception as e:
+                        print("Classifier Fail ")
+                        print(data['classifier'])
+                        print("An exception occurred:", e)
+                except Exception as e:
                     print("Features Fail")
-            except:
+                    print("An exception occurred:", e)
+            except Exception as e:
                 print("Dataset pickle fail")
-        except:
+                print("An exception occurred:", e)
+        except Exception as e:
             print("Fail")
+            print("An exception occurred:", e)
     print(request)
-    return JsonResponse({'ok':'ok'})
+    return JsonResponse({'ok':'Fail'})
 

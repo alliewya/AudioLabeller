@@ -4,335 +4,2183 @@
 
 {% block content%}
 
-
 <div class="container">
-    <div class="row mb-3 mt-2">
-        <div class="col">
-            <h1>Configure Model</h1>
-        </div>
-    </div>
-    <div class="row  mb-3 mt-2">
-        <div class="col">
-            <h2>Dataset</h2>
-              <div>
-                <div class="container mt-2 mb-2">
-                    <div class="row">
-                        <label for="colFormLabel" class="col-sm-3 col-form-label">Select Dataset Pickle</label>
-                        <div class=" col-sm-9 ">
-                            <select class="form-select" id="dataset-pickle" aria-label="Default select example">
-                                {% for file in datasetpickleslist %}
-                                <option selected value="{{ file }}">{{ file }}</option>
-                                {% endfor %}
-                              </select>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <ul class="nav nav-tabs" id="myTab" role="tablist">
-                <li class="nav-item" role="presentation">
-                  <button class="nav-link active" id="framing-tab" data-bs-toggle="tab" data-bs-target="#framing-tab-pane" type="button" role="tab" aria-controls="framing-tab-pane" aria-selected="true">Framing</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                  <button class="nav-link" id="fixed-tab" data-bs-toggle="tab" data-bs-target="#fixed-tab-pane" type="button" role="tab" aria-controls="fixed-tab-pane" aria-selected="false">Fixed Length</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                  <button class="nav-link" id="contact-tab" data-bs-toggle="tab" data-bs-target="#contact-tab-pane" type="button" role="tab" aria-controls="contact-tab-pane" aria-selected="false">Contact</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                  <button class="nav-link" id="disabled-tab" data-bs-toggle="tab" data-bs-target="#disabled-tab-pane" type="button" role="tab" aria-controls="disabled-tab-pane" aria-selected="false" disabled>Disabled</button>
-                </li>
-              </ul>
-              <div class="tab-content" id="myTabContent">
-                <div class="tab-pane fade show active" id="framing-tab-pane" role="tabpanel" aria-labelledby="framing-tab" tabindex="0">
-                    <div class="container mt-2 mb-2">
-                        <div class="row">
-                            <label for="colFormLabel" class="col-sm-3 col-form-label">Enable Framing</label>
-                            <div class=" col-sm-9 ">
-                                <input class="form-check-input" type="checkbox" aria-label="framing_enable"  id="framing_enable" aria-describedby="framing_enable">
-                            </div>
-                        </div>
-                        <div class="row">
-                            <label for="colFormLabel" class="col-sm-3 col-form-label">Frame Size</label>
-                            <div class=" col-sm-9 ">
-                                <input type="text" class="form-control" id="frame_size" aria-describedby="frame_size" value="11250">
-                            </div>
-                        </div>
-                        <div class="row">
-                            <label for="colFormLabel" class="col-sm-3 col-form-label">Hop Length</label>
-                            <div class=" col-sm-9 ">
-                                <input type="text" class="form-control" id="frame_hop_length" aria-describedby="frame_hop_length" value="5625">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="tab-pane fade" id="fixed-tab-pane" role="tabpanel" aria-labelledby="fixed-tab" tabindex="0">
-                    <div class="container mt-2 mb-2">
-                        <div class="row">
-                            <label for="colFormLabel" class="col-sm-3 col-form-label">Enable Fixed Length</label>
-                            <div class=" col-sm-9 ">
-                                <input class="form-check-input" type="checkbox" aria-label="fixed_enable"  id="fixed_enable" aria-describedby="fixed_enable">
-                            </div>
-                        </div>
-                        <div class="row">
-                            <label for="colFormLabel" class="col-sm-3 col-form-label">Fixed Length In Seconds</label>
-                            <div class=" col-sm-9 ">
-                                <input type="text" class="form-control" id="fixed_size" aria-describedby="fixed_size" value="1">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-        </div>
-    </div>
-   <div class="row  mb-3 mt-2">
-        <div class="col">
-            <h2>Features</h2>
-            <ul class="nav nav-tabs" id="myTab" role="tablist">
-                <li class="nav-item" role="presentation">
-                  <button class="nav-link active" id="mfcc-tab" data-bs-toggle="tab" data-bs-target="#mfcc-tab-pane" type="button" role="tab" aria-controls="mfcc-tab-pane" aria-selected="true">MFCC</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                  <button class="nav-link" id="mel-spec-tab" data-bs-toggle="tab" data-bs-target="#mel-spec-tab-pane" type="button" role="tab" aria-controls="mel-spec-tab-pane" aria-selected="false">Mel Spectrogram</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                  <button class="nav-link" id="contact-tab" data-bs-toggle="tab" data-bs-target="#contact-tab-pane" type="button" role="tab" aria-controls="contact-tab-pane" aria-selected="false">Contact</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                  <button class="nav-link" id="disabled-tab" data-bs-toggle="tab" data-bs-target="#disabled-tab-pane" type="button" role="tab" aria-controls="disabled-tab-pane" aria-selected="false" disabled>Disabled</button>
-                </li>
-              </ul>
-              <div class="tab-content" id="myTabContent">
-                <div class="tab-pane fade show active" id="mfcc-tab-pane" role="tabpanel" aria-labelledby="mfcc-tab" tabindex="0">
-                    <div class="container mt-2 mb-2">
-                        <div class="row">
-                            <label for="colFormLabel" class="col-sm-3 col-form-label">Enable MFCC</label>
-                            <div class=" col-sm-9 ">
-                                <input class="form-check-input" type="checkbox" aria-label="mfcc_enable"  id="mfcc_enable" aria-describedby="mfcc_enable">
-                            </div>
-                        </div>
-                        <div class="row">
-                            <label for="colFormLabel" class="col-sm-3 col-form-label">Number of MFCC</label>
-                            <div class=" col-sm-9 ">
-                                <input type="text" class="form-control" id="mfcc_n_mfcc" aria-describedby="mfcc_n_mfcc" value="20">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="tab-pane fade" id="mel-spec-tab-pane" role="tabpanel" aria-labelledby="mel-spec-tab" tabindex="0">
-                    <div class="container mt-2 mb-2">
-                        <div class="row">
-                            <label for="colFormLabel" class="col-sm-3 col-form-label">Enable Mel Spectrogram</label>
-                            <div class=" col-sm-9 ">
-                                <input class="form-check-input" type="checkbox" aria-label="mel_spec_enable"  id="mel_spec_enable" aria-describedby="mel_spec_enable">
-                            </div>
-                        </div>
-                    <div class="row">
-                        <label for="colFormLabel" class="col-sm-3 col-form-label">Number of FFT</label>
-                        <div class=" col-sm-9 ">
-                            <input type="text" class="form-control" id="mel_spec_n_fft" aria-describedby="mel_spec_n_fft" value="2048">
-                        </div>
-                    </div>
-                      <div class="row">
-                        <label for="colFormLabel" class="col-sm-3 col-form-label">Hop Length</label>
-                        <div class=" col-sm-9 ">
-                            <input type="text" class="form-control" id="mel_spec_hop_length" aria-describedby="mel_spec_hop_length" value="512">
-                        </div>
-                    </div>
-                    <div class="row">
-                        <label for="colFormLabel" class="col-sm-3 col-form-label">Window</label>
-                        <div class=" col-sm-9 ">
-                            <select class="form-select" aria-label="mel_spec_window"  id="mel_spec_window" aria-describedby="mel_spec_window">
-                                <option selected value="hann">hann</option>
-                                <option value="hamming">hamming</option>
-                                <option value="kaiser">kaiser</option>
-                                <option value="boxcar">boxcar</option>
-                              </select>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <label for="colFormLabel" class="col-sm-3 col-form-label">Center</label>
-                        <div class=" col-sm-9 ">
-                            <input class="form-check-input" type="checkbox" aria-label="mel_spec_center"  id="mel_spec_center" aria-describedby="mel_spec_center" checked>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <label for="colFormLabel" class="col-sm-3 col-form-label">Power</label>
-                        <div class=" col-sm-9 ">
-                            <select class="form-select" aria-label="mel_spec_power"  id="mel_spec_power" aria-describedby="mel_spec_power">
-                                <option selected value="1">1 - Energy</option>
-                                <option value="2">2 - Power</option>
-                              </select>
-                        </div>
-                    </div>
-                        
-                      </div>
-                    </div>
-                </div>
-                <div class="tab-pane fade" id="contact-tab-pane" role="tabpanel" aria-labelledby="contact-tab" tabindex="0">...</div>
-                <div class="tab-pane fade" id="disabled-tab-pane" role="tabpanel" aria-labelledby="disabled-tab" tabindex="0">...</div>
-              </div>
-        </div>
-   
-   <div class="row">
+  <div class="row mb-3 mt-2">
     <div class="col">
+      <h1>Configure Model</h1>
+    </div>
+  </div>
+  <div class="row mb-3 mt-2">
+    <div class="row mb-3 mt-2">
+      <div class="col">
+        <h2>Dataset</h2>
+        <div>
+          <div class="container mt-2 mb-2">
+            <div class="row">
+              <label for="colFormLabel" class="col-sm-3 col-form-label"
+                >Select Dataset Pickle</label
+              >
+              <div class="col-sm-9">
+                <select
+                  class="form-select"
+                  id="dataset-pickle"
+                  aria-label="Default select example"
+                >
+                  {% for file in datasetpickleslist %}
+                  <option selected value="{{ file }}">{{ file }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link active"
+              id="fixed-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#fixed-tab-pane"
+              type="button"
+              role="tab"
+              aria-controls="fixed-tab-pane"
+              aria-selected="true"
+            >
+              Fixed Length
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="framing-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#framing-tab-pane"
+              type="button"
+              role="tab"
+              aria-controls="framing-tab-pane"
+              aria-selected="false"
+            >
+              Framing
+            </button>
+          </li>
+        </ul>
+        <div class="tab-content" id="myTabContent">
+          <div
+            class="tab-pane fade show active"
+            id="fixed-tab-pane"
+            role="tabpanel"
+            aria-labelledby="fixed-tab"
+            tabindex="0"
+          >
+            <div class="container mt-2 mb-2">
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Enable Fixed Length</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="fixed_enable"
+                    id="fixed_enable"
+                    aria-describedby="fixed_enable"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Fixed Length In Seconds</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="fixed_size"
+                    aria-describedby="fixed_size"
+                    value="1"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            class="tab-pane fade"
+            id="framing-tab-pane"
+            role="tabpanel"
+            aria-labelledby="framing-tab"
+            tabindex="0"
+          >
+            <div class="container mt-2 mb-2">
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Enable Framing</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="framing_enable"
+                    id="framing_enable"
+                    aria-describedby="framing_enable"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Frame Size</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="frame_size"
+                    aria-describedby="frame_size"
+                    value="11250"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Hop Length</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="frame_hop_length"
+                    aria-describedby="frame_hop_length"
+                    value="5625"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Features  -->
+    <div class="row mb-3 mt-2">
+      <div class="col">
+        <h2>Features</h2>
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link active"
+              id="mfcc-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#mfcc-tab-pane"
+              type="button"
+              role="tab"
+              aria-controls="mfcc-tab-pane"
+              aria-selected="true"
+            >
+              MFCC
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="mel-spec-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#mel-spec-tab-pane"
+              type="button"
+              role="tab"
+              aria-controls="mel-spec-tab-pane"
+              aria-selected="false"
+            >
+              Mel Spectrogram
+            </button>
+          </li>
+        </ul>
+        <div class="tab-content" id="myTabContent">
+          <div
+            class="tab-pane fade show active"
+            id="mfcc-tab-pane"
+            role="tabpanel"
+            aria-labelledby="mfcc-tab"
+            tabindex="0"
+          >
+            <div class="container mt-2 mb-2">
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Enable MFCC</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="mfcc_enable"
+                    id="mfcc_enable"
+                    aria-describedby="mfcc_enable"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title="Number of Mel-frequency bins"
+                  >n_mfcc</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="mfcc_n_mfcc"
+                    aria-describedby="mfcc_n_mfcc"
+                    value="20"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title="If True, the signal y is padded so that frame t is centered at y[t * hop_length]. - If False, then frame t begins at y[t * hop_length]"
+                  >center</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="mfcc_center"
+                    aria-describedby="mfcc_center"
+                    value="True"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title=""
+                  >dct_type</label
+                >
+                <div class="col-sm-9">
+                  <select
+                    class="form-select"
+                    id="mfcc_dct_type"
+                    aria-label="MFCC DCT type"
+                  >
+                    <option value="1">1</option>
+                    <option selected="" value="2">2</option>
+                    <option value="3">3</option>
+                  </select>
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title="If dct_type is 2 or 3, setting norm='ortho' uses an ortho-normal DCT basis. Normalization is not supported for dct_type=1."
+                  >norm</label
+                >
+                <div class="col-sm-9">
+                  <select
+                    class="form-select"
+                    id="mfcc_norm"
+                    aria-label="MFCC norm"
+                  >
+                    <option selected="" value="ortho">ortho</option>
+                    <option value="None">None</option>
+                  </select>
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title="Number of frequency bins"
+                  >n_fft</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="mfcc_n_fft"
+                    aria-describedby="mfcc_n_fft"
+                    value="2048"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title="Length of the FFT window in samples"
+                  >hop_length</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="mfcc_hop_length"
+                    aria-describedby="mfcc_hop_length"
+                    value="512"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="tab-pane fade"
+            id="mel-spec-tab-pane"
+            role="tabpanel"
+            aria-labelledby="mel-spec-tab"
+            tabindex="0"
+          >
+            <div class="container mt-2 mb-2">
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Enable Mel Spectrogram</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="mel_spec_enable"
+                    id="mel_spec_enable"
+                    aria-describedby="mel_spec_enable"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Number of FFT</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="mel_spec_n_fft"
+                    aria-describedby="mel_spec_n_fft"
+                    value="2048"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Hop Length</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="mel_spec_hop_length"
+                    aria-describedby="mel_spec_hop_length"
+                    value="512"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Window</label
+                >
+                <div class="col-sm-9">
+                  <select
+                    class="form-select"
+                    aria-label="mel_spec_window"
+                    id="mel_spec_window"
+                    aria-describedby="mel_spec_window"
+                  >
+                    <option selected value="hann">hann</option>
+                    <option value="hamming">hamming</option>
+                    <option value="kaiser">kaiser</option>
+                    <option value="boxcar">boxcar</option>
+                  </select>
+                </div>
+              </div>
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Center</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="mel_spec_center"
+                    id="mel_spec_center"
+                    aria-describedby="mel_spec_center"
+                    checked
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Power</label
+                >
+                <div class="col-sm-9">
+                  <select
+                    class="form-select"
+                    aria-label="mel_spec_power"
+                    id="mel_spec_power"
+                    aria-describedby="mel_spec_power"
+                  >
+                    <option value="1">1 - Energy</option>
+                    <option selected value="2">2 - Power</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          class="tab-pane fade"
+          id="contact-tab-pane"
+          role="tabpanel"
+          aria-labelledby="contact-tab"
+          tabindex="0"
+        >
+          ...
+        </div>
+        <div
+          class="tab-pane fade"
+          id="disabled-tab-pane"
+          role="tabpanel"
+          aria-labelledby="disabled-tab"
+          tabindex="0"
+        >
+          ...
+        </div>
+      </div>
+    </div>
+    <!-- Classifier -->
+    <div class="row mb-3 mt-2">
+      <div class="col">
         <h2>Classifier</h2>
         <ul class="nav nav-tabs" id="myTab" role="tablist">
-            <li class="nav-item" role="presentation">
-              <button class="nav-link active" id="knn-tab" data-bs-toggle="tab" data-bs-target="#knn-tab-pane" type="button" role="tab" aria-controls="knn-tab-pane" aria-selected="true">KNN</button>
-            </li>
-            <li class="nav-item" role="presentation">
-              <button class="nav-link" id="svm-tab" data-bs-toggle="tab" data-bs-target="#svm-tab-pane" type="button" role="tab" aria-controls="svm-tab-pane" aria-selected="false">SVM</button>
-            </li>
-            <li class="nav-item" role="presentation">
-              <button class="nav-link" id="contact-tab" data-bs-toggle="tab" data-bs-target="#contact-tab-pane" type="button" role="tab" aria-controls="contact-tab-pane" aria-selected="false">Contact</button>
-            </li>
-            <li class="nav-item" role="presentation">
-              <button class="nav-link" id="disabled-tab" data-bs-toggle="tab" data-bs-target="#disabled-tab-pane" type="button" role="tab" aria-controls="disabled-tab-pane" aria-selected="false" disabled>Disabled</button>
-            </li>
-          </ul>
-          <div class="tab-content" id="myTabContent">
-            <div class="tab-pane fade show active" id="knn-tab-pane" role="tabpanel" aria-labelledby="knn-tab" tabindex="0">
-                <div class="container mt-2 mb-2">
-                    <div class="row">
-                        <label for="colFormLabel" class="col-sm-3 col-form-label">Enable KNN</label>
-                        <div class=" col-sm-9 ">
-                            <input class="form-check-input" type="checkbox" aria-label="knn_enable"  id="knn_enable" aria-describedby="knn_enable">
-                        </div>
-                    </div>
-                    <div class="row">
-                        <label for="colFormLabel" class="col-sm-3 col-form-label">Number of K</label>
-                        <div class=" col-sm-9 ">
-                            <input type="text" class="form-control" id="knn_k" aria-describedby="knn_k" value="5">
-                        </div>
-                    </div>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link active"
+              id="knn-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#knn-tab-pane"
+              type="button"
+              role="tab"
+              aria-controls="knn-tab-pane"
+              aria-selected="true"
+            >
+              KNN
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="svm-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#svm-tab-pane"
+              type="button"
+              role="tab"
+              aria-controls="svm-tab-pane"
+              aria-selected="false"
+            >
+              SVM
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="adaboost-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#adaboost-tab-pane"
+              type="button"
+              role="tab"
+              aria-controls="adaboost-tab-pane"
+              aria-selected="false"
+            >
+              AdaBoost
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="logistic_regression-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#logistic_regression-tab-pane"
+              type="button"
+              role="tab"
+              aria-controls="logistic_regression-tab-pane"
+              aria-selected="false"
+            >
+              Logistic Regression
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="decision-tree-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#decision-tree-tab-pane"
+              type="button"
+              role="tab"
+              aria-controls="decision-tree-tab-pane"
+              aria-selected="false"
+            >
+              Decision Tree
+            </button>
+          </li>
+        </ul>
+        <div class="tab-content" id="myTabContent">
+          <div
+            class="tab-pane fade show active"
+            id="knn-tab-pane"
+            role="tabpanel"
+            aria-labelledby="knn-tab"
+            tabindex="0"
+          >
+            <div class="container mt-2 mb-2">
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Enable KNN</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="knn_enable"
+                    id="knn_enable"
+                    aria-describedby="knn_enable"
+                  />
                 </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="The number of nearest neighbors to consider for voting"
+                  >Number of K</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="knn_k"
+                    aria-describedby="knn_k"
+                    value="5"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="The algorithm to use for nearest neighbor searches. Options are 'auto', 'ball_tree', 'kd_tree', and 'brute'"
+                  >Algorithm</label
+                >
+                <div class="col-sm-9">
+                  <select
+                    class="form-select"
+                    id="knn_algorithm"
+                    aria-label="KNN Algorithm"
+                  >
+                    <option selected="" value="auto">Auto</option>
+                    <option value="ball_tree">Ball Tree</option>
+                    <option value="kd_tree">KD Tree</option>
+                    <option value="brute">Brute Force</option>
+                  </select>
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="Leaf size passed to BallTree or KDTree. This can affect the speed of the construction and query, as well as the memory required to store the tree. "
+                  >Leaf Size</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="knn_leaf_size"
+                    aria-describedby="knn_leaf_size"
+                    value="30"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="The distance metric used to calculate the distances between samples."
+                  >Metric</label
+                >
+                <div class="col-sm-9">
+                  <select
+                    class="form-select"
+                    id="knn_metric"
+                    aria-label="KNN Metric"
+                  >
+                    <option selected="" value="minkowski">Minkowski</option>
+                    <option value="manhattan">Manhattan</option>
+                    <option value="euclidean">Euclidean</option>
+                    <option value="chebyshev">Chebyshev</option>
+                  </select>
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="The power parameter for the Minkowski metric. When p = 1, this is equivalent to using manhattan_distance (l1), and euclidean_distance (l2) for p = 2."
+                  >Metric Power</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="knn_metric_power"
+                    aria-describedby="knn_metric_power"
+                    value="2"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="Weight function used in prediction. Possible values: 'uniform' (all points in the neighborhood are weighted equally), 'distance' (weights are proportional to the inverse of the distance from the query point)"
+                  >Weights</label
+                >
+                <div class="col-sm-9">
+                  <select
+                    class="form-select"
+                    id="knn_weights"
+                    aria-label="KNN Weights"
+                  >
+                    <option selected="" value="uniform">Uniform</option>
+                    <option value="distance">Distance</option>
+                  </select>
+                </div>
+              </div>
             </div>
-
-            <div class="tab-pane fade" id="svm-tab-pane" role="tabpanel" aria-labelledby="svm-tab-pane" tabindex="0">
-                <div class="container mt-2 mb-2">
+          </div>
+          <div
+            class="tab-pane fade"
+            id="svm-tab-pane"
+            role="tabpanel"
+            aria-labelledby="svm-tab"
+            tabindex="0"
+          >
+            <div class="container mt-2 mb-2">
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Enable SVM</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="svm_enable"
+                    id="svm_enable"
+                    aria-describedby="svm_enable"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="The regularization parameter. The strength of the regularization is inversely proportional to C. Must be strictly positive."
+                  >C (Penalty Parameter of the Error Term)</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="svm_c"
+                    aria-describedby="svm_c"
+                    value="1.0"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="Specifies the kernel type to be used in the algorithm. Options are 'rbf', 'linear', 'poly', and 'sigmoid'"
+                  >Kernel</label
+                >
+                <div class="col-sm-9">
+                  <select
+                    class="form-select"
+                    id="svm_kernel"
+                    aria-label="Default select example"
+                  >
+                    <option selected="" value="rbf">rbf</option>
+                    <option value="linear">linear</option>
+                    <option value="poly">poly</option>
+                    <option value="sigmoid">sigmoid</option>
+                  </select>
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title="Degree of the polynomial kernel function ('poly')"
+                  >Degree</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="svm_degree"
+                    aria-describedby="svm_degree"
+                    value="3"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title="Kernel coefficient for 'rbf', 'poly' and 'sigmoid'. If gamma='scale' (default) is passed then it uses 1 / (n_features * X.var()) as value of gamma. If 'auto', uses 1 / n_features."
+                  >Gamma</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="svm_gamma"
+                    aria-describedby="svm_gamma"
+                    value="scale"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title="Whether to use the shrinking heuristic."
+                  >Shrinking</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="svm_shrinking"
+                    id="svm_shrinking"
+                    aria-describedby="svm_shrinking"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title="Whether to enable probability estimates. This must be enabled prior to calling fit, and will slow down that method."
+                  >Probability</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="svm_probability"
+                    id="svm_probability"
+                    aria-describedby="svm_probability"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="The stopping tolerance. For detailed information, please refer to the documentation of scikit-learn's SVC class"
+                  >Tol</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="svm_tol"
+                    aria-describedby="svm_tol"
+                    value="0.001"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="The maximum number of iterations to be run. -1 means no limit, otherwise the value should be a positive integer. For detailed information, please refer to the documentation of scikit-learn's SVC class"
+                  >Max Iter</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="svm_max_iter"
+                    aria-describedby="svm_max_iter"
+                    value="-1"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            class="tab-pane fade"
+            id="adaboost-tab-pane"
+            role="tabpanel"
+            aria-labelledby="adaboost-tab"
+            tabindex="0"
+          >
+            <div class="container mt-2 mb-2">
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Enable AdaBoost</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="adaboost_enable"
+                    id="adaboost_enable"
+                    aria-describedby="adaboost_enable"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title="The base estimator from which the boosted ensemble is built. Support for sample weighting is required, as well as proper classes_ and n_classes_ attributes.If None, then the base estimator is DecisionTreeClassifier initialized with max_depth=1"
+                  >Estimator</label
+                >
+                <div class="col-sm-9">
+                  <select
+                    class="form-select"
+                    id="adaboost_estimator"
+                    aria-label="AdaBoost Estimator"
+                  >
+                    <option selected="" value="None">None</option>
+                    <option value="DecisionTreeClassifier">
+                      Decision Tree Classifier
+                    </option>
+                    <option value="SVC">SVC</option>
+                  </select>
+                </div>
+              </div>
+              <div class="row" id="adaclassifierconfig" style="display: none">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title="Config for the chosen estimator"
+                  >Estimator Config</label
+                >
+                <div class="col-sm-9" id="ada_estimator_decisiontree">
+                  <div class="container mt-2 mb-2">
                     <div class="row">
-                        <label for="colFormLabel" class="col-sm-3 col-form-label">Enable Mel Spectrogram</label>
-                        <div class=" col-sm-9 ">
-                            <input class="form-check-input" type="checkbox" aria-label="mel_spec_enable"  id="mel_spec_enable" aria-describedby="mel_spec_enable">
-                        </div>
+                      <label
+                        for="colFormLabel"
+                        class="col-sm-3 col-form-label"
+                        data-toggle="tooltip"
+                        title="The maximum depth of the tree. If None, then nodes are expanded until all leaves are pure or until all leaves contain less than min_samples_split samples."
+                        >Max Depth</label
+                      >
+                      <div class="col-sm-9">
+                        <input
+                          type="text"
+                          class="form-control"
+                          id="ada_dt_max_depth"
+                          aria-describedby="ada_dt_max_depth"
+                          value="None"
+                        />
+                      </div>
                     </div>
-                <div class="row">
-                    <label for="colFormLabel" class="col-sm-3 col-form-label">Number of FFT</label>
-                    <div class=" col-sm-9 ">
-                        <input type="text" class="form-control" id="mel_spec_n_fft" aria-describedby="mel_spec_n_fft" value="2048">
+                    <div class="row">
+                      <label
+                        for="colFormLabel"
+                        class="col-sm-3 col-form-label"
+                        data-toggle="tooltip"
+                        title="The minimum number of samples required to split an internal node."
+                        >Min Samples Split</label
+                      >
+                      <div class="col-sm-9">
+                        <input
+                          type="text"
+                          class="form-control"
+                          id="ada_dt_min_samples_split"
+                          aria-describedby="ada_dt_min_samples_split"
+                          value="2"
+                        />
+                      </div>
                     </div>
-                </div>
-                  <div class="row">
-                    <label for="colFormLabel" class="col-sm-3 col-form-label">Hop Length</label>
-                    <div class=" col-sm-9 ">
-                        <input type="text" class="form-control" id="mel_spec_hop_length" aria-describedby="mel_spec_hop_length" value="512">
+                    <div class="row">
+                      <label
+                        for="colFormLabel"
+                        class="col-sm-3 col-form-label"
+                        data-toggle="tooltip"
+                        title="The minimum number of samples required to be at a leaf node."
+                        >Min Samples Leaf</label
+                      >
+                      <div class="col-sm-9">
+                        <input
+                          type="text"
+                          class="form-control"
+                          id="ada_dt_min_samples_leaf"
+                          aria-describedby="ada_dt_min_samples_leaf"
+                          value="1"
+                        />
+                      </div>
                     </div>
-                </div>
-                <div class="row">
-                    <label for="colFormLabel" class="col-sm-3 col-form-label">Window</label>
-                    <div class=" col-sm-9 ">
-                        <select class="form-select" aria-label="mel_spec_window"  id="mel_spec_window" aria-describedby="mel_spec_window">
-                            <option selected value="hann">hann</option>
-                            <option value="hamming">hamming</option>
-                            <option value="kaiser">kaiser</option>
-                            <option value="boxcar">boxcar</option>
-                          </select>
+                    <div class="row">
+                      <label
+                        for="colFormLabel"
+                        class="col-sm-3 col-form-label"
+                        data-toggle="tooltip"
+                        title="The function to measure the quality of a split."
+                        >Criterion</label
+                      >
+                      <div class="col-sm-9">
+                        <select
+                          class="form-select"
+                          id="ada_dt_criterion"
+                          aria-label="ada_Criterion"
+                        >
+                          <option selected="" value="gini">Gini</option>
+                          <option value="entropy">Entropy</option>
+                        </select>
+                      </div>
                     </div>
-                </div>
-                <div class="row">
-                    <label for="colFormLabel" class="col-sm-3 col-form-label">Center</label>
-                    <div class=" col-sm-9 ">
-                        <input class="form-check-input" type="checkbox" aria-label="mel_spec_center"  id="mel_spec_center" aria-describedby="mel_spec_center" checked>
+                    <div class="row">
+                      <label
+                        for="colFormLabel"
+                        class="col-sm-3 col-form-label"
+                        data-toggle="tooltip"
+                        title="Grow a tree with max_leaf_nodes in best-first fashion. Best nodes are defined as relative reduction in impurity. If None then unlimited number of leaf nodes."
+                        >Max Leaf Nodes</label
+                      >
+                      <div class="col-sm-9">
+                        <input
+                          type="text"
+                          class="form-control"
+                          id="ada_decisiontree_max_leaf_nodes"
+                          aria-describedby="ada_decisiontree_max_leaf_nodes"
+                          value="None"
+                        />
+                      </div>
                     </div>
-                </div>
-                <div class="row">
-                    <label for="colFormLabel" class="col-sm-3 col-form-label">Power</label>
-                    <div class=" col-sm-9 ">
-                        <select class="form-select" aria-label="mel_spec_power"  id="mel_spec_power" aria-describedby="mel_spec_power">
-                            <option selected value="1">1 - Energy</option>
-                            <option value="2">2 - Power</option>
-                          </select>
+                    <div class="row">
+                      <label
+                        for="colFormLabel"
+                        class="col-sm-3 col-form-label"
+                        data-toggle="tooltip"
+                        title="The strategy used to choose the split at each node. Supported strategies are 'best' to choose the best split and 'random' to choose the best random split."
+                        >Splitter</label
+                      >
+                      <div class="col-sm-9">
+                        <select
+                          class="form-select"
+                          id="ada_decision_tree_splitter"
+                          aria-label="Decision Tree Splitter"
+                        >
+                          <option selected="" value="best">best</option>
+                          <option value="random">random</option>
+                        </select>
+                      </div>
                     </div>
-                </div>
-                    
                   </div>
                 </div>
+                <div class="col-sm-9" id="ada_estimator_svm">
+                  <div class="container mt-2 mb-2">
+                    <div class="row">
+                      <label
+                        for="colFormLabel"
+                        class="col-sm-3 col-form-label"
+                        data-toggle="tooltip"
+                        title="The regularization parameter. The strength of the regularization is inversely proportional to C. Must be strictly positive."
+                        >C (Penalty Parameter of the Error Term)</label
+                      >
+                      <div class="col-sm-9">
+                        <input
+                          type="text"
+                          class="form-control"
+                          id="ada_svm_c"
+                          aria-describedby="ada_svm_c"
+                          value="1.0"
+                        />
+                      </div>
+                    </div>
+                    <div class="row">
+                      <label
+                        for="colFormLabel"
+                        class="col-sm-3 col-form-label"
+                        data-toggle="tooltip"
+                        title="Specifies the kernel type to be used in the algorithm. Options are 'rbf', 'linear', 'poly', and 'sigmoid'"
+                        >Kernel</label
+                      >
+                      <div class="col-sm-9">
+                        <select
+                          class="form-select"
+                          id="ada_svm_kernel"
+                          aria-label=""
+                        >
+                          <option selected="" value="rbf">rbf</option>
+                          <option value="linear">linear</option>
+                          <option value="poly">poly</option>
+                          <option value="sigmoid">sigmoid</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="row">
+                      <label
+                        for="colFormLabel"
+                        class="col-sm-3 col-form-label"
+                        data-toggle="tooltip"
+                        data-placement="top"
+                        title="Degree of the polynomial kernel function ('poly')"
+                        >Degree</label
+                      >
+                      <div class="col-sm-9">
+                        <input
+                          type="text"
+                          class="form-control"
+                          id="ada_svm_degree"
+                          aria-describedby="ada_svm_degree"
+                          value="3"
+                        />
+                      </div>
+                    </div>
+                    <div class="row">
+                      <label
+                        for="colFormLabel"
+                        class="col-sm-3 col-form-label"
+                        data-toggle="tooltip"
+                        data-placement="top"
+                        title="Kernel coefficient for 'rbf', 'poly' and 'sigmoid'. If gamma='scale' (default) is passed then it uses 1 / (n_features * X.var()) as value of gamma. If 'auto', uses 1 / n_features."
+                        >Gamma</label
+                      >
+                      <div class="col-sm-9">
+                        <input
+                          type="text"
+                          class="form-control"
+                          id="ada_svm_gamma"
+                          aria-describedby="ada_svm_gamma"
+                          value="scale"
+                        />
+                      </div>
+                    </div>
+                    <div class="row">
+                      <label
+                        for="colFormLabel"
+                        class="col-sm-3 col-form-label"
+                        data-toggle="tooltip"
+                        data-placement="top"
+                        title="Whether to use the shrinking heuristic."
+                        >Shrinking</label
+                      >
+                      <div class="col-sm-9">
+                        <input
+                          class="form-check-input"
+                          type="checkbox"
+                          aria-label="ada_svm_shrinking"
+                          id="ada_svm_shrinking"
+                          aria-describedby="ada_svm_shrinking"
+                        />
+                      </div>
+                    </div>
+                    <div class="row">
+                      <label
+                        for="colFormLabel"
+                        class="col-sm-3 col-form-label"
+                        data-toggle="tooltip"
+                        title="The stopping tolerance. For detailed information, please refer to the documentation of scikit-learn's SVC class"
+                        >Tol</label
+                      >
+                      <div class="col-sm-9">
+                        <input
+                          type="text"
+                          class="form-control"
+                          id="ada_svm_tol"
+                          aria-describedby="ada_svm_tol"
+                          value="0.001"
+                        />
+                      </div>
+                    </div>
+                    <div class="row">
+                      <label
+                        for="colFormLabel"
+                        class="col-sm-3 col-form-label"
+                        data-toggle="tooltip"
+                        title="The maximum number of iterations to be run. -1 means no limit, otherwise the value should be a positive integer. For detailed information, please refer to the documentation of scikit-learn's SVC class"
+                        >Max Iter</label
+                      >
+                      <div class="col-sm-9">
+                        <input
+                          type="text"
+                          class="form-control"
+                          id="ada_svm_max_iter"
+                          aria-describedby="ada_svm_max_iter"
+                          value="-1"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title="The number of weak learners to fit."
+                  >Number of Estimators</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="ada_n_estimators"
+                    aria-describedby="ada_n_estimators"
+                    value="50"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title="The learning rate shinks the contribution of each classifier by learning_rate."
+                  >Learning Rate</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="ada_learning_rate"
+                    aria-describedby="ada_learning_rate"
+                    value="1"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title="The function to use for weight updates."
+                  >Algorithm</label
+                >
+                <div class="col-sm-9">
+                  <select
+                    class="form-select"
+                    id="ada_algorithm"
+                    aria-label="AdaBoost Algorithm"
+                  >
+                    <option selected="" value="SAMME.R">SAMME.R</option>
+                    <option value="SAMME">SAMME</option>
+                  </select>
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title="The random state to use for random sampling from the data."
+                  >Random State</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="ada_random_state"
+                    aria-describedby="ada_random_state"
+                    value="None"
+                  />
+                </div>
+              </div>
             </div>
-            <div class="tab-pane fade" id="contact-tab-pane" role="tabpanel" aria-labelledby="contact-tab" tabindex="0">...</div>
-            <div class="tab-pane fade" id="disabled-tab-pane" role="tabpanel" aria-labelledby="disabled-tab" tabindex="0">...</div>
           </div>
+          <div
+            class="tab-pane fade"
+            id="logistic_regression-tab-pane"
+            role="tabpanel"
+            aria-labelledby="logistic_regression-tab"
+            tabindex="0"
+          >
+            <div class="container mt-2 mb-2">
+              <div class="row">
+                <div class="row">
+                  <label for="colFormLabel" class="col-sm-3 col-form-label"
+                    >Enable Logistic Regression</label
+                  >
+                  <div class="col-sm-9">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      aria-label="logistic_regression_enable"
+                      id="logistic_regression_enable"
+                      aria-describedby="logistic_regression_enable"
+                    />
+                  </div>
+                </div>
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title="Penalty used in the optimization problem"
+                  >Penalty</label
+                >
+                <div class="col-sm-9">
+                  <select
+                    class="form-select"
+                    id="logreg_penalty"
+                    aria-label="Logistic Regression Penalty"
+                  >
+                    <option selected="" value="l2">l2</option>
+                    <option value="l1">l1</option>
+                    <option value="elasticnet">Elastic Net</option>
+                    <option value="none">None</option>
+                  </select>
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title="Inverse of regularization strength; must be a positive float. Like in support vector machines, smaller values specify stronger regularization."
+                  >C</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="logreg_C"
+                    aria-describedby="logreg_C"
+                    value="1.0"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title="Solver to use in the optimization problem."
+                  >Solver</label
+                >
+                <div class="col-sm-9">
+                  <select
+                    class="form-select"
+                    id="logreg_solver"
+                    aria-label="Logistic Regression Solver"
+                  >
+                    <option selected="" value="lbfgs">LBFGS</option>
+                    <option value="newton-cg">Newton-CG</option>
+                    <option value="liblinear">Liblinear</option>
+                    <option value="sag">Stochastic Average Gradient</option>
+                    <option value="saga">
+                      Stochastic Average Gradient Descent
+                    </option>
+                  </select>
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title="Whether to fit an intercept term."
+                  >Fit Intercept</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="logreg_fit_intercept"
+                    id="logreg_fit_intercept"
+                    aria-describedby="logreg_fit_intercept"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title="The maximum number of iterations taken for the solvers to converge."
+                  >Max Iter</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="logistic_regression_max_iter"
+                    aria-describedby="logistic_regression_max_iter"
+                    value="100"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title="Tolerance for stopping criterion."
+                  >Tol</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="logistic_regression_tol"
+                    aria-describedby="logistic_regression_tol"
+                    value="0.0001"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title="Whether to fit the intercept."
+                  >Fit Intercept</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="logistic_regression_fit_intercept"
+                    id="logistic_regression_fit_intercept"
+                    aria-describedby="logistic_regression_fit_intercept"
+                    checked
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title="Whether to calculate the intercept."
+                  >Intercept Scaling</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="logistic_regression_intercept_scaling"
+                    aria-describedby="logistic_regression_intercept_scaling"
+                    value="1"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            class="tab-pane fade"
+            id="decision-tree-tab-pane"
+            role="tabpanel"
+            aria-labelledby="decision-tree-tab"
+            tabindex="0"
+          >
+            <div class="container mt-2 mb-2">
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Enable Decision Tree</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="decision_tree_enable"
+                    id="decision_tree_enable"
+                    aria-describedby="decision_tree_enable"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="The maximum depth of the tree. If None, then nodes are expanded until all leaves are pure or until all leaves contain less than min_samples_split samples."
+                  >Max Depth</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="dt_max_depth"
+                    aria-describedby="dt_max_depth"
+                    value="None"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="The minimum number of samples required to split an internal node."
+                  >Min Samples Split</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="dt_min_samples_split"
+                    aria-describedby="dt_min_samples_split"
+                    value="2"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="The minimum number of samples required to be at a leaf node."
+                  >Min Samples Leaf</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="dt_min_samples_leaf"
+                    aria-describedby="dt_min_samples_leaf"
+                    value="1"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="The function to measure the quality of a split."
+                  >Criterion</label
+                >
+                <div class="col-sm-9">
+                  <select
+                    class="form-select"
+                    id="dt_criterion"
+                    aria-label="Criterion"
+                  >
+                    <option selected="" value="gini">Gini</option>
+                    <option value="entropy">Entropy</option>
+                  </select>
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="Grow a tree with max_leaf_nodes in best-first fashion. Best nodes are defined as relative reduction in impurity. If None then unlimited number of leaf nodes."
+                  >Max Leaf Nodes</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="decisiontree_max_leaf_nodes"
+                    aria-describedby="decisiontree_max_leaf_nodes"
+                    value="None"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="The strategy used to choose the split at each node. Supported strategies are 'best' to choose the best split and 'random' to choose the best random split."
+                  >Splitter</label
+                >
+                <div class="col-sm-9">
+                  <select
+                    class="form-select"
+                    id="decision_tree_splitter"
+                    aria-label="Decision Tree Splitter"
+                  >
+                    <option selected="" value="best">best</option>
+                    <option value="random">random</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            class="tab-pane fade"
+            id="disabled-tab-pane"
+            role="tabpanel"
+            aria-labelledby="disabled-tab"
+            tabindex="0"
+          >
+            ...
+          </div>
+        </div>
+      </div>
     </div>
-   </div>
-   <div class="row">
-        <button id="submit-config" class="btn btn-primary">Submit Configuration</button>
-   </row>
-</div> 
+    <!-- End Classifier-->
+
+    <!-- Evaluation -->
+    <div class="row mb-3 mt-2">
+      <div class="col">
+        <h2>Evaluation</h2>
+        <!-- Tabs  -->
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link active"
+              id="testtrain-tab-pane-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#testtrain-tab-pane"
+              type="button"
+              role="tab"
+              aria-controls="knn-tab-pane"
+              aria-selected="true"
+            >
+              Enable Train Test Split
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="kfold-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#kfold-tab-pane"
+              type="button"
+              role="tab"
+              aria-controls="kfold-tab-pane"
+              aria-selected="false"
+            >
+              K Fold Cross Validation
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="stratifiedkfold-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#stratifiedkfold-tab-pane"
+              type="button"
+              role="tab"
+              aria-controls="stratifiedkfold-tab-pane"
+              aria-selected="false"
+            >
+              Stratified K Fold
+            </button>
+          </li>
+        </ul>
+
+        <!-- Tab content  -->
+
+        <div class="tab-content" id="myTabContent">
+          <div
+            class="tab-pane fade show active"
+            id="testtrain-tab-pane"
+            role="tabpanel"
+            aria-labelledby="testtrain-tab"
+            tabindex="0"
+          >
+            <div class="container mt-2 mb-2">
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Enable Train Test Split</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="train_test_split_enable"
+                    id="train_test_split_enable"
+                    aria-describedby="train_test_split_enable"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="The fraction of the dataset to include in the test split."
+                  >Test Size</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="train_test_split_test_size"
+                    aria-describedby="train_test_split_test_size"
+                    value="0.25"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="If True, the dataset will be shuffled before splitting. This can be useful to ensure that the training and test sets are independent and identically distributed."
+                  >Shuffle</label
+                >
+                <div class="col-sm-9">
+                  <select
+                    class="form-select"
+                    id="train_test_split_shuffle"
+                    aria-label="Shuffle"
+                  >
+                    <option selected="" value="True">True</option>
+                    <option value="False">False</option>
+                  </select>
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="The random seed used to ensure reproducibility of the dataset shuffle."
+                  >Random State</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="train_test_split_random_state"
+                    aria-describedby="train_test_split_random_state"
+                    value="None"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            class="tab-pane fade"
+            id="kfold-tab-pane"
+            role="tabpanel"
+            aria-labelledby="kfold-tab"
+            tabindex="0"
+          >
+            <div class="container mt-2 mb-2">
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Enable K Fold</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="kfold_enable"
+                    id="kfold_enable"
+                    aria-describedby="kfold_enable"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="Number of folds. Must be at least 2"
+                  >Number of Folds</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="kfold_n_splits"
+                    aria-describedby="kfold_n_splits"
+                    value="5"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="True to shuffle the data before splitting into batches."
+                  >Shuffle</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="checkbox"
+                    class="form-check-input"
+                    id="kfold_shuffle"
+                    aria-describedby="kfold_shuffle"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="Random seed for shuffling."
+                  >Random Seed</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="kfold_random_state"
+                    aria-describedby="kfold_random_state"
+                    value="None"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            class="tab-pane fade"
+            id="stratifiedkfold-tab-pane"
+            role="tabpanel"
+            aria-labelledby="stratifiedkfold-tab"
+            tabindex="0"
+          >
+            <div class="container mt-2 mb-2">
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Enable Stratified K Fold</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="stratifiedkfold_enable"
+                    id="stratifiedkfold_enable"
+                    aria-describedby="train_test_split_enable"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="The number of folds to use in the cross-validation"
+                  >Number of Folds</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="stratifiedkfold_n_splits"
+                    aria-describedby="stratifiedkfold_n_splits"
+                    value="5"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="Whether to shuffle the data before splitting into folds"
+                  >Shuffle</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="stratifiedkfold_shuffle"
+                    id="stratifiedkfold_shuffle"
+                    aria-describedby="stratifiedkfold_shuffle"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="The seed to use for the random number generator"
+                  >Random State</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="stratifiedkfold_random_state"
+                    aria-describedby="stratifiedkfold_random_state"
+                    value="None"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- End Evaluation -->
+
+    <div class="row mt-3 mb-3 p-3">
+      <button id="submit-config" class="btn btn-primary">
+        Submit Configuration
+      </button>
+    </div>
+    <div class="row mt-3 mb-3 p-3" id="resultsrow"></div>
+    <div class="row mt-3 mb-3">
+      <div>
+        <ul id="results"></ul>
+      </div>
+    </div>
+  </div>
 </div>
 
-
 <script>
-    async function postConfig(config) {
-        const response = await fetch('/app/api/config', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(config)
-        });
-    
-        if (!response.ok) {
-            throw new Error(`Failed to post config: ${response.statusText}`);
+  async function postConfig(config) {
+    const response = await fetch("/app/api/config", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(config),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to post config: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    return result;
+  }
+
+  async function postData(url = "", data = {}) {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+
+    return response.text();
+  }
+
+  function getValues() {
+    var config = {};
+    config.dataset = {};
+
+    config.features = {};
+    config.features.mfcc = {};
+    config.features.mel_spec = {};
+
+    config.classifier = {};
+    config.classifier.knn = {};
+    config.classifier.svm = {};
+    config.classifier.adaboost = {};
+    config.classifier.logistic_regression = {};
+    config.classifier.decision_tree = {};
+
+    config.evaluation = {};
+    config.evaluation.train_test = {};
+    config.evaluation.kfold = {};
+    config.evaluation.stratifiedkfold = {};
+
+    // Dataset values
+    var select = document.getElementById("dataset-pickle");
+    config.datasetpickle = select.value;
+
+    // Dataset Entries lenght adjust
+    config.dataset.frame_enable =
+      document.querySelector("#framing_enable").checked;
+    config.dataset.frame_frame_size =
+      document.querySelector("#frame_size").value;
+    config.dataset.frame_hop_length =
+      document.querySelector("#frame_hop_length").value;
+    config.dataset.fixed_enable =
+      document.querySelector("#fixed_enable").checked;
+    config.dataset.fixed_length = document.querySelector("#fixed_size").value;
+
+    //Features
+
+    // MFCC tab values
+    config.features.mfcc.mfcc_enable =
+      document.querySelector("#mfcc_enable").checked;
+    config.features.mfcc.n_mfcc = document.querySelector("#mfcc_n_mfcc").value;
+    config.features.mfcc.center = document.querySelector("#mfcc_center").value;
+    config.features.mfcc.dct_type =
+      document.querySelector("#mfcc_dct_type").value;
+    config.features.mfcc.norm = document.querySelector("#mfcc_norm").value;
+    config.features.mfcc.n_fft = document.querySelector("#mfcc_n_fft").value;
+    config.features.mfcc.hop_length =
+      document.querySelector("#mfcc_hop_length").value;
+
+    // Mel Spectrogram tab values
+    config.features.mel_spec.mel_spec_enable =
+      document.querySelector("#mel_spec_enable").checked;
+    config.features.mel_spec.mel_spec_n_fft =
+      document.querySelector("#mel_spec_n_fft").value;
+    config.features.mel_spec.mel_spec_hop_length = document.querySelector(
+      "#mel_spec_hop_length"
+    ).value;
+    config.features.mel_spec.mel_spec_window =
+      document.querySelector("#mel_spec_window").value;
+    config.features.mel_spec.mel_spec_center =
+      document.querySelector("#mel_spec_center").checked;
+    config.features.mel_spec.mel_spec_power =
+      document.querySelector("#mel_spec_power").value;
+
+    //Classifier
+
+    // KNN
+    config.classifier.knn.knn_enable =
+      document.getElementById("knn_enable").checked;
+    config.classifier.knn.knn_k = document.getElementById("knn_k").value;
+    config.classifier.knn.knn_algorithm =
+      document.getElementById("knn_algorithm").value;
+    config.classifier.knn.knn_leaf_size =
+      document.getElementById("knn_leaf_size").value;
+    config.classifier.knn.knn_metric =
+      document.getElementById("knn_metric").value;
+    config.classifier.knn.knn_metric_power =
+      document.getElementById("knn_metric_power").value;
+    config.classifier.knn.knn_weights =
+      document.getElementById("knn_weights").value;
+
+    // SVM
+    config.classifier.svm.svm_enable =
+      document.getElementById("svm_enable").checked;
+    config.classifier.svm.svm_c = document.getElementById("svm_c").value;
+    config.classifier.svm.svm_kernel =
+      document.getElementById("svm_kernel").value;
+    config.classifier.svm.svm_degree =
+      document.getElementById("svm_degree").value;
+    config.classifier.svm.svm_gamma =
+      document.getElementById("svm_gamma").value;
+    config.classifier.svm.svm_shrinking =
+      document.getElementById("svm_shrinking").checked;
+    config.classifier.svm.svm_probability =
+      document.getElementById("svm_probability").checked;
+    config.classifier.svm.svm_tol = document.getElementById("svm_tol").value;
+    config.classifier.svm.svm_max_iter =
+      document.getElementById("svm_max_iter").value;
+
+    // AdaBoost
+    config.classifier.adaboost.adaboost_enable =
+      document.getElementById("adaboost_enable").checked;
+    config.classifier.adaboost.adaboost_estimator =
+      document.getElementById("adaboost_estimator").value;
+    if (config.classifier.adaboost.adaboost_estimator == "SVC") {
+      config.classifier.adaboost.svm_config = {};
+      config.classifier.adaboost.svm_config.svm_c =
+        document.getElementById("ada_svm_c").value;
+      config.classifier.adaboost.svm_config.svm_kernel =
+        document.getElementById("ada_svm_kernel").value;
+      config.classifier.adaboost.svm_config.svm_degree =
+        document.getElementById("ada_svm_degree").value;
+      config.classifier.adaboost.svm_config.svm_gamma =
+        document.getElementById("ada_svm_gamma").value;
+      config.classifier.adaboost.svm_config.svm_shrinking =
+        document.getElementById("ada_svm_shrinking").checked;
+      config.classifier.adaboost.svm_config.svm_tol =
+        document.getElementById("ada_svm_tol").value;
+      config.classifier.adaboost.svm_config.svm_max_iter =
+        document.getElementById("ada_svm_max_iter").value;
+    } else if (
+      config.classifier.adaboost.adaboost_estimator == "DecisionTreeClassifier"
+    ) {
+      config.classifier.adaboost.dt_config = {};
+      config.classifier.adaboost.dt_config.max_depth =
+        document.getElementById("ada_dt_max_depth").value;
+      config.classifier.adaboost.dt_config.min_samples_split = parseInt(
+        document.getElementById("ada_dt_min_samples_split").value
+      );
+      config.classifier.adaboost.dt_config.min_samples_leaf = parseInt(
+        document.getElementById("ada_dt_min_samples_leaf").value
+      );
+      config.classifier.adaboost.dt_config.criterion =
+        document.getElementById("ada_dt_criterion").value;
+      config.classifier.adaboost.dt_config.max_leaf_nodes =
+        document.getElementById("ada_decisiontree_max_leaf_nodes").value;
+      config.classifier.adaboost.dt_config.splitter = document.getElementById(
+        "ada_decision_tree_splitter"
+      ).value;
+    }
+    config.classifier.adaboost.ada_n_estimators =
+      document.getElementById("ada_n_estimators").value;
+    config.classifier.adaboost.ada_learning_rate =
+      document.getElementById("ada_learning_rate").value;
+    config.classifier.adaboost.ada_algorithm =
+      document.getElementById("ada_algorithm").value;
+    config.classifier.adaboost.ada_random_state =
+      document.getElementById("ada_random_state").value;
+
+    // logistic_regression
+    config.classifier.logistic_regression.logistic_regression_enable =
+      document.getElementById("logistic_regression_enable").checked;
+    config.classifier.logistic_regression.logreg_penalty =
+      document.getElementById("logreg_penalty").value;
+    config.classifier.logistic_regression.logreg_C =
+      document.getElementById("logreg_C").value;
+    config.classifier.logistic_regression.logreg_solver =
+      document.getElementById("logreg_solver").value;
+    config.classifier.logistic_regression.logreg_fit_intercept =
+      document.getElementById("logreg_fit_intercept").checked;
+    config.classifier.logistic_regression.logistic_regression_max_iter =
+      document.getElementById("logistic_regression_max_iter").value;
+    config.classifier.logistic_regression.logistic_regression_tol =
+      document.getElementById("logistic_regression_tol").value;
+    config.classifier.logistic_regression.logistic_regression_fit_intercept =
+      document.getElementById("logistic_regression_fit_intercept").checked;
+    config.classifier.logistic_regression.logistic_regression_intercept_scaling =
+      document.getElementById("logistic_regression_intercept_scaling").value;
+
+    // decision tree
+    config.classifier.decision_tree.decision_tree_enable =
+      document.getElementById("decision_tree_enable").checked;
+    config.classifier.decision_tree.max_depth =
+      document.getElementById("dt_max_depth").value;
+    config.classifier.decision_tree.min_samples_split = parseInt(
+      document.getElementById("dt_min_samples_split").value
+    );
+    config.classifier.decision_tree.min_samples_leaf = parseInt(
+      document.getElementById("dt_min_samples_leaf").value
+    );
+    config.classifier.decision_tree.criterion =
+      document.getElementById("dt_criterion").value;
+    config.classifier.decision_tree.max_leaf_nodes = document.getElementById(
+      "decisiontree_max_leaf_nodes"
+    ).value;
+    config.classifier.decision_tree.splitter = document.getElementById(
+      "decision_tree_splitter"
+    ).value;
+
+    // Evaluation
+    config.evaluation.train_test.tts_split_enable = document.getElementById(
+      "train_test_split_enable"
+    ).checked;
+    config.evaluation.train_test.tts_test_size = document.getElementById(
+      "train_test_split_test_size"
+    ).value;
+    config.evaluation.train_test.tts_shuffle = document.getElementById(
+      "train_test_split_shuffle"
+    ).value;
+    config.evaluation.train_test.tts_random_state = document.getElementById(
+      "train_test_split_random_state"
+    ).value;
+
+    config.evaluation.kfold.kfold_enable =
+      document.getElementById("kfold_enable").checked;
+    config.evaluation.kfold.kfold_n_splits =
+      document.getElementById("kfold_n_splits").value;
+    config.evaluation.kfold.kfold_shuffle =
+      document.getElementById("kfold_shuffle").checked;
+    config.evaluation.kfold.kfold_random_state =
+      document.getElementById("kfold_random_state").value;
+
+    config.evaluation.stratifiedkfold.stratifiedkfold_enable =
+      document.getElementById("stratifiedkfold_enable").checked;
+    config.evaluation.stratifiedkfold.stratifiedkfold_n_splits =
+      document.getElementById("stratifiedkfold_n_splits").value;
+    config.evaluation.stratifiedkfold.stratifiedkfold_shuffle =
+      document.getElementById("stratifiedkfold_shuffle").checked;
+    config.evaluation.stratifiedkfold.stratifiedkfold_random_state =
+      document.getElementById("stratifiedkfold_random_state").value;
+
+    console.log(config);
+    return config;
+  }
+
+  // Adaboost Estimator Options
+  document
+    .getElementById("adaboost_estimator")
+    .addEventListener("change", function () {
+      var selectedOption = this.options[this.selectedIndex].value;
+      if (selectedOption !== "None") {
+        document.getElementById("adaclassifierconfig").style.display = "block";
+        document.getElementById("ada_estimator_decisiontree").style.display =
+          "none";
+        document.getElementById("ada_estimator_svm").style.display = "none";
+        if (selectedOption === "DecisionTreeClassifier") {
+          document.getElementById("ada_estimator_decisiontree").style.display =
+            "block";
+        } else if (selectedOption === "SVC") {
+          document.getElementById("ada_estimator_svm").style.display = "block";
         }
-    
-        const result = await response.json();
-        return result;
-    }
-
-    function getValues() {
-        var config = {};
-        config.dataset = {};
-        config.mfcc = {};
-        config.mel_spec = {};
-
-        // Dataset values
-        var select = document.getElementById("dataset-pickle");
-        config.datasetpickle = select.value;
-
-        // Dataset Entries lenght adjust
-        config.dataset.frame_enable = document.querySelector("#framing_enable").checked;
-        config.dataset.frame_frame_size = document.querySelector("#frame_size").value;
-        config.dataset.frame_hop_length = document.querySelector("#frame_hop_length").value;
-        config.dataset.fixed_enable = document.querySelector("#fixed_enable").checked;
-        config.dataset.fixed_length = document.querySelector("#fixed_size").value;
-      
-        // MFCC tab values
-        config.mfcc.mfcc_enable = document.querySelector("#mfcc_enable").checked;
-        config.mfcc.n_mfcc = document.querySelector("#mfcc_n_mfcc").value;
-      
-        // Mel Spectrogram tab values
-        config.mel_spec.mel_spec_enable = document.querySelector("#mel_spec_enable").checked;
-        config.mel_spec.mel_spec_n_fft = document.querySelector("#mel_spec_n_fft").value;
-        config.mel_spec.mel_spec_hop_length = document.querySelector("#mel_spec_hop_length").value;
-        config.mel_spec.mel_spec_window = document.querySelector("#mel_spec_window").value;
-        config.mel_spec.mel_spec_center = document.querySelector("#mel_spec_center").checked;
-        config.mel_spec.mel_spec_power = document.querySelector("#mel_spec_power").value;
-      
-        return config;
+      } else {
+        document.getElementById("adaclassifierconfig").style.display = "none";
       }
+    });
 
 
-    document.getElementById("submit-config").addEventListener("click", function(){
-        
-    postConfig( getValues())
-    .then(result => {
-    console.log('Success:', result);
-    })
-    .catch(error => {
-    console.error('Error:', error);
-    }
-);
-      });
+  document
+    .getElementById("submit-config")
+    .addEventListener("click", function () {
+      postConfig(getValues())
+        .then((result) => {
+          console.log(result);
+          console.log(result["Status"]);
+          newtx = "<li>" + JSON.stringify(result) + "</li>";
+          document.getElementById("results").innerHTML += newtx;
+          //document.getElementById("resultsrow").appendChild(addResultsCard(result));
+          //Result Card
+          postData("api/resultscard", result)
+            .then((data) => {
+              let div = document.createElement("div");
+              div.innerHTML = data;
+              div.classList.add("mt1");
+              document.getElementById("resultsrow").appendChild(div);
+            })
+            .catch((error) => console.error(error));
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+        });
+    });
 </script>
 
+<script>
+  //Activate bootstrap tooltips
+
+  $(function () {
+    $('[data-toggle="tooltip"]').tooltip();
+  });
+</script>
 
 {% endblock %}

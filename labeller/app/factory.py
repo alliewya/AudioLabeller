@@ -6,6 +6,12 @@ import numpy as np
 import os, pickle
 from sklearn.model_selection import KFold
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+
+from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score, roc_auc_score
 
 
 # ==================================================
@@ -357,6 +363,196 @@ class ModelFactory:
             return KnnModel(**kwargs)
 
 
+class ClassifierFactory:
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+
+    def create_classifier(self, classifier_type):
+        if classifier_type == "knn":
+            print(classifier_type)
+            print("knn1")
+            knn_params = self.kwargs["knn"]
+            if knn_params["knn_enable"]:
+                knn = KNeighborsClassifier(
+                        n_neighbors=int(knn_params["knn_k"]),
+                        algorithm=knn_params["knn_algorithm"],
+                        leaf_size=int(knn_params["knn_leaf_size"]),
+                        metric=knn_params["knn_metric"],
+                        metric_params={"p": int(knn_params["knn_metric_power"])},
+                        weights=knn_params["knn_weights"],
+                )
+                return knn
+            else:
+                return None
+        elif classifier_type == "svm":
+            svm_params = self.kwargs["svm"]
+            if svm_params["svm_enable"]:
+                svm = SVC(
+                    C=float(svm_params["svm_c"]),
+                    kernel=svm_params["svm_kernel"],
+                    degree=int(svm_params["svm_degree"]),
+                    gamma=svm_params["svm_gamma"],
+                    shrinking=svm_params["svm_shrinking"],
+                    probability=svm_params["svm_probability"],
+                    tol=float(svm_params["svm_tol"]),
+                    max_iter=int(svm_params["svm_max_iter"]),
+                )
+                return svm
+            else:
+                return None
+        elif classifier_type == "adaboost":
+            adaboost_params = self.kwargs["adaboost"]
+            if adaboost_params["adaboost_enable"]:
+                if adaboost_params["adaboost_estimator"] == "None":
+                    base_estimator = None
+                elif adaboost_params["adaboost_estimator"] == "DecisionTreeClassifier":
+                    print("Ada tree")
+                    dt_params = adaboost_params["dt_config"]
+                    max_depth = None if dt_params["max_depth"] == "None" else int(dt_params["max_depth"])
+                    min_samples_split = int(dt_params["min_samples_split"])
+                    min_samples_leaf = int(dt_params["min_samples_leaf"])
+                    criterion = dt_params["criterion"]
+                    max_leaf_nodes = None if dt_params["max_leaf_nodes"] == "None" else int(dt_params["max_leaf_nodes"])
+                    splitter = dt_params["splitter"]
+                    base_estimator = DecisionTreeClassifier(
+                        max_depth=max_depth,
+                        min_samples_split=min_samples_split,
+                        min_samples_leaf=min_samples_leaf,
+                        criterion=criterion,
+                        max_leaf_nodes=max_leaf_nodes,
+                        splitter=splitter
+                    )
+                    print("ada tree compl")
+                    #base_estimator = DecisionTreeClassifier(max_depth=1)
+                elif adaboost_params["adaboost_estimator"] == "SVC":
+                    svm_params = adaboost_params["svm_config"]
+                    base_estimator = SVC(
+                        C=float(svm_params["svm_c"]),
+                        kernel=svm_params["svm_kernel"],
+                        degree=int(svm_params["svm_degree"]),
+                        gamma=svm_params["svm_gamma"],
+                        shrinking=svm_params["svm_shrinking"],
+                        probability=True,
+                        tol=float(svm_params["svm_tol"]),
+                        max_iter=int(svm_params["svm_max_iter"]),
+                    )
+                    #base_estimator = SVC()
+                if( adaboost_params['ada_random_state']== "None"):
+                    ada_random_state = None
+                else:
+                    ada_random_state = int(adaboost_params['ada_random_state'])
+                adaboost = AdaBoostClassifier(
+                    estimator=base_estimator,
+                    n_estimators=int(adaboost_params["ada_n_estimators"]),
+                    learning_rate=float(adaboost_params["ada_learning_rate"]),
+                    algorithm=adaboost_params["ada_algorithm"],
+                    random_state=ada_random_state,
+                    )
+                return adaboost
+            else:
+                return None                    
+        elif classifier_type == "logistic_regression":
+            logreg_params = self.kwargs["logistic_regression"]
+            if logreg_params["logistic_regression_enable"]:
+                logreg = LogisticRegression(
+                    penalty=logreg_params["logreg_penalty"],
+                    C=float(logreg_params["logreg_C"]),
+                    solver=logreg_params["logreg_solver"],
+                    fit_intercept=logreg_params["logreg_fit_intercept"],
+                    max_iter=int(logreg_params["logistic_regression_max_iter"]),
+                    tol=float(logreg_params["logistic_regression_tol"]),
+                )
+                return logreg
+        elif classifier_type == "decision_tree":
+            print("Tree")
+            dt_params = self.kwargs["decision_tree"]
+            print(dt_params)
+            if dt_params["decision_tree_enable"]:
+                max_depth = None if dt_params["max_depth"] == "None" else int(dt_params["max_depth"])
+                min_samples_split = int(dt_params["min_samples_split"])
+                min_samples_leaf = int(dt_params["min_samples_leaf"])
+                criterion = dt_params["criterion"]
+                max_leaf_nodes = None if dt_params["max_leaf_nodes"] == "None" else int(dt_params["max_leaf_nodes"])
+                splitter = dt_params["splitter"]
+                dt = DecisionTreeClassifier(
+                    max_depth=max_depth,
+                    min_samples_split=min_samples_split,
+                    min_samples_leaf=min_samples_leaf,
+                    criterion=criterion,
+                    max_leaf_nodes=max_leaf_nodes,
+                    splitter=splitter
+                )
+                print("Release the entwives")
+                return dt
+            else:
+                return None
+        else:
+            return None
+                    
+                    
 
 
 #a = MFCCFeatures().features_from_dataset()
+
+
+#Scoring
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import f1_score
+from sklearn.metrics import precision_score
+from sklearn.metrics import recall_score
+from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score
+import time
+
+def common_scores(clf, X_test, y_test):
+
+    scores = {}
+    # Calculate the accuracy score
+    print("1")
+    print(X_test.shape)
+    scores["accuracy"] = clf.score(X_test, y_test)
+    start_time = time.time()                        
+    y_pred = clf.predict(X_test)
+    end_time = time.time()
+    scores["timetaken"] = end_time - start_time
+    print("2")
+    scores["f1"] = f1_score(y_test, y_pred, average='weighted')
+    scores["precision"] = precision_score(y_test, y_pred, average='weighted')
+    scores["recall"] = recall_score(y_test, y_pred, average='weighted')
+    print("3")
+    #y_score = clf.predict_proba(X_test)
+    y_score = clf.predict_proba(X_test)[:,1]
+    scores["roc_auc"] = roc_auc_score(y_test, y_score, multi_class='ovr')
+    print("4")
+    scores["confusion_matrix"] = confusion_matrix(y_test, y_pred).tolist()
+    #scores["confusion_matrix"]= scores["confusion_matrix"]
+    print(scores)
+    return scores
+
+
+from sklearn.model_selection import cross_validate
+from sklearn.model_selection import KFold, StratifiedKFold
+
+class CrossVal():
+    
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+
+    def cross_validate(self,clf, X, y):
+        params = self.kwargs
+        if(bool(params['kfold']['kfold_enable'])):
+            spram = params['kfold']
+            if spram['kfold_random_state'] == 'None':
+                random_state = None
+            else:
+                random_state = int(spram['kfold_random_state'])
+            cv = KFold(n_splits=int(spram['kfold_n_splits']),shuffle=bool(spram['kfold_shuffle']),random_state=random_state)
+        elif(bool(params['stratifiedkfold']['stratifiedkfold_enable'])):
+            spram = params['stratifiedkfold']
+            if spram['stratifiedkfold_random_state'] == 'None':
+                random_state = None
+            else:
+                random_state = int(spram['stratifiedkfold_random_state'])
+            cv = StratifiedKFold(n_splits=int(spram['stratifiedkfold_n_splits']),shuffle=bool(spram['stratifiedkfold_shuffle']),random_state=random_state)
+        cv_results = cross_validate(clf, X=X, y=y, cv=cv, n_jobs=-1)
+        return cv_results
