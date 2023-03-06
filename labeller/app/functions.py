@@ -29,16 +29,23 @@ def returnPredictions(classifier, filename):
 
     # Predict each frame label
     for i, frame in enumerate(frames):
-        features = librosa.feature.mfcc(y=frame, sr=sr, n_mfcc=40)
-        #print(features.shape)
-        features = features.reshape(-1)
-        # print(features.shape)
-        # a = features.reshape(1,-1)
-        # print(a.shape)
-        # #print(features.reshape(1,-1))
-        # print("_------_----_---_-")
-        prediction = classifier.predict(features.reshape(1, -1))
-        #print(prediction)
+
+        # #old
+        # features = librosa.feature.mfcc(y=frame, sr=sr, n_mfcc=40)
+        # #print(features.shape)
+        # features = features.reshape(-1)
+        # # print(features.shape)
+        # # a = features.reshape(1,-1)
+        # # print(a.shape)
+        # # #print(features.reshape(1,-1))
+        # # print("_------_----_---_-")
+        # prediction = classifier.predict(features.reshape(1, -1))
+        # #print(prediction)
+        
+        with open("predictor.pickle", "rb") as file:
+            predictor = pickle.load(file)
+        
+        prediction = predictor.make_prediction(frame)
 
         if(prediction == 0):
             starttime = i * hop_lenght / sr
@@ -130,23 +137,35 @@ def generate_dataset_file():
     status = {"Number": len(list1), "Files": list1, }
 
     cough = factory.Dataset(path1=os.path.join("app", "static", "dataset1", "cough"), load=True, samplerate=22500)
-    cough.set_label("1")
+    cough.set_label("0")
     print(str(len(cough.samples))+" Cough Samples")
     print(str(len(cough.labels))+" Cough Labels")
     notcough = factory.Dataset(path1=os.path.join("app", "static", "dataset1", "notcough"),load=True, samplerate=22500)
-    notcough.set_label("0")
+    notcough.set_label("1")
     print(str(len(notcough.samples))+" Not Cough Samples")
     print(str(len(notcough.labels))+" Not Cough Labels")  
 
     combineddataset = cough.combine_dataset(notcough)
-    print(str(len(combineddataset.samples))+" Combined Samples")
-    print(str(len(combineddataset.labels))+" Combined Labels")
+
+
+    notcoughexternal = factory.Dataset(path1=os.path.join("app", "static", "dataset1", "external"), load=True, samplerate=22500)
+    notcoughexternal.set_label("1")
+    print(str(len(notcoughexternal.samples))+"External Not Cough Samples")
+    print(str(len(notcoughexternal.labels))+"External Not Cough Labels")  
+
+
+
+    combineddataset2 = combineddataset.combine_dataset(notcoughexternal)
+    combineddataset2.add_labels_to_audiosamps()
+
+    print(str(len(combineddataset2.samples))+" Combined Samples")
+    print(str(len(combineddataset2.labels))+" Combined Labels")
 
     try:
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         fname = timestamp + "-ds.pickle"
         with open(os.path.join("app", "static", "datasetpickles", fname ), "wb") as f:
-            pickle.dump(combineddataset, f)
+            pickle.dump(combineddataset2, f)
         print("Pickled")
     except:
         print("Pickle failed")

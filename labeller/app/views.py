@@ -594,36 +594,53 @@ def modelfromconfig(request):
                 with open(path, 'rb') as f:
                     dataset = pickle.load(f)
                 print("Pickleload")
-                print(len(dataset.samples))
-                print(len(dataset.labels))
-                if(bool(data['dataset']['fixed_enable'])):
-                    dataset.fix_length(length=data['dataset']['fixed_length'])
+                print("Audio Loaded " + str(len(dataset.samples)))
+                print("Labels Loaded " + str(len(dataset.labels)))
+                dataset.add_labels_to_audiosamps()
+                
+                if(bool(data['dataset']['processing']['enable_segment'])):
+                    dataset.segment()
+                if(bool(data['dataset']['processing']['enable_trim'])):
+                    dataset.trim_audio()
+
+                if(bool(data['dataset']['fixed']['enable'])):
+                    dataset.fix_length(length=data['dataset']['fixed']['fixed_length'])
                     print("fix2")
+                elif(bool(data['dataset']['frame']['enable'])):
+                    print("frames")
+                    dataset.create_frames(frame_size=int(data['dataset']['frame']['frame_frame_size']), hop_length=int(data['dataset']['frame']['frame_hop_length']))
+                print(len(dataset.labels))
+                print(dataset.labels[3])
                 try:
-                    mfc = b.features_from_dataset(dataset=dataset)
+                    #mfc,labels = b.features_from_dataset(dataset=dataset)
+                    mfc,labels = b.features_from_dataset_multi(dataset=dataset)
                     print("whoop")
-                    print(type(mfc))
+                    #print(type(mfc))
                     print(len(mfc))
 
                     #Classifier
                     try:
                         mdl = None
                         modelfactory = factory.ClassifierFactory(**data['classifier'])
-                        if(bool(data['classifier']['knn']['knn_enable'])):
+                        if(bool(data['classifier']['knn']['enable'])):
                             mdl = modelfactory.create_classifier("knn")
                             conf = {"Classifier":"Knn","Config":data['classifier']['knn']}
                             print("knn created")
-                        elif(bool(data['classifier']['svm']['svm_enable'])):
+                        elif(bool(data['classifier']['svm']['enable'])):
                             mdl = modelfactory.create_classifier("svm")
                             conf = {"Classifier":"SVM","Config":data['classifier']['svm']}
-                        elif(bool(data['classifier']['adaboost']['adaboost_enable'])):
+                        elif(bool(data['classifier']['adaboost']['enable'])):
                             mdl = modelfactory.create_classifier("adaboost")
                             conf = {"Classifier":"Ada","Config":data['classifier']['adaboost']}
                             print("Adaboos Created")
-                        elif(bool(data['classifier']['decision_tree']['decision_tree_enable'])):
+                        elif(bool(data['classifier']['decision_tree']['enable'])):
                             mdl = modelfactory.create_classifier("decision_tree")
                             conf = {"Classifier":"Decision Tree","Config":data['classifier']['decision_tree']}
                             print("Tree Created")
+                        elif(bool(data['classifier']['GMMHMM']['enable'])):
+                            mdl = modelfactory.create_classifier("GMMHMM")
+                            #conf = {"Classifier":"Decision Tree","Config":data['classifier']['decision_tree']}
+                            print("GMMHMM Created")
                         print("clf made")
                         mfc2 =  np.asarray(mfc)
                         print(mfc2.shape)
@@ -634,18 +651,18 @@ def modelfromconfig(request):
                         # Eval
                         try:
                             print("Eval Start")
-                            if(bool(data['evaluation']['train_test']['tts_split_enable'])):
+                            if(bool(data['evaluation']['train_test']['enable'])):
                                 print("test train split")
                                 params = data['evaluation']
                                 if(params['train_test']['tts_random_state']=="None"):
-                                    X_train, X_test, y_train, y_test = train_test_split(mfc2, dataset.labels, 
+                                    X_train, X_test, y_train, y_test = train_test_split(mfc2, labels, 
                                     test_size=float(params['train_test']['tts_test_size']), 
                                     shuffle=params['train_test']['tts_shuffle'])
                                 else:
-                                    X_train, X_test, y_train, y_test = train_test_split(mfc2, dataset.labels, 
+                                    X_train, X_test, y_train, y_test = train_test_split(mfc2, labels, 
                                     test_size=float(params['train_test']['tts_test_size']), 
                                     shuffle=params['train_test']['tts_shuffle'], 
-                                    random_state=params['train_test']['tts_random_state'])
+                                    random_state=int(params['train_test']['tts_random_state']))
                                 try:
                                     start_time = time.time()
                                     clf = mdl.fit(X_train, y_train)
@@ -659,7 +676,7 @@ def modelfromconfig(request):
                                 scores = factory.common_scores(clf,X_test=X_test,y_test=y_test)
                                 scores["Time"] = timetaken
                                 #scores["Classifier"] = conf
-                            elif(bool(data['evaluation']['kfold']['kfold_enable'])):
+                            elif(bool(data['evaluation']['kfold']['enable'])):
                                 print("kfold")
                                 cv = factory.CrossVal(**data['evaluation'])
                                 try:
@@ -673,7 +690,7 @@ def modelfromconfig(request):
                                 except Exception as e:
                                     print("Kfold fail")
                                     print("Exception:",e)
-                            elif(bool(data['evaluation']['stratifiedkfold']['stratifiedkfold_enable'])):
+                            elif(bool(data['evaluation']['stratifiedkfold']['enable'])):
                                 print("Strat Kfold")
                                 cv = factory.CrossVal(**data['evaluation'])
                                 try:
@@ -689,7 +706,9 @@ def modelfromconfig(request):
                             print("Eval Split Fail")
                             print("An exception occurred:", e)
                         
-
+                        predictor = factory.Predictor(featureeex=factory.MFCCFeatures(**featureconfig['mfcc']), clf=clf)
+                        with open("predictor.pickle", "wb") as file:
+                            pickle.dump(predictor, file)
                         return JsonResponse({"Status": "Success","Scores": scores, "Config": data, "Timestamp": datetime.now().isoformat()})
 
                         

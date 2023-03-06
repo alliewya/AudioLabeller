@@ -32,6 +32,22 @@
                 </select>
               </div>
             </div>
+            <div class="row">
+                <label class="col-sm-3 form-check-label" for="enable_segment" data-toggle="tooltip" title="Segments audio if a period of silence is detected">
+                   Enable Segment
+                 </label>
+               <div class="col-sm-9">
+                   <input type="checkbox" class="form-check-input" id="enable_segment">
+               </div>
+             </div>
+            <div class="row">
+                 <label class="col-sm-3 form-check-label" for="enable_trim" data-toggle="tooltip" title="Removes leading and trailing silence from audio signals">
+                    Enable Trim Silence
+                  </label>
+                <div class="col-sm-9">
+                    <input type="checkbox" class="form-check-input" id="enable_trim">
+                </div>
+              </div>
           </div>
         </div>
         <ul class="nav nav-tabs" id="myTab" role="tablist">
@@ -532,6 +548,20 @@
               Decision Tree
             </button>
           </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="GMMHMM-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#GMMHMM-tab-pane"
+              type="button"
+              role="tab"
+              aria-controls="GMMHMM-tab-pane"
+              aria-selected="false"
+            >
+                GMMHMM
+            </button>
+          </li>
         </ul>
         <div class="tab-content" id="myTabContent">
           <div
@@ -853,8 +883,7 @@
             id="adaboost-tab-pane"
             role="tabpanel"
             aria-labelledby="adaboost-tab"
-            tabindex="0"
-          >
+            tabindex="0">
             <div class="container mt-2 mb-2">
               <div class="row">
                 <label for="colFormLabel" class="col-sm-3 col-form-label"
@@ -1554,6 +1583,30 @@
           </div>
           <div
             class="tab-pane fade"
+            id="GMMHMM-tab-pane"
+            role="tabpanel"
+            aria-labelledby="GMMHMM-tab"
+            tabindex="0"
+          >
+            <div class="container mt-2 mb-2">
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Enable GMMHMM</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="GMMHMM_enable"
+                    id="GMMHMM_enable"
+                    aria-describedby="GMMHMM_enable"
+                  />
+                </div>
+              </div>
+            </div>
+        </div>
+          <div
+            class="tab-pane fade"
             id="disabled-tab-pane"
             role="tabpanel"
             aria-labelledby="disabled-tab"
@@ -1863,10 +1916,21 @@
         Submit Configuration
       </button>
     </div>
+    <div class="row mt-1 mb-1 invisible"  id="runningspinner" >
+        <div class="d-flex align-items-center">
+            <strong>Running...</strong>
+            <div class="spinner-border ms-auto" role="status" aria-hidden="true"></div>
+          </div>
+    </div>
     <div class="row mt-3 mb-3 p-3" id="resultsrow"></div>
     <div class="row mt-3 mb-3">
       <div>
+        <a class="btn btn-primary" data-bs-toggle="collapse" href="#collapseResult" role="button" aria-expanded="false" aria-controls="collapseResult">
+            Show Response
+          </a>
+        <div class="collapse" id="collapseResult">
         <ul id="results"></ul>
+        </div>
       </div>
     </div>
   </div>
@@ -1905,6 +1969,9 @@
   function getValues() {
     var config = {};
     config.dataset = {};
+    config.dataset.fixed = {};
+    config.dataset.frame = {};
+    config.dataset.processing = {};
 
     config.features = {};
     config.features.mfcc = {};
@@ -1916,6 +1983,8 @@
     config.classifier.adaboost = {};
     config.classifier.logistic_regression = {};
     config.classifier.decision_tree = {};
+    config.classifier.GMMHMM = {};
+    
 
     config.evaluation = {};
     config.evaluation.train_test = {};
@@ -1925,22 +1994,27 @@
     // Dataset values
     var select = document.getElementById("dataset-pickle");
     config.datasetpickle = select.value;
+    config.dataset.processing.enable_segment =
+    document.querySelector("#enable_segment").checked;
+    config.dataset.processing.enable_trim =
+      document.querySelector("#enable_trim").checked;
+      
 
     // Dataset Entries lenght adjust
-    config.dataset.frame_enable =
+    config.dataset.frame.enable =
       document.querySelector("#framing_enable").checked;
-    config.dataset.frame_frame_size =
+    config.dataset.frame.frame_frame_size =
       document.querySelector("#frame_size").value;
-    config.dataset.frame_hop_length =
+    config.dataset.frame.frame_hop_length =
       document.querySelector("#frame_hop_length").value;
-    config.dataset.fixed_enable =
+    config.dataset.fixed.enable =
       document.querySelector("#fixed_enable").checked;
-    config.dataset.fixed_length = document.querySelector("#fixed_size").value;
+    config.dataset.fixed.fixed_length = document.querySelector("#fixed_size").value;
 
     //Features
 
     // MFCC tab values
-    config.features.mfcc.mfcc_enable =
+    config.features.mfcc.enable =
       document.querySelector("#mfcc_enable").checked;
     config.features.mfcc.n_mfcc = document.querySelector("#mfcc_n_mfcc").value;
     config.features.mfcc.center = document.querySelector("#mfcc_center").value;
@@ -1952,7 +2026,7 @@
       document.querySelector("#mfcc_hop_length").value;
 
     // Mel Spectrogram tab values
-    config.features.mel_spec.mel_spec_enable =
+    config.features.mel_spec.enable =
       document.querySelector("#mel_spec_enable").checked;
     config.features.mel_spec.mel_spec_n_fft =
       document.querySelector("#mel_spec_n_fft").value;
@@ -1969,7 +2043,7 @@
     //Classifier
 
     // KNN
-    config.classifier.knn.knn_enable =
+    config.classifier.knn.enable =
       document.getElementById("knn_enable").checked;
     config.classifier.knn.knn_k = document.getElementById("knn_k").value;
     config.classifier.knn.knn_algorithm =
@@ -1984,7 +2058,7 @@
       document.getElementById("knn_weights").value;
 
     // SVM
-    config.classifier.svm.svm_enable =
+    config.classifier.svm.enable =
       document.getElementById("svm_enable").checked;
     config.classifier.svm.svm_c = document.getElementById("svm_c").value;
     config.classifier.svm.svm_kernel =
@@ -2002,7 +2076,7 @@
       document.getElementById("svm_max_iter").value;
 
     // AdaBoost
-    config.classifier.adaboost.adaboost_enable =
+    config.classifier.adaboost.enable =
       document.getElementById("adaboost_enable").checked;
     config.classifier.adaboost.adaboost_estimator =
       document.getElementById("adaboost_estimator").value;
@@ -2052,7 +2126,7 @@
       document.getElementById("ada_random_state").value;
 
     // logistic_regression
-    config.classifier.logistic_regression.logistic_regression_enable =
+    config.classifier.logistic_regression.enable =
       document.getElementById("logistic_regression_enable").checked;
     config.classifier.logistic_regression.logreg_penalty =
       document.getElementById("logreg_penalty").value;
@@ -2072,7 +2146,7 @@
       document.getElementById("logistic_regression_intercept_scaling").value;
 
     // decision tree
-    config.classifier.decision_tree.decision_tree_enable =
+    config.classifier.decision_tree.enable =
       document.getElementById("decision_tree_enable").checked;
     config.classifier.decision_tree.max_depth =
       document.getElementById("dt_max_depth").value;
@@ -2091,8 +2165,14 @@
       "decision_tree_splitter"
     ).value;
 
+    // GMMHMM
+    config.classifier.GMMHMM.enable =
+      document.getElementById("GMMHMM_enable").checked;
+
+
+
     // Evaluation
-    config.evaluation.train_test.tts_split_enable = document.getElementById(
+    config.evaluation.train_test.enable = document.getElementById(
       "train_test_split_enable"
     ).checked;
     config.evaluation.train_test.tts_test_size = document.getElementById(
@@ -2105,7 +2185,7 @@
       "train_test_split_random_state"
     ).value;
 
-    config.evaluation.kfold.kfold_enable =
+    config.evaluation.kfold.enable =
       document.getElementById("kfold_enable").checked;
     config.evaluation.kfold.kfold_n_splits =
       document.getElementById("kfold_n_splits").value;
@@ -2114,7 +2194,7 @@
     config.evaluation.kfold.kfold_random_state =
       document.getElementById("kfold_random_state").value;
 
-    config.evaluation.stratifiedkfold.stratifiedkfold_enable =
+    config.evaluation.stratifiedkfold.enable =
       document.getElementById("stratifiedkfold_enable").checked;
     config.evaluation.stratifiedkfold.stratifiedkfold_n_splits =
       document.getElementById("stratifiedkfold_n_splits").value;
@@ -2152,14 +2232,16 @@
   document
     .getElementById("submit-config")
     .addEventListener("click", function () {
+        document.getElementById("runningspinner").classList.add("visible");
+        document.getElementById("runningspinner").classList.remove("invisible");
       postConfig(getValues())
         .then((result) => {
           console.log(result);
           console.log(result["Status"]);
           newtx = "<li>" + JSON.stringify(result) + "</li>";
           document.getElementById("results").innerHTML += newtx;
-          //document.getElementById("resultsrow").appendChild(addResultsCard(result));
-          //Result Card
+          document.getElementById("runningspinner").classList.remove("visible");
+          document.getElementById("runningspinner").classList.add("invisible");
           postData("api/resultscard", result)
             .then((data) => {
               let div = document.createElement("div");

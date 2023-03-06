@@ -14,6 +14,9 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score, roc_auc_score
 
 
+import multiprocessing
+from hmmlearn import hmm
+
 # ==================================================
 #             Data & Dataset
 # ==================================================
@@ -73,7 +76,7 @@ class AudioSample:
     def get_length(self):
         return(librosa.get_duration(self.audiodata, self.samplerate))
 
-    def get_segments(self, threshold=16):
+    def get_segments(self, threshold=60):
         splitpoints = librosa.effects.split(self.audiodata, top_db=threshold)
         segs = []
         for i in range(splitpoints.shape[0]):
@@ -89,6 +92,18 @@ class AudioSample:
             a, frame_length=framelength, hop_length=hop_length)
         self.frames = [frame for frame in frames.T]
         return self.frames
+
+    def get_frames_as_audioobj(self, framelength=11250, hop_length=5625):
+        a = self.audiodata
+        targetlen = max(framelength, (((len(a) // hop_length)+1)*hop_length))
+        a = librosa.util.fix_length(a, size=targetlen)
+        frames = librosa.util.frame(
+            a, frame_length=framelength, hop_length=hop_length)
+        self.frames = [frame for frame in frames.T]
+        frames_list = []
+        for frame in self.frames:
+            frames_list.append(AudioSample(audiodata=frame,label=self.label, samplerate=self.samplerate))
+        return frames_list
 
     def normalize_audio(self):
         a = self.audiodata
@@ -124,12 +139,13 @@ class Dataset:
 
                 
 
-    def segment(self, threshold=16):
+    def segment(self, threshold=60):
         segmentedlist = []
         for sample in self.samples:
             sampsegs = sample.get_segments(threshold=threshold)
             for x in sampsegs:
                 segmentedlist.append(x)
+        print("Unsegmented audio samples".format(len(self.samples)))        
         print("Created {} segmented audio samples".format(len(segmentedlist)))
         self.samples = segmentedlist
         self.segmented = True
@@ -142,6 +158,8 @@ class Dataset:
 
     def set_label(self,label):
         self.labels = [label for samp in self.samples]
+        for samp in self.samples:
+            samp.label = label
 
     def combine_dataset(self, dataset):
         dataset2 = self
@@ -161,7 +179,33 @@ class Dataset:
             print(self.features.shape())
     
     def create_frames(self, frame_size, hop_length):
-        self.frames = []
+        print("Creating Frames")
+        print("Samples Length" + str(len(self.samples)))
+        print("Labels length" + str(len(self.labels)))
+        samples_new = []
+        labels_new = []
+        for audio in self.samples:
+            #audio.get_frames_list(framelength=frame_size, hop_length=hop_length)
+            frames = audio.get_frames_as_audioobj(framelength=frame_size, hop_length=hop_length)
+            for x in frames:
+                samples_new.append(x)
+                labels_new.append(x.label)
+        self.samples = samples_new
+        self.labels = labels_new
+        print("Created Frames")
+        print("Frames Length" + str(len(self.samples)))
+        print("Labels length" + str(len(self.labels)))
+        
+
+    def get_labels(self):
+        labels = []
+        for samp in self.samples:
+            labels.append(samp.label)
+        return labels
+
+    def add_labels_to_audiosamps(self):
+        for i, audio in enumerate(self.samples):
+            audio.label = self.labels[i]
     
     def fix_length(self, length):
         samples_new = []
@@ -171,6 +215,18 @@ class Dataset:
             samples_new.append(audio)
         self.samples = samples_new
 
+    def trim_audio(self, **kwargs):
+        print("Pre-trim Average length: " + str(self.get_average_length()))
+        for audio in self.samples:
+            audio.audiodata, index = librosa.effects.trim(y=audio.audiodata)
+        print("Post-trim Average length: " + str(self.get_average_length()))
+
+
+    def get_average_length(self):
+        total_length = 0
+        for audio in self.samples:
+            total_length = total_length + librosa.get_duration(y=audio.audiodata)
+        return total_length/len(self.samples)
 
 # =======================================================
 #               Features
@@ -195,8 +251,7 @@ class MFCCFeatures(Featuresbase):
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
-        if(self.kwargs.get('n_mfcc')):
-            self.kwargs
+    
 
 
     def features_from_dataset2(self,dataset, **kwargs):
@@ -210,12 +265,21 @@ class MFCCFeatures(Featuresbase):
 
     def features_from_dataset(self, dataset,**kwargs):
 
+        kwargs = self.kwargs
+        n_mfcc = int(kwargs.get('n_mfcc', 20))
+        center = bool(kwargs.get('center', False))
+        dct_type = int(kwargs.get('dct_type', 2))
+        norm = kwargs.get('norm', 'ortho')
+        n_fft = int(kwargs.get('n_fft', 2048))
+        hop_length = int(kwargs.get('hop_length', 512))
 
         #FRAMES!!!
 
 
-        n_mfcc = int(self.kwargs.get('n_mfcc',20))
+        #n_mfcc = int(self.kwargs.get('n_mfcc',20))
         features = []
+        labels = []
+        templist = []
         #features = np.empty((0, n_mfcc))
         if(kwargs.get('delta')==True):
 
@@ -223,7 +287,7 @@ class MFCCFeatures(Featuresbase):
 
             for audio in dataset.samples:
                 mfcc = librosa.feature.mfcc(
-                    y=audio.audiodata, sr=audio.samplerate, n_mfcc=n_mfcc
+                    y=audio.audiodata, sr=audio.samplerate, **self.kwargs
                 )
                 mfcc_delta = librosa.feature.delta(mfcc)
                 if(self.kwargs.get('delta2')==True):
@@ -233,28 +297,73 @@ class MFCCFeatures(Featuresbase):
                 features = np.concatenate((features, mfcc), axis=0)
         else:    
             for audio in dataset.samples:
+                # mfcc = librosa.feature.mfcc(
+                #     y=audio.audiodata, sr=audio.samplerate, **self.kwargs
+                # )
+                # mfcc = librosa.feature.mfcc(
+                #     y=audio.audiodata, sr=audio.samplerate, n_mfcc=n_mfcc
+                # )
                 mfcc = librosa.feature.mfcc(
-                    y=audio.audiodata, sr=audio.samplerate, n_mfcc=n_mfcc
+                    y=audio.audiodata, sr=audio.samplerate, n_mfcc=n_mfcc, center=center, dct_type=dct_type, norm=norm, n_fft=n_fft, hop_length=hop_length
                 )
                 mfcc = mfcc.ravel()
-                features.append(mfcc)   
-        return features
+                templist.append({'feature':mfcc, 'label':audio.label})
+                #features.append(mfcc)
+        features = [x['feature'] for x in templist]
+        labels = [x['label'] for x in templist]
+        return features,labels
 
-    def single_features(self, audiosample, **kwargs):
-        n_mfcc = int(self.kwargs.get('n_mfcc',20))
-        features = np.empty((0, n_mfcc))
-        np.append(features, librosa.feature.mfcc(
-                y=audiosample.audiodata, sr=audiosample.samplerate, n_mfcc=n_mfcc
-            ), axis=0)
+    def single_features(self, audiosample=None,audioframe = None, **kwargs):
+        # n_mfcc = int(self.kwargs.get('n_mfcc',20))
+        # features = np.empty((0, n_mfcc))
+        # np.append(features, librosa.feature.mfcc(
+        #         y=audiosample.audiodata, sr=audiosample.samplerate, n_mfcc=n_mfcc
+        #     ), axis=0)
+        kwargs = self.kwargs
+        n_mfcc = int(kwargs.get('n_mfcc', 20))
+        center = bool(kwargs.get('center', False))
+        dct_type = int(kwargs.get('dct_type', 2))
+        norm = kwargs.get('norm', 'ortho')
+        n_fft = int(kwargs.get('n_fft', 2048))
+        hop_length = int(kwargs.get('hop_length', 512))
+        if audioframe:
+            features = []
+            mfcc = librosa.feature.mfcc(
+                y=audioframe, sr=22050, n_mfcc=n_mfcc, center=center, dct_type=dct_type, norm=norm, n_fft=n_fft, hop_length=hop_length
+            )
+            mfcc = mfcc.ravel()
+            features.append(mfcc)
         return features
 
     def single_features_from_audio(self, audiofilepath, **kwargs):
-        audiosample = AudioSample(path=audiofilepath, samplerate=self.kwargs.get('samplerate',22500))
+        audiosample = AudioSample(path=audiofilepath, samplerate=self.kwargs.get('samplerate',22050))
         features = np.empty((0, kwargs.get('n_mfcc', 20)))
         np.append(features, librosa.feature.mfcc(
                 y=audiosample.audiodata, sr=audiosample.samplerate, n_mfcc=n_mfcc
             ), axis=0)
         return features
+
+    def process_sample(self, audio, n_mfcc, kwargs):
+        mfcc = librosa.feature.mfcc(
+            y=audio.audiodata, sr=audio.samplerate, n_mfcc=n_mfcc
+        )
+        mfcc = mfcc.ravel()
+        return {'feature': mfcc, 'label': audio.label}
+
+    def features_from_dataset_multi(self, dataset,**kwargs):
+        n_mfcc = int(self.kwargs.get('n_mfcc', 20))
+        with multiprocessing.Pool() as pool:
+            results = pool.starmap(
+                self.process_sample,
+                [(audio, n_mfcc, kwargs) for audio in dataset.samples]
+            )
+        features = [x['feature'] for x in results]
+        labels = [x['label'] for x in results]
+        return features, labels
+
+
+
+
 
 class MelSpectrogramFeatures(Featuresbase):
 
@@ -316,8 +425,8 @@ class FeaturesFactory():
     def __init__(self, **kwargs):
         pass
 
-
-
+    def extract_features(self, classifier_type):
+        pass
 # =======================================================
 #               Model Section
 # =======================================================
@@ -372,7 +481,7 @@ class ClassifierFactory:
             print(classifier_type)
             print("knn1")
             knn_params = self.kwargs["knn"]
-            if knn_params["knn_enable"]:
+            if knn_params["enable"]:
                 knn = KNeighborsClassifier(
                         n_neighbors=int(knn_params["knn_k"]),
                         algorithm=knn_params["knn_algorithm"],
@@ -386,7 +495,7 @@ class ClassifierFactory:
                 return None
         elif classifier_type == "svm":
             svm_params = self.kwargs["svm"]
-            if svm_params["svm_enable"]:
+            if svm_params["enable"]:
                 svm = SVC(
                     C=float(svm_params["svm_c"]),
                     kernel=svm_params["svm_kernel"],
@@ -402,7 +511,7 @@ class ClassifierFactory:
                 return None
         elif classifier_type == "adaboost":
             adaboost_params = self.kwargs["adaboost"]
-            if adaboost_params["adaboost_enable"]:
+            if adaboost_params["enable"]:
                 if adaboost_params["adaboost_estimator"] == "None":
                     base_estimator = None
                 elif adaboost_params["adaboost_estimator"] == "DecisionTreeClassifier":
@@ -453,7 +562,7 @@ class ClassifierFactory:
                 return None                    
         elif classifier_type == "logistic_regression":
             logreg_params = self.kwargs["logistic_regression"]
-            if logreg_params["logistic_regression_enable"]:
+            if logreg_params["enable"]:
                 logreg = LogisticRegression(
                     penalty=logreg_params["logreg_penalty"],
                     C=float(logreg_params["logreg_C"]),
@@ -467,7 +576,7 @@ class ClassifierFactory:
             print("Tree")
             dt_params = self.kwargs["decision_tree"]
             print(dt_params)
-            if dt_params["decision_tree_enable"]:
+            if dt_params["enable"]:
                 max_depth = None if dt_params["max_depth"] == "None" else int(dt_params["max_depth"])
                 min_samples_split = int(dt_params["min_samples_split"])
                 min_samples_leaf = int(dt_params["min_samples_leaf"])
@@ -486,6 +595,15 @@ class ClassifierFactory:
                 return dt
             else:
                 return None
+        elif classifier_type == "GMMHMM":
+            print("GMM Start")
+            n_components = 6 # Number of hidden states
+            n_mix = 2 # Number of Gaussian Mixtures per hidden state
+
+            # Initialize the GMMHMM model
+            model = hmm.GMMHMM(n_components=n_components, n_mix=n_mix,covariance_type='full')
+            print("GMM end")
+            return model
         else:
             return None
                     
@@ -508,22 +626,22 @@ def common_scores(clf, X_test, y_test):
 
     scores = {}
     # Calculate the accuracy score
-    print("1")
-    print(X_test.shape)
+    #print("1")
+    #print(X_test.shape)
     scores["accuracy"] = clf.score(X_test, y_test)
     start_time = time.time()                        
     y_pred = clf.predict(X_test)
     end_time = time.time()
     scores["timetaken"] = end_time - start_time
-    print("2")
-    scores["f1"] = f1_score(y_test, y_pred, average='weighted')
-    scores["precision"] = precision_score(y_test, y_pred, average='weighted')
-    scores["recall"] = recall_score(y_test, y_pred, average='weighted')
-    print("3")
+    #print("2")
+    scores["f1"] = f1_score(y_test, y_pred, average='binary', pos_label='0')
+    scores["precision"] = precision_score(y_test, y_pred, average='binary', pos_label='0')
+    scores["recall"] = recall_score(y_test, y_pred, average='binary', pos_label='0')
+    #print("3")
     #y_score = clf.predict_proba(X_test)
     y_score = clf.predict_proba(X_test)[:,1]
     scores["roc_auc"] = roc_auc_score(y_test, y_score, multi_class='ovr')
-    print("4")
+    #print("4")
     scores["confusion_matrix"] = confusion_matrix(y_test, y_pred).tolist()
     #scores["confusion_matrix"]= scores["confusion_matrix"]
     print(scores)
@@ -540,14 +658,14 @@ class CrossVal():
 
     def cross_validate(self,clf, X, y):
         params = self.kwargs
-        if(bool(params['kfold']['kfold_enable'])):
+        if(bool(params['kfold']['enable'])):
             spram = params['kfold']
             if spram['kfold_random_state'] == 'None':
                 random_state = None
             else:
                 random_state = int(spram['kfold_random_state'])
             cv = KFold(n_splits=int(spram['kfold_n_splits']),shuffle=bool(spram['kfold_shuffle']),random_state=random_state)
-        elif(bool(params['stratifiedkfold']['stratifiedkfold_enable'])):
+        elif(bool(params['stratifiedkfold']['enable'])):
             spram = params['stratifiedkfold']
             if spram['stratifiedkfold_random_state'] == 'None':
                 random_state = None
@@ -556,3 +674,16 @@ class CrossVal():
             cv = StratifiedKFold(n_splits=int(spram['stratifiedkfold_n_splits']),shuffle=bool(spram['stratifiedkfold_shuffle']),random_state=random_state)
         cv_results = cross_validate(clf, X=X, y=y, cv=cv, n_jobs=-1)
         return cv_results
+
+
+
+class Predictor():
+
+    def __init__(self,featureeex, clf, **kwargs):
+         self.featureextractor = featureeex
+         self.classifier = clf
+
+    def make_prediction(self,audio):
+        features = self.featureextractor.single_features(audio)
+        prediction = self.classifier.predict(features[0])
+        return prediction
