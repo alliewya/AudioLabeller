@@ -17,6 +17,11 @@ from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_
 import multiprocessing
 from hmmlearn import hmm
 
+
+#tempforpi
+import scipy.signal as signal
+import scipy.fftpack as fft
+
 # ==================================================
 #             Data & Dataset
 # ==================================================
@@ -218,7 +223,7 @@ class Dataset:
     def trim_audio(self, **kwargs):
         print("Pre-trim Average length: " + str(self.get_average_length()))
         for audio in self.samples:
-            audio.audiodata, index = librosa.effects.trim(y=audio.audiodata)
+            audio.audiodata, index = librosa.effects.trim(y=audio.audiodata,ref=3)
         print("Post-trim Average length: " + str(self.get_average_length()))
 
 
@@ -227,6 +232,10 @@ class Dataset:
         for audio in self.samples:
             total_length = total_length + librosa.get_duration(y=audio.audiodata)
         return total_length/len(self.samples)
+
+    def normalize(self):
+        for audio in self.samples:
+            audio.audiodata = librosa.util.normalize(S = audio.audiodata)
 
 # =======================================================
 #               Features
@@ -281,8 +290,8 @@ class MFCCFeatures(Featuresbase):
         labels = []
         templist = []
         #features = np.empty((0, n_mfcc))
-        if(kwargs.get('delta')==True):
-
+        if(bool(kwargs.get('delta'))==True):
+            print("Delta")
             #fix delta!!
 
             for audio in dataset.samples:
@@ -290,11 +299,14 @@ class MFCCFeatures(Featuresbase):
                     y=audio.audiodata, sr=audio.samplerate, **self.kwargs
                 )
                 mfcc_delta = librosa.feature.delta(mfcc)
-                if(self.kwargs.get('delta2')==True):
+                if(bool(self.kwargs.get('delta2'))==True):
+                    print("Delta Delta")
                     mfcc_delta2 = librosa.feature.delta(mfcc, order=2)
                     mfcc_delta = np.concatenate((mfcc_delta, mfcc_delta2), axis=1)
                 mfcc = np.concatenate((mfcc, mfcc_delta), axis=1)
-                features = np.concatenate((features, mfcc), axis=0)
+                mfcc = mfcc.ravel()
+                #features = np.concatenate((features, mfcc), axis=0)
+                templist.append({'feature':mfcc, 'label':audio.label})
         else:    
             for audio in dataset.samples:
                 # mfcc = librosa.feature.mfcc(
@@ -344,10 +356,27 @@ class MFCCFeatures(Featuresbase):
         return features
 
     def process_sample(self, audio, n_mfcc, kwargs):
+        # mfcc = librosa.feature.mfcc(
+        #     y=audio.audiodata, sr=audio.samplerate, n_mfcc=n_mfcc
+        # )
+        kwargs = self.kwargs
+        n_mfcc = int(kwargs.get('n_mfcc', 20))
+        center = bool(kwargs.get('center', False))
+        dct_type = int(kwargs.get('dct_type', 2))
+        norm = kwargs.get('norm', 'ortho')
+        n_fft = int(kwargs.get('n_fft', 2048))
+        hop_length = int(kwargs.get('hop_length', 512))
         mfcc = librosa.feature.mfcc(
-            y=audio.audiodata, sr=audio.samplerate, n_mfcc=n_mfcc
-        )
+                y=audio.audiodata, sr=audio.samplerate, n_mfcc=n_mfcc, center=center, dct_type=dct_type, norm=norm, n_fft=n_fft, hop_length=hop_length
+            )
+        if(bool(kwargs.get('delta'))==True):
+            mfcc_delta = librosa.feature.delta(mfcc)
+            if(bool(self.kwargs.get('delta2'))==True):
+                mfcc_delta2 = librosa.feature.delta(mfcc, order=2)
+                mfcc_delta = np.concatenate((mfcc_delta, mfcc_delta2), axis=1)
+            mfcc = np.concatenate((mfcc, mfcc_delta), axis=1)
         mfcc = mfcc.ravel()
+        
         return {'feature': mfcc, 'label': audio.label}
 
     def features_from_dataset_multi(self, dataset,**kwargs):

@@ -598,6 +598,9 @@ def modelfromconfig(request):
                 print("Labels Loaded " + str(len(dataset.labels)))
                 dataset.add_labels_to_audiosamps()
                 
+                if(bool(data['dataset']['processing']['enable_normalize'])):
+                    dataset.normalize()
+
                 if(bool(data['dataset']['processing']['enable_segment'])):
                     dataset.segment()
                 if(bool(data['dataset']['processing']['enable_trim'])):
@@ -614,6 +617,7 @@ def modelfromconfig(request):
                 try:
                     #mfc,labels = b.features_from_dataset(dataset=dataset)
                     mfc,labels = b.features_from_dataset_multi(dataset=dataset)
+
                     print("whoop")
                     #print(type(mfc))
                     print(len(mfc))
@@ -648,6 +652,7 @@ def modelfromconfig(request):
                         print("MFC Reshape")
                         print(mfc2.shape)
 
+
                         # Eval
                         try:
                             print("Eval Start")
@@ -666,6 +671,8 @@ def modelfromconfig(request):
                                 try:
                                     start_time = time.time()
                                     clf = mdl.fit(X_train, y_train)
+                                    with open("svm.bark",'wb') as f:
+                                        pickle.dump(clf,f)
                                     end_time = time.time()
                                     timetaken = end_time - start_time
                                 except Exception as e:

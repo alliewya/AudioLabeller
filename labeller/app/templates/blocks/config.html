@@ -33,6 +33,14 @@
               </div>
             </div>
             <div class="row">
+              <label class="col-sm-3 form-check-label" for="enable_segment" data-toggle="tooltip" title="Segments audio if a period of silence is detected">
+                 Enable Normalise
+               </label>
+             <div class="col-sm-9">
+                 <input type="checkbox" class="form-check-input" id="enable_normalize">
+             </div>
+           </div>
+            <div class="row">
                 <label class="col-sm-3 form-check-label" for="enable_segment" data-toggle="tooltip" title="Segments audio if a period of silence is detected">
                    Enable Segment
                  </label>
@@ -345,6 +353,34 @@
                     id="mfcc_hop_length"
                     aria-describedby="mfcc_hop_length"
                     value="512"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Delta MFCC</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="mfcc_delta"
+                    id="mfcc_delta"
+                    aria-describedby="mfcc_delta"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Delta 2 MFCC</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="mfcc_delta2"
+                    id="mfcc_delta2"
+                    aria-describedby="mfcc_delta2"
                   />
                 </div>
               </div>
@@ -1994,6 +2030,8 @@
     // Dataset values
     var select = document.getElementById("dataset-pickle");
     config.datasetpickle = select.value;
+    config.dataset.processing.enable_normalize =
+    document.querySelector("#enable_normalize").checked;
     config.dataset.processing.enable_segment =
     document.querySelector("#enable_segment").checked;
     config.dataset.processing.enable_trim =
@@ -2024,6 +2062,10 @@
     config.features.mfcc.n_fft = document.querySelector("#mfcc_n_fft").value;
     config.features.mfcc.hop_length =
       document.querySelector("#mfcc_hop_length").value;
+    config.features.mfcc.delta =
+      document.querySelector("#mfcc_delta").checked;
+    config.features.mfcc.delta2 =
+      document.querySelector("#mfcc_delta2").checked;
 
     // Mel Spectrogram tab values
     config.features.mel_spec.enable =
