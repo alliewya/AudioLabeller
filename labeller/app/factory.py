@@ -11,7 +11,7 @@ from sklearn.ensemble import AdaBoostClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 
-from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score, roc_auc_score
+from sklearn.metrics import accuracy_score,confusion_matrix, f1_score, precision_score, recall_score, roc_auc_score
 
 
 import multiprocessing
@@ -331,6 +331,21 @@ class MFCCFeatures(Featuresbase):
         # np.append(features, librosa.feature.mfcc(
         #         y=audiosample.audiodata, sr=audiosample.samplerate, n_mfcc=n_mfcc
         #     ), axis=0)
+
+
+        # kwargs = self.kwargs
+        # n_mfcc = int(kwargs.get('n_mfcc', 20))
+        # center = bool(kwargs.get('center', False))
+        # dct_type = int(kwargs.get('dct_type', 2))
+        # norm = kwargs.get('norm', 'ortho')
+        # n_fft = int(kwargs.get('n_fft', 2048))
+        # hop_length = int(kwargs.get('hop_length', 512))
+        # features = []
+        # mfcc = librosa.feature.mfcc(
+        #     y=audioframe, sr=44100, n_mfcc=n_mfcc, center=center, dct_type=dct_type, norm=norm, n_fft=n_fft, hop_length=hop_length
+        # )
+        # mfcc = mfcc.ravel()
+        # features.append(mfcc)
         kwargs = self.kwargs
         n_mfcc = int(kwargs.get('n_mfcc', 20))
         center = bool(kwargs.get('center', False))
@@ -338,13 +353,18 @@ class MFCCFeatures(Featuresbase):
         norm = kwargs.get('norm', 'ortho')
         n_fft = int(kwargs.get('n_fft', 2048))
         hop_length = int(kwargs.get('hop_length', 512))
-        if audioframe:
-            features = []
-            mfcc = librosa.feature.mfcc(
-                y=audioframe, sr=22050, n_mfcc=n_mfcc, center=center, dct_type=dct_type, norm=norm, n_fft=n_fft, hop_length=hop_length
+        mfcc = librosa.feature.mfcc(
+                y=audioframe, sr=44100, n_mfcc=n_mfcc, center=center, dct_type=dct_type, norm=norm, n_fft=n_fft, hop_length=hop_length
             )
-            mfcc = mfcc.ravel()
-            features.append(mfcc)
+        if(bool(kwargs.get('delta'))==True):
+            mfcc_delta = librosa.feature.delta(mfcc)
+            if(bool(self.kwargs.get('delta2'))==True):
+                mfcc_delta2 = librosa.feature.delta(mfcc, order=2)
+                mfcc_delta = np.concatenate((mfcc_delta, mfcc_delta2), axis=1)
+            mfcc = np.concatenate((mfcc, mfcc_delta), axis=1)
+        mfcc = mfcc.ravel()
+        
+        features = np.asarray(mfcc)
         return features
 
     def single_features_from_audio(self, audiofilepath, **kwargs):
@@ -353,9 +373,10 @@ class MFCCFeatures(Featuresbase):
         np.append(features, librosa.feature.mfcc(
                 y=audiosample.audiodata, sr=audiosample.samplerate, n_mfcc=n_mfcc
             ), axis=0)
+        features = features.ravel()
         return features
 
-    def process_sample(self, audio, n_mfcc, kwargs):
+    def process_sample(self, audio, kwargs):
         # mfcc = librosa.feature.mfcc(
         #     y=audio.audiodata, sr=audio.samplerate, n_mfcc=n_mfcc
         # )
@@ -380,11 +401,10 @@ class MFCCFeatures(Featuresbase):
         return {'feature': mfcc, 'label': audio.label}
 
     def features_from_dataset_multi(self, dataset,**kwargs):
-        n_mfcc = int(self.kwargs.get('n_mfcc', 20))
         with multiprocessing.Pool() as pool:
             results = pool.starmap(
                 self.process_sample,
-                [(audio, n_mfcc, kwargs) for audio in dataset.samples]
+                [(audio, kwargs) for audio in dataset.samples]
             )
         features = [x['feature'] for x in results]
         labels = [x['label'] for x in results]
@@ -448,194 +468,270 @@ class MelSpectrogramFeatures(Featuresbase):
         print(kwargs.get('mel_spec_window'))
 
 
+
+
 class FeaturesFactory():
     """Features class that returns a feature extractor"""
 
     def __init__(self, **kwargs):
-        pass
+        self.kwargs = kwargs
+        self.extractors = []
+        if bool(self.kwargs["mfcc"]['enable']):
+            self.extractors.append(MFCCFeatures(**kwargs['mfcc']))
+        elif bool(self.kwargs["mel_spec"]['enable']):
+           self.extractors.append(MelSpectrogramFeatures(**kwargs['mel_spec']))
 
-    def extract_features(self, classifier_type):
-        pass
+    def extract_features(self, dataset=None, audiosamp=None,**kwargs):
+        if(dataset):
+            bing = 1
+            print(type(dataset.samples))
+            with multiprocessing.Pool() as pool:
+                results = pool.starmap(
+                    self.process_sample_multi_extractor,
+                    [(audio, bing) for audio in dataset.samples]
+                )
+            features = [x['feature'] for x in results]
+            labels = [x['label'] for x in results]
+            # if(self.kwargs["concat"]=="enable"):
+            #     features = [np.concatenate(sublist) for sublist in features]
+
+            ############ Make Concac option
+            features = [np.concatenate(sublist) for sublist in features]
+
+            features = np.asarray(features)
+            print("Features Shape")
+            print(features.shape)
+            features = features.reshape((features.shape[0], -1))
+            print("Features Reshape")
+            print(features.shape)
+        else:
+            bing = 1
+            print(type(dataset.samples))
+            with multiprocessing.Pool() as pool:
+                results = pool.starmap(
+                    self.process_sample_multi_extractor,
+                    (audiosamp,bing)
+                )
+            features = [x['feature'] for x in results]
+            labels = [x['label'] for x in results]
+            # if(self.kwargs["concat"]=="enable"):
+            #     features = [np.concatenate(sublist) for sublist in features]
+
+            ############ Make Concac option
+            features = [np.concatenate(sublist) for sublist in features]
+
+            features = np.asarray(features)
+            print("Features Shape")
+            print(features.shape)
+            features = features.reshape((features.shape[0], -1))
+            print("Features Reshape")
+            print(features.shape)
+            return 
+        return features, labels
+
+    def process_sample_multi_extractor(self, audio, kwargs):
+        bing = kwargs
+        features = []
+        label = audio.label
+        for i, extractor in enumerate(self.extractors):
+            f = extractor.process_sample(audio,bing)
+            if(label != f['label'] ):
+                print(label)
+                print(f['label'])
+                print("Not matching labels")
+                raise ValueError("Label mismatch between different feature extractors")
+            features.append(f['feature'])
+            label = f['label']
+        return {'feature':features,'label':label}
 # =======================================================
 #               Model Section
 # =======================================================
 
-class Modelbase():
+class ModelBase():
     """An abstract base class for all pipeline models"""
 
-    @abstractmethod
-    def fit(self, X, y):
-        """"""
-        pass
+    # @abstractmethod
+    # def fit(self, X, y):
+    #     """"""
+    #     pass
 
-    @abstractmethod
-    def predict(self, X, y):
-        """"""
-        pass
+    # @abstractmethod
+    # def predict(self, X, y):
+    #     """"""
+    #     pass
 
-    @abstractmethod
-    def evaluate(self, X, y):
-        """"""
-        pass
+    # @abstractmethod
+    # def evaluate(self, X, y):
+    #     """"""
+    #     pass
 
-class KnnModel(Modelbase):
 
+class KNNModel(ModelBase, KNeighborsClassifier):
     def __init__(self, **kwargs):
-        self.model = KNeighborsClassifier(**kwargs, n_jobs=-1)
+        super().__init__(
+            n_neighbors=int(kwargs["knn_k"]),
+            algorithm=kwargs["knn_algorithm"],
+            leaf_size=int(kwargs["knn_leaf_size"]),
+            metric=kwargs["knn_metric"],
+            metric_params={"p": int(kwargs["knn_metric_power"])},
+            weights=kwargs["knn_weights"],
+        )
+
+
+class SVMModel(ModelBase, SVC):
+    def __init__(self, **kwargs):
+        super().__init__(
+            C=float(kwargs["svm_c"]),
+            kernel=kwargs["svm_kernel"],
+            degree=int(kwargs["svm_degree"]),
+            gamma=kwargs["svm_gamma"],
+            shrinking=kwargs["svm_shrinking"],
+            probability=kwargs["svm_probability"],
+            tol=float(kwargs["svm_tol"]),
+            max_iter=int(kwargs["svm_max_iter"]),
+        )
+
+
+class AdaBoostModel(ModelBase, AdaBoostClassifier):
+    def __init__(self, **kwargs):
+        base_estimator = self.create_base_estimator(kwargs)
+        if kwargs['ada_random_state'] == "None":
+            ada_random_state = None
+        else:
+            ada_random_state = int(kwargs['ada_random_state'])
+        super().__init__(
+            base_estimator=base_estimator,
+            n_estimators=int(kwargs["ada_n_estimators"]),
+            learning_rate=float(kwargs["ada_learning_rate"]),
+            algorithm=kwargs["ada_algorithm"],
+            random_state=ada_random_state,
+        )
+
+    @staticmethod
+    def create_base_estimator(kwargs):
+        if kwargs["adaboost_estimator"] == "None":
+            return None
+        elif kwargs["adaboost_estimator"] == "DecisionTreeClassifier":
+            dt_params = kwargs["dt_config"]
+            return DecisionTreeClassifier(
+                max_depth=None if dt_params["max_depth"] == "None" else int(dt_params["max_depth"]),
+                min_samples_split=int(dt_params["min_samples_split"]),
+                min_samples_leaf=int(dt_params["min_samples_leaf"]),
+                criterion=dt_params["criterion"],
+                max_leaf_nodes=None if dt_params["max_leaf_nodes"] == "None" else int(dt_params["max_leaf_nodes"]),
+                splitter=dt_params["splitter"]
+            )
+        elif kwargs["adaboost_estimator"] == "SVC":
+            svm_params = kwargs["svm_config"]
+            return SVC(
+                C=float(svm_params["svm_c"]),
+                kernel=svm_params["svm_kernel"],
+                degree=int(svm_params["svm_degree"]),
+                gamma=svm_params["svm_gamma"],
+                shrinking=svm_params["svm_shrinking"],
+                probability=True,
+                tol=float(svm_params["svm_tol"]),
+                max_iter=int(svm_params["svm_max_iter"]),
+            )
+
+
+class LogisticRegressionModel(ModelBase, LogisticRegression):
+    def __init__(self, **kwargs):
+        super().__init__(
+            penalty=kwargs["logreg_penalty"],
+            C=float(kwargs["logreg_C"]),
+            solver=kwargs["logreg_solver"],
+            fit_intercept=kwargs["logreg_fit_intercept"],
+            max_iter=int(kwargs["logistic_regression_max_iter"]),
+            tol=float(kwargs["logistic_regression_tol"]),
+        )
+
+
+class DecisionTreeModel(ModelBase, DecisionTreeClassifier):
+    def __init__(self, **kwargs):
+        super().__init__(
+            max_depth=None if kwargs["max_depth"] == "None" else int(kwargs["max_depth"]),
+            min_samples_split=int(kwargs["min_samples_split"]),
+            min_samples_leaf=int(kwargs["min_samples_leaf"]),
+            criterion=kwargs["criterion"],
+            max_leaf_nodes=None if kwargs["max_leaf_nodes"] == "None" else int(kwargs["max_leaf_nodes"]),
+            splitter=kwargs["splitter"],
+        )
+
+
+class GMMHMMModel(ModelBase):
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+        self.models = []
 
     def fit(self, X, y):
-        self.model.fit(X,y)
-    
-    def predict(self, X, y):
-        return self.model.predict(X)
+        for label in np.unique(y):
+            X_label = [X[i] for i in range(len(X)) if y[i] == label]
+            #model = self.train_hmm_gmm_model(X_label, int(self.kwargs['n_components']), self.kwargs['n_mix'])
+            model = self.train_hmm_gmm_model(X_label)
+            self.models.append(model)
+        return self
 
-    def evaluate(self, X, y):
-        return self.model.score(X,y)
+    def train_hmm_gmm_model(self, X, n_states=2, n_mixtures=2, n_iter=100):
+        model = hmm.GMMHMM(n_components=n_states)
+        model.fit(X)
+        return model
 
+    def predict(self, X):
+        max_logprob = float('-inf')
+        best_label = -1
+        for i, model in enumerate(self.models):
+            logprob = model.score(X)
+            if logprob > max_logprob:
+                max_logprob = logprob
+                best_label = i
+        print(best_label)
+        return best_label
 
-class ModelFactory:
-    """Factory class that returns a model"""
+    def predict_proba(self, X):
+        max_logprob = float('-inf')
+        best_label = -1
+        for i, model in enumerate(self.models):
+            logprob = model.score(X)
+            if logprob > max_logprob:
+                max_logprob = logprob
+                best_label = i
+        return best_label
 
-    def create_model(model_type, **kwargs):
-        if model_type == "knn":
-            return KnnModel(**kwargs)
-
+    def score(self, X, y):
+        print("Scrore start")
+        #y_pred = [self.predict(x) for x in X]
+        y_pred = [self.predict(x.reshape(1,-1)) for x in X]
+        accuracy = accuracy_score(y, y_pred)
+        return accuracy
 
 class ClassifierFactory:
     def __init__(self, **kwargs):
         self.kwargs = kwargs
 
-    def create_classifier(self, classifier_type):
-        if classifier_type == "knn":
-            print(classifier_type)
-            print("knn1")
+    def create_classifier(self):
+        if bool(self.kwargs["knn"]['enable']):
             knn_params = self.kwargs["knn"]
-            if knn_params["enable"]:
-                knn = KNeighborsClassifier(
-                        n_neighbors=int(knn_params["knn_k"]),
-                        algorithm=knn_params["knn_algorithm"],
-                        leaf_size=int(knn_params["knn_leaf_size"]),
-                        metric=knn_params["knn_metric"],
-                        metric_params={"p": int(knn_params["knn_metric_power"])},
-                        weights=knn_params["knn_weights"],
-                )
-                return knn
-            else:
-                return None
-        elif classifier_type == "svm":
+            return KNNModel(**knn_params)
+        elif bool(self.kwargs["svm"]['enable']):
             svm_params = self.kwargs["svm"]
-            if svm_params["enable"]:
-                svm = SVC(
-                    C=float(svm_params["svm_c"]),
-                    kernel=svm_params["svm_kernel"],
-                    degree=int(svm_params["svm_degree"]),
-                    gamma=svm_params["svm_gamma"],
-                    shrinking=svm_params["svm_shrinking"],
-                    probability=svm_params["svm_probability"],
-                    tol=float(svm_params["svm_tol"]),
-                    max_iter=int(svm_params["svm_max_iter"]),
-                )
-                return svm
-            else:
-                return None
-        elif classifier_type == "adaboost":
+            return SVMModel(**svm_params)
+        elif bool(self.kwargs["adaboost"]['enable']):
             adaboost_params = self.kwargs["adaboost"]
-            if adaboost_params["enable"]:
-                if adaboost_params["adaboost_estimator"] == "None":
-                    base_estimator = None
-                elif adaboost_params["adaboost_estimator"] == "DecisionTreeClassifier":
-                    print("Ada tree")
-                    dt_params = adaboost_params["dt_config"]
-                    max_depth = None if dt_params["max_depth"] == "None" else int(dt_params["max_depth"])
-                    min_samples_split = int(dt_params["min_samples_split"])
-                    min_samples_leaf = int(dt_params["min_samples_leaf"])
-                    criterion = dt_params["criterion"]
-                    max_leaf_nodes = None if dt_params["max_leaf_nodes"] == "None" else int(dt_params["max_leaf_nodes"])
-                    splitter = dt_params["splitter"]
-                    base_estimator = DecisionTreeClassifier(
-                        max_depth=max_depth,
-                        min_samples_split=min_samples_split,
-                        min_samples_leaf=min_samples_leaf,
-                        criterion=criterion,
-                        max_leaf_nodes=max_leaf_nodes,
-                        splitter=splitter
-                    )
-                    print("ada tree compl")
-                    #base_estimator = DecisionTreeClassifier(max_depth=1)
-                elif adaboost_params["adaboost_estimator"] == "SVC":
-                    svm_params = adaboost_params["svm_config"]
-                    base_estimator = SVC(
-                        C=float(svm_params["svm_c"]),
-                        kernel=svm_params["svm_kernel"],
-                        degree=int(svm_params["svm_degree"]),
-                        gamma=svm_params["svm_gamma"],
-                        shrinking=svm_params["svm_shrinking"],
-                        probability=True,
-                        tol=float(svm_params["svm_tol"]),
-                        max_iter=int(svm_params["svm_max_iter"]),
-                    )
-                    #base_estimator = SVC()
-                if( adaboost_params['ada_random_state']== "None"):
-                    ada_random_state = None
-                else:
-                    ada_random_state = int(adaboost_params['ada_random_state'])
-                adaboost = AdaBoostClassifier(
-                    estimator=base_estimator,
-                    n_estimators=int(adaboost_params["ada_n_estimators"]),
-                    learning_rate=float(adaboost_params["ada_learning_rate"]),
-                    algorithm=adaboost_params["ada_algorithm"],
-                    random_state=ada_random_state,
-                    )
-                return adaboost
-            else:
-                return None                    
-        elif classifier_type == "logistic_regression":
+            return AdaBoostModel(**adaboost_params)
+        elif  bool(self.kwargs["logistic_regression"]['enable']):
             logreg_params = self.kwargs["logistic_regression"]
-            if logreg_params["enable"]:
-                logreg = LogisticRegression(
-                    penalty=logreg_params["logreg_penalty"],
-                    C=float(logreg_params["logreg_C"]),
-                    solver=logreg_params["logreg_solver"],
-                    fit_intercept=logreg_params["logreg_fit_intercept"],
-                    max_iter=int(logreg_params["logistic_regression_max_iter"]),
-                    tol=float(logreg_params["logistic_regression_tol"]),
-                )
-                return logreg
-        elif classifier_type == "decision_tree":
-            print("Tree")
+            return LogisticRegressionModel(**logreg_params)
+        elif bool(self.kwargs["decision_tree"]['enable']):
             dt_params = self.kwargs["decision_tree"]
-            print(dt_params)
-            if dt_params["enable"]:
-                max_depth = None if dt_params["max_depth"] == "None" else int(dt_params["max_depth"])
-                min_samples_split = int(dt_params["min_samples_split"])
-                min_samples_leaf = int(dt_params["min_samples_leaf"])
-                criterion = dt_params["criterion"]
-                max_leaf_nodes = None if dt_params["max_leaf_nodes"] == "None" else int(dt_params["max_leaf_nodes"])
-                splitter = dt_params["splitter"]
-                dt = DecisionTreeClassifier(
-                    max_depth=max_depth,
-                    min_samples_split=min_samples_split,
-                    min_samples_leaf=min_samples_leaf,
-                    criterion=criterion,
-                    max_leaf_nodes=max_leaf_nodes,
-                    splitter=splitter
-                )
-                print("Release the entwives")
-                return dt
-            else:
-                return None
-        elif classifier_type == "GMMHMM":
-            print("GMM Start")
-            n_components = 6 # Number of hidden states
-            n_mix = 2 # Number of Gaussian Mixtures per hidden state
-
-            # Initialize the GMMHMM model
-            model = hmm.GMMHMM(n_components=n_components, n_mix=n_mix,covariance_type='full')
-            print("GMM end")
-            return model
+            return DecisionTreeModel(**dt_params)
+        elif bool(self.kwargs["GMMHMM"]['enable']):
+            GMMHMM_params = self.kwargs['GMMHMM']
+            return GMMHMMModel(**GMMHMM_params)
         else:
             return None
-                    
+
+
                     
 
 
@@ -652,7 +748,7 @@ from sklearn.metrics import roc_auc_score
 import time
 
 def common_scores(clf, X_test, y_test):
-
+    print("Scores Start")
     scores = {}
     # Calculate the accuracy score
     #print("1")
@@ -662,11 +758,13 @@ def common_scores(clf, X_test, y_test):
     y_pred = clf.predict(X_test)
     end_time = time.time()
     scores["timetaken"] = end_time - start_time
-    #print("2")
+    if isinstance(clf, GMMHMMModel):
+        return scores
+    print("2")
     scores["f1"] = f1_score(y_test, y_pred, average='binary', pos_label='0')
     scores["precision"] = precision_score(y_test, y_pred, average='binary', pos_label='0')
     scores["recall"] = recall_score(y_test, y_pred, average='binary', pos_label='0')
-    #print("3")
+    print("3")
     #y_score = clf.predict_proba(X_test)
     y_score = clf.predict_proba(X_test)[:,1]
     scores["roc_auc"] = roc_auc_score(y_test, y_score, multi_class='ovr')
@@ -713,6 +811,7 @@ class Predictor():
          self.classifier = clf
 
     def make_prediction(self,audio):
-        features = self.featureextractor.single_features(audio)
-        prediction = self.classifier.predict(features[0])
+        features = self.featureextractor.single_features(audioframe=audio)
+        features = features.reshape(1, -1)
+        prediction = self.classifier.predict(features)
         return prediction

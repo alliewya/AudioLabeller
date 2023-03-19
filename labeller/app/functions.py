@@ -1,6 +1,6 @@
 import librosa
 import soundfile as sf
-import math
+import math, time
 from pathlib import Path
 import os, pickle, datetime
 from .models import AudioLabels,TaskProgress
@@ -11,9 +11,9 @@ def returnPredictions(classifier, filename):
 
     regions = []
     filepath = os.path.join("app", "static", "audiofiles",filename)
-    audio, sr = librosa.load(filepath)
+    audio, sr = librosa.load(filepath,sr=44100)
     framelength = sr // 2
-    hop_lenght = sr // 4
+    hop_lenght = sr // 12
 
     # Pad up to nearest second
     audioduration = librosa.get_duration(y=audio, sr=sr)
@@ -42,12 +42,12 @@ def returnPredictions(classifier, filename):
         # prediction = classifier.predict(features.reshape(1, -1))
         # #print(prediction)
         
-        with open("predictor.pickle", "rb") as file:
-            predictor = pickle.load(file)
         
-        prediction = predictor.make_prediction(frame)
+        
+        prediction = classifier.make_prediction(frame)
 
-        if(prediction == 0):
+        if(prediction[0] == '0'):
+            
             starttime = i * hop_lenght / sr
             endtime = starttime + (framelength / sr)
             if(prevframedetected == True):
@@ -60,10 +60,52 @@ def returnPredictions(classifier, filename):
             prevframedetected = False
         #print(knnmodel.predict(features.reshape(1, -1)))
         # print(frame.shape)
+        
+    regions2 = []
+
+    #remove silent areas
+    # intervals = librosa.effects.split(paddedaudio)
+    # print(intervals)
+    # for i in intervals:
+    #     print(librosa.samples_to_time(i[0]))
+    #     print(librosa.samples_to_time(i[1]))
+    
+    try:
+        regions = combine_overlapping_times(regions)
+    except:
+        print(len(regions))
+
+    for r2 in regions:
+        a = librosa.time_to_samples(r2['start'])
+        b = librosa.time_to_samples(r2['end'])
+        intervals = librosa.effects.split(paddedaudio[a:b])
+        #print(intervals)
+        for i in intervals:
+            regions2.append({"start":librosa.samples_to_time(a + i[0]),"end":librosa.samples_to_time(a + i[1])})
+
+    try:
+        print(type(regions2))
+        print(regions2)
+        regions2 = combine_overlapping_times(regions2)
+    except:
+        print(len(regions2))
+        print("Not r2")
+    # print(start_index)
+    # print(end_index)
+    # print(frame.shape)
+    #     print(type(start_index))
+    #     for i in intervals:
+    #         print(librosa.samples_to_time(i[0]))
+    #         print(librosa.samples_to_time(i[1]))
+    #         regions2.append(
+    #             {"start":librosa.samples_to_time(i[0]),"end":librosa.samples_to_time(i[1])
+    #             })
+    #print(regions2)
+    #time.sleep(2)
 
     predictiondata = {
         "filename": filename,
-        "regions": regions
+        "regions": regions2
     }
 
     return(predictiondata)
@@ -155,8 +197,8 @@ def generate_dataset_file():
 
 
 
-    #combineddataset2 = combineddataset.combine_dataset(notcoughexternal)
-    combineddataset2 = combineddataset
+    combineddataset2 = combineddataset.combine_dataset(notcoughexternal)
+    #combineddataset2 = combineddataset
     combineddataset2.add_labels_to_audiosamps()
 
     print(str(len(combineddataset2.samples))+" Combined Samples")
@@ -172,3 +214,26 @@ def generate_dataset_file():
         print("Pickle failed")
     
     return status
+
+
+def combine_overlapping_times(entries):
+    # Sort the list by the 'start' key
+    entries.sort(key=lambda x: x['start'])
+
+    # Initialize the result list and store the first entry
+    combined_entries = [entries[0]]
+
+    # Iterate through the sorted entries from the second entry onwards
+    for i in range(1, len(entries)):
+        current_entry = entries[i]
+        previous_entry = combined_entries[-1]
+
+        # Check for overlap between the current entry's 'start' and the previous entry's 'end'
+        if current_entry['start'] <= previous_entry['end']:
+            # Combine the overlapping entries by updating the 'end' of the previous entry
+            previous_entry['end'] = max(previous_entry['end'], current_entry['end'])
+        else:
+            # If there's no overlap, add the current entry to the combined_entries list
+            combined_entries.append(current_entry)
+
+    return combined_entries

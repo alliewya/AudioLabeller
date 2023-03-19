@@ -47,6 +47,8 @@ with open(os.path.join(settings.BASE_DIR,"app","models","SVMmfcc40Coughvid.bark"
 with open(os.path.join(settings.BASE_DIR,"app","models","SVMmfcc40CoughvidFrames.bark"), "rb") as f:
     svmmodel2 = pickle.load(f)
 
+with open(os.path.join(settings.BASE_DIR,"app","models","predictor.pickle"), "rb") as f:
+    predictor = pickle.load(f)
 
 def index(request):
     context = {'user':request.user}
@@ -425,7 +427,7 @@ def generate_all_model_predictions(request):
         try:
             data = json.loads(request.body)
             selecteduserid = int(data['userselected'])
-            modelperid = [{"id":"2","model":knnmodel,"modelname":"Default Model"},{"id":"3","model":knnmodel2,"modelname":"KNN Model 2"},{"id":"4","model":knnmodel3,"modelname":"KNN Model 3 - Augmented"},{"id":"5","model":svmmodel1,"modelname":"SVM Model 1"},{"id":"6","model":svmmodel2,"modelname":"SVM Model 2 - Augmented"}]
+            modelperid = [{"id":"2","model":knnmodel,"modelname":"Default Model"},{"id":"3","model":knnmodel2,"modelname":"KNN Model 2"},{"id":"4","model":knnmodel3,"modelname":"KNN Model 3 - Augmented"},{"id":"5","model":svmmodel1,"modelname":"SVM Model 1"},{"id":"6","model":svmmodel2,"modelname":"SVM Model 2 - Augmented"},{"id":"11","model":predictor,"modelname":"Predictor1"}]
 
             for x in modelperid:
                 if int(x["id"]) == selecteduserid:
@@ -565,6 +567,8 @@ def resultsCard(request):
         except:
             return JsonResponse({"Fail":"Fail"})
 
+def config2(request):
+    return render(request, 'blocks/config2.html')
 
 
 @csrf_exempt
@@ -615,8 +619,14 @@ def modelfromconfig(request):
                 print(len(dataset.labels))
                 print(dataset.labels[3])
                 try:
+                    print("aa")
                     #mfc,labels = b.features_from_dataset(dataset=dataset)
                     mfc,labels = b.features_from_dataset_multi(dataset=dataset)
+                    print("bb")
+                    print(data['features'])
+                    print(type(data['features']))
+                    c = factory.FeaturesFactory(**data['features'])
+                    mfc3, labels2 = c.extract_features(dataset=dataset)
 
                     print("whoop")
                     #print(type(mfc))
@@ -627,25 +637,27 @@ def modelfromconfig(request):
                         mdl = None
                         modelfactory = factory.ClassifierFactory(**data['classifier'])
                         if(bool(data['classifier']['knn']['enable'])):
-                            mdl = modelfactory.create_classifier("knn")
+                            mdl = modelfactory.create_classifier()
                             conf = {"Classifier":"Knn","Config":data['classifier']['knn']}
                             print("knn created")
                         elif(bool(data['classifier']['svm']['enable'])):
-                            mdl = modelfactory.create_classifier("svm")
+                            mdl = modelfactory.create_classifier()
                             conf = {"Classifier":"SVM","Config":data['classifier']['svm']}
                         elif(bool(data['classifier']['adaboost']['enable'])):
-                            mdl = modelfactory.create_classifier("adaboost")
+                            mdl = modelfactory.create_classifier()
                             conf = {"Classifier":"Ada","Config":data['classifier']['adaboost']}
                             print("Adaboos Created")
                         elif(bool(data['classifier']['decision_tree']['enable'])):
-                            mdl = modelfactory.create_classifier("decision_tree")
+                            mdl = modelfactory.create_classifier()
                             conf = {"Classifier":"Decision Tree","Config":data['classifier']['decision_tree']}
                             print("Tree Created")
                         elif(bool(data['classifier']['GMMHMM']['enable'])):
-                            mdl = modelfactory.create_classifier("GMMHMM")
+                            mdl = modelfactory.create_classifier()
                             #conf = {"Classifier":"Decision Tree","Config":data['classifier']['decision_tree']}
                             print("GMMHMM Created")
                         print("clf made")
+                        print(type(mdl))
+                        print(dir(mdl))
                         mfc2 =  np.asarray(mfc)
                         print(mfc2.shape)
                         mfc2 = mfc2.reshape((mfc2.shape[0], -1))
@@ -660,26 +672,33 @@ def modelfromconfig(request):
                                 print("test train split")
                                 params = data['evaluation']
                                 if(params['train_test']['tts_random_state']=="None"):
-                                    X_train, X_test, y_train, y_test = train_test_split(mfc2, labels, 
+                                    print("train test 1 ")
+                                    # X_train, X_test, y_train, y_test = train_test_split(mfc2, labels, 
+                                    # test_size=float(params['train_test']['tts_test_size']), 
+                                    # shuffle=params['train_test']['tts_shuffle'])
+                                    X_train, X_test, y_train, y_test = train_test_split(mfc3, labels2, 
                                     test_size=float(params['train_test']['tts_test_size']), 
                                     shuffle=params['train_test']['tts_shuffle'])
+                                    print("train test 2 ")
                                 else:
                                     X_train, X_test, y_train, y_test = train_test_split(mfc2, labels, 
                                     test_size=float(params['train_test']['tts_test_size']), 
                                     shuffle=params['train_test']['tts_shuffle'], 
                                     random_state=int(params['train_test']['tts_random_state']))
                                 try:
+                                    print("mdl fit start")
                                     start_time = time.time()
                                     clf = mdl.fit(X_train, y_train)
-                                    with open("svm.bark",'wb') as f:
-                                        pickle.dump(clf,f)
                                     end_time = time.time()
                                     timetaken = end_time - start_time
+                                    print("mdl fit end")
+                                    print(type(clf))
+                                    print(dir(clf))
                                 except Exception as e:
                                     print("fit fail")
                                     print("An exception occurred:", e)
-                                score = clf.score(X_test, y_test)
-                                print(score)
+                                #score = clf.score(X_test, y_test)
+                                #print(score)
                                 scores = factory.common_scores(clf,X_test=X_test,y_test=y_test)
                                 scores["Time"] = timetaken
                                 #scores["Classifier"] = conf

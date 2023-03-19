@@ -31,5 +31,6 @@ urlpatterns = [
     path('api/resultscard', views.resultsCard, name="resultscard"),
     path('backups/<backup>', views.jsonbackupdownload, name="jsonbackupdownload"),
     path('register/', views.register, name='register'),
+    path('config2',views.config2, name="config2test"),
 ]
 

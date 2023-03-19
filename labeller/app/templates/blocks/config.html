@@ -11,7 +11,7 @@
     </div>
   </div>
   <div class="row mb-3 mt-2">
-    <div class="row mb-3 mt-2">
+    <div class="row mb-3 mt-2" id="dataset-row">
       <div class="col">
         <h2>Dataset</h2>
         <div>
@@ -88,7 +88,7 @@
             </button>
           </li>
         </ul>
-        <div class="tab-content" id="myTabContent">
+        <div class="tab-content" id="datasetTabContent">
           <div
             class="tab-pane fade show active"
             id="fixed-tab-pane"
@@ -183,10 +183,10 @@
       </div>
     </div>
     <!-- Features  -->
-    <div class="row mb-3 mt-2">
+    <div class="row mb-3 mt-2" id="features-row">
       <div class="col">
         <h2>Features</h2>
-        <ul class="nav nav-tabs" id="myTab" role="tablist">
+        <ul class="nav nav-tabs" id="featuresTabs" role="tablist">
           <li class="nav-item" role="presentation">
             <button
               class="nav-link active"
@@ -216,7 +216,7 @@
             </button>
           </li>
         </ul>
-        <div class="tab-content" id="myTabContent">
+        <div class="tab-content" id="featureTabContent">
           <div
             class="tab-pane fade show active"
             id="mfcc-tab-pane"
@@ -510,7 +510,7 @@
       </div>
     </div>
     <!-- Classifier -->
-    <div class="row mb-3 mt-2">
+    <div class="row mb-3 mt-2" id="classifier-row">
       <div class="col">
         <h2>Classifier</h2>
         <ul class="nav nav-tabs" id="myTab" role="tablist">
@@ -599,7 +599,7 @@
             </button>
           </li>
         </ul>
-        <div class="tab-content" id="myTabContent">
+        <div class="tab-content" id="classifierTabContent">
           <div
             class="tab-pane fade show active"
             id="knn-tab-pane"
@@ -1656,7 +1656,7 @@
     <!-- End Classifier-->
 
     <!-- Evaluation -->
-    <div class="row mb-3 mt-2">
+    <div class="row mb-3 mt-2" id="evaluation-row">
       <div class="col">
         <h2>Evaluation</h2>
         <!-- Tabs  -->
@@ -1707,7 +1707,7 @@
 
         <!-- Tab content  -->
 
-        <div class="tab-content" id="myTabContent">
+        <div class="tab-content" id="evaluationTabContent">
           <div
             class="tab-pane fade show active"
             id="testtrain-tab-pane"

@@ -1,0 +1,191 @@
+{% extends 'base2.html' %} {% block title %}Configurator{% endblock %}
+
+<!---->
+
+{% block content%}
+
+<div id="myTab"></div>
+<div id="myTabContent" class="tab-content"></div>
+<div id="jsonin"></div>
+<button id="submitBtn" type="button" class="btn btn-primary">Submit</button>
+
+<script>
+  const inputJSON = {
+    KNeighborsClassifier: {
+      n_neighbors: {
+        type: "int > 0",
+        default: "5",
+        description:
+          "Number of neighbors to use by default for kneighbors queries.",
+      },
+      weights: {
+        type: "string or callable",
+        default: "uniform",
+        description:
+          "weight function used in prediction. Possible values: 'uniform', 'distance', or a user-defined callable function",
+      },
+      algorithm: {
+        type: "string",
+        default: "auto",
+        description:
+          "Algorithm used to compute the nearest neighbors. Possible values: 'ball_tree', 'kd_tree', 'brute', 'auto'",
+      },
+      leaf_size: {
+        type: "int > 0",
+        default: "30",
+        description:
+          "Leaf size passed to BallTree or KDTree. This can affect the speed of the construction and query, as well as the memory required to store the tree. The optimal value depends on the nature of the problem.",
+      },
+      p: {
+        type: "int > 0",
+        default: "2",
+        description:
+          "Power parameter for the Minkowski metric. When p = 1, this is equivalent to using manhattan_distance (l1), and euclidean_distance (l2) for p = 2. For arbitrary p, minkowski_distance (l_p) is used.",
+      },
+      metric: {
+        type: "string or callable",
+        default: "minkowski",
+        description:
+          "the distance metric to use for the tree. The default metric is minkowski, and with p=2 is equivalent to the standard Euclidean metric. See the documentation of DistanceMetric for a list of available metrics.",
+      },
+      metric_params: {
+        type: "dict or None",
+        default: "None",
+        description: "Additional keyword arguments for the metric function.",
+      },
+      n_jobs: {
+        type: "int or None",
+        default: "None",
+        description:
+          "The number of parallel jobs to run for neighbors search. None means 1 unless in a joblib.parallel_backend context. -1 means using all processors.",
+      },
+    },
+  };
+
+  function createTabPane(featureName, featureData) {
+    // Create a new tab
+    const tab = document.createElement("button");
+    tab.className = "nav-link";
+    tab.id = `${featureName}-tab`;
+    tab.setAttribute("data-bs-toggle", "tab");
+    tab.setAttribute("data-bs-target", `#${featureName}-tab-pane`);
+    tab.setAttribute("type", "button");
+    tab.setAttribute("role", "tab");
+    tab.setAttribute("aria-controls", `${featureName}-tab-pane`);
+    tab.setAttribute("aria-selected", "false");
+    tab.textContent = featureName;
+
+    document.getElementById("myTab").appendChild(tab);
+
+    // Create a new tab pane
+    const tabPane = document.createElement("div");
+    tabPane.className = "tab-pane fade";
+    tabPane.id = `${featureName}-tab-pane`;
+    tabPane.setAttribute("role", "tabpanel");
+    tabPane.setAttribute("aria-labelledby", `${featureName}-tab`);
+
+    // Create a container for the input elements
+    const container = document.createElement("div");
+    container.className = "container mt-2 mb-2";
+
+    // Iterate through the input parameters and create input elements
+    for (const paramName in featureData) {
+      const paramData = featureData[paramName];
+
+      const row = document.createElement("div");
+      row.className = "row";
+
+      const label = document.createElement("label");
+      label.setAttribute("for", paramName);
+      label.className = "col-sm-3 col-form-label";
+      label.textContent = paramName;
+
+      const inputCol = document.createElement("div");
+      inputCol.className = "col-sm-9";
+
+      let inputElement;
+
+      if (paramData.type.startsWith("int")) {
+        inputElement = document.createElement("input");
+        inputElement.type = "number";
+        inputElement.step = "1";
+      } else if (paramData.type === "bool") {
+        inputElement = document.createElement("input");
+        inputElement.type = "checkbox";
+        inputElement.checked = paramData.default === "True";
+      } else if (paramData.type === "float") {
+        inputElement = document.createElement("input");
+        inputElement.type = "number";
+        inputElement.step = "any";
+      } else if (paramData.type === "str") {
+        inputElement = document.createElement("input");
+        inputElement.type = "text";
+      } else {
+        // Handle other input types as needed
+      }
+
+      inputElement.className = "form-control";
+      inputElement.id = paramName;
+      inputElement.value = paramData.default;
+
+      inputCol.appendChild(inputElement);
+      row.appendChild(label);
+      row.appendChild(inputCol);
+      container.appendChild(row);
+    }
+
+    tabPane.appendChild(container);
+    document.getElementById("myTabContent").appendChild(tabPane);
+  }
+
+  // Create the tab panes based on the input JSON
+  for (const featureName in inputJSON) {
+    createTabPane(featureName, inputJSON[featureName]);
+  }
+
+  // Activate the first tab
+  document.querySelector("#myTab button:first-child").classList.add("active");
+  document
+    .querySelector("#myTabContent .tab-pane:first-child")
+    .classList.add("show", "active");
+
+  document.getElementById("submitBtn").addEventListener("click", function () {
+    const output = {};
+
+    for (const featureName in inputJSON) {
+      output[featureName] = {};
+      const featureData = inputJSON[featureName];
+
+      for (const paramName in featureData) {
+        const inputElement = document.getElementById(paramName);
+
+        if (featureData[paramName].type === "bool") {
+          output[featureName][paramName] = inputElement.checked;
+        } else {
+          output[featureName][paramName] = inputElement.value;
+        }
+      }
+    }
+
+    // Convert the output object to JSON
+    const outputJSON = JSON.stringify(output);
+    console.log(outputJSON);
+    // Send the JSON object to the server
+    fetch("/submit", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: outputJSON,
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        console.log("Success:", data);
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+      });
+  });
+</script>
+
+{% endblock %}
