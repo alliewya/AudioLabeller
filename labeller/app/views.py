@@ -14,14 +14,16 @@ from django.views.decorators.csrf import csrf_exempt
 from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
-
+import pandas as pd
 
 import requests
 import json
 import librosa
 import pickle
-#from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GridSearchCV
 import math, time, copy
 from datetime import datetime
 import numpy as np
@@ -29,7 +31,7 @@ from app import functions
 from app import factory
 
 from django.utils import timezone
-from .models import AudioLabels,TaskProgress
+from .models import AudioLabels,TaskProgress,ClassifierResults
 
 
 with open(os.path.join(settings.BASE_DIR,"app","models","coughknn5mfcc40.bark"), "rb") as f:
@@ -680,6 +682,74 @@ def modelfromconfig(request):
                                     test_size=float(params['train_test']['tts_test_size']), 
                                     shuffle=params['train_test']['tts_shuffle'])
                                     print("train test 2 ")
+
+
+                                    if bool(data['classifier']['knn']['tune_hyperparameters']):
+                                        params = data['evaluation']
+                                        knn_param_grid = {
+                                            "n_neighbors": list(range(1, 15)),
+                                            "weights": ["uniform", "distance"],
+                                            "algorithm": ["auto", "ball_tree", "kd_tree", "brute"],
+                                            "leaf_size": [10,20,30],
+                                            
+                                        }
+                                        knn_param_grid = {
+                                            "n_neighbors": list(range(1, 31)),
+                                            "weights": ["uniform", "distance"],
+                                            "algorithm": ["auto", "ball_tree", "kd_tree", "brute"],
+                                            "leaf_size": 20,
+                                            "metric": ["euclidean", "manhattan", "chebyshev", "minkowski"],
+                                            "metric_params": [None, {"p": 1}, {"p": 2}, {"p": 3}],
+                                        }
+                                        #"metric": ["euclidean", "manhattan", "chebyshev", "minkowski"],
+                                        #    "metric_params": [None, {"p": 1}, {"p": 2}, {"p": 3}],
+                                        X_train, X_test, y_train, y_test = train_test_split(mfc3, labels2, 
+                                                test_size=float(params['train_test']['tts_test_size']), 
+                                                shuffle=params['train_test']['tts_shuffle'])
+                                        mdl = factory.tune_hyperparameters(KNeighborsClassifier(), knn_param_grid, X_train, y_train)
+                                        scores = mdl.cv_results_
+                                        saving = ClassifierResults(data = str(scores))
+                                        df = pd.DataFrame(scores)
+                                        # Export the dataframe to a CSV file
+                                        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                                        fname = timestamp + "-result.csv"
+                                        df.to_csv(fname, index=False)
+                                        saving.save()
+                                    elif bool(data['classifier']['svm']['tune_hyperparameters']):
+                                            params = data['evaluation']
+                                            svm_param_grid = {
+                                                'C': [0.1, 1, 10, 100, 1000],
+                                                'kernel': ['linear', 'poly', 'rbf', 'sigmoid'],
+                                                'degree': [2, 3, 4, 5],  # Only used for the 'poly' kernel
+                                                'gamma': ['scale', 'auto'] + list(np.logspace(-3, 2, 6)),  # 'scale', 'auto', and some values between 0.001 and 100
+                                                'shrinking': [True, False],
+                                                'probability': [True],
+                                                'tol': [1e-4, 1e-3, 1e-2, 1e-1, 1],
+                                                'max_iter': [-1, 100, 500, 1000, 5000],
+                                            }
+                                            knn_param_grid = {
+                                                "n_neighbors": list(range(1, 15)),
+                                                "weights": ["uniform", "distance"],
+                                                "algorithm": ["auto", "ball_tree", "kd_tree", "brute"],
+                                                "leaf_size": [10, 20, 30],
+
+                                            }
+                                            X_train, X_test, y_train, y_test = train_test_split(mfc3, labels2,
+                                                                                                test_size=float(
+                                                                                                    params['train_test']['tts_test_size']),
+                                                                                                shuffle=params['train_test']['tts_shuffle'])
+                                            mdl = factory.tune_hyperparameters(
+                                                SVC(), svm_param_grid, X_train, y_train)
+                                            scores = mdl.cv_results_
+                                            saving = ClassifierResults(
+                                                data=str(scores))
+                                            df = pd.DataFrame(scores)
+                                            # Export the dataframe to a CSV file
+                                            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                                            fname = timestamp + "-result.csv"
+                                            df.to_csv(fname, index=False)
+                                            saving.save()
+
                                 else:
                                     X_train, X_test, y_train, y_test = train_test_split(mfc2, labels, 
                                     test_size=float(params['train_test']['tts_test_size']), 
@@ -754,3 +824,143 @@ def modelfromconfig(request):
     print(request)
     return JsonResponse({'ok':'Fail'})
 
+
+
+@csrf_exempt
+def hyperparam(request):
+    if request.method == 'POST':
+        try:
+            # Load and Parse Config
+            data = json.loads(request.body)
+            print(data)
+            print(data['features']['mel_spec'])
+            print(data['classifier'])
+
+
+            # Feature Extractors
+            featureconfig = data['features']
+            a = factory.MelSpectrogramFeatures()
+            a.testfeaturekwargs(**featureconfig['mel_spec'])
+            print("a")
+            print(featureconfig['mfcc'])
+            b = factory.MFCCFeatures(**featureconfig['mfcc'])
+            print("b")
+            #b.test()
+
+            # Load dataset from pickle and extract features
+            try:
+                path = os.path.join("app", "static", "datasetpickles", data['datasetpickle'] )
+                with open(path, 'rb') as f:
+                    dataset = pickle.load(f)
+                print("Pickleload")
+                print("Audio Loaded " + str(len(dataset.samples)))
+                print("Labels Loaded " + str(len(dataset.labels)))
+                dataset.add_labels_to_audiosamps()
+                
+                if(bool(data['dataset']['processing']['enable_normalize'])):
+                    dataset.normalize()
+
+                if(bool(data['dataset']['processing']['enable_segment'])):
+                    dataset.segment()
+                if(bool(data['dataset']['processing']['enable_trim'])):
+                    dataset.trim_audio()
+
+                if(bool(data['dataset']['fixed']['enable'])):
+                    dataset.fix_length(length=data['dataset']['fixed']['fixed_length'])
+                    print("fix2")
+                elif(bool(data['dataset']['frame']['enable'])):
+                    print("frames")
+                    dataset.create_frames(frame_size=int(data['dataset']['frame']['frame_frame_size']), hop_length=int(data['dataset']['frame']['frame_hop_length']))
+                print(len(dataset.labels))
+                print(dataset.labels[3])
+                try:
+                    print("aa")
+                    #mfc,labels = b.features_from_dataset(dataset=dataset)
+                    #mfc,labels = b.features_from_dataset_multi(dataset=dataset)
+                    print("bb")
+                    print(data['features'])
+                    print(type(data['features']))
+                    c = factory.FeaturesFactory(**data['features'])
+                    mfc3, labels2 = c.extract_features(dataset=dataset)
+
+                    print("whoop")
+                    #print(type(mfc))
+                    #print(len(mfc))
+
+                    #Classifier
+                    try:
+                        mdl = None
+                        modelfactory = factory.ClassifierFactory(**data['classifier'])
+                        if(bool(data['classifier']['knn']['enable'])):
+                            mdl = modelfactory.create_classifier()
+                            conf = {"Classifier":"Knn","Config":data['classifier']['knn']}
+                            print("knn created")
+                            knn_param_grid = {
+                                "n_neighbors": list(range(1, 31)),
+                                "weights": ["uniform", "distance"],
+                                "algorithm": ["auto", "ball_tree", "kd_tree", "brute"],
+                                "leaf_size": list(range(10, 51)),
+                                "metric": ["euclidean", "manhattan", "chebyshev", "minkowski"],
+                                "metric_params": [None, {"p": 1}, {"p": 2}, {"p": 3}],
+                            }
+                        elif(bool(data['classifier']['svm']['enable'])):
+                            mdl = modelfactory.create_classifier()
+                            conf = {"Classifier":"SVM","Config":data['classifier']['svm']}
+                        elif(bool(data['classifier']['adaboost']['enable'])):
+                            mdl = modelfactory.create_classifier()
+                            conf = {"Classifier":"Ada","Config":data['classifier']['adaboost']}
+                            print("Adaboos Created")
+                        elif(bool(data['classifier']['decision_tree']['enable'])):
+                            mdl = modelfactory.create_classifier()
+                            conf = {"Classifier":"Decision Tree","Config":data['classifier']['decision_tree']}
+                            print("Tree Created")
+                        elif(bool(data['classifier']['GMMHMM']['enable'])):
+                            mdl = modelfactory.create_classifier()
+                            #conf = {"Classifier":"Decision Tree","Config":data['classifier']['decision_tree']}
+                            print("GMMHMM Created")
+                        print("clf made")
+                        print(type(mdl))
+                        print(dir(mdl))
+                        # mfc2 =  np.asarray(mfc)
+                        # print(mfc2.shape)
+                        # mfc2 = mfc2.reshape((mfc2.shape[0], -1))
+                        # print("MFC Reshape")
+                        # print(mfc2.shape)
+
+
+                        # Eval
+                        try:
+                            print("Hyper Start")
+                            params = data['evaluation']
+                            X_train, X_test, y_train, y_test = train_test_split(mfc3, labels2, 
+                                    test_size=float(params['train_test']['tts_test_size']), 
+                                    shuffle=params['train_test']['tts_shuffle'])
+                            mdl = modelfactory.tune_hyperparameters(mdl, knn_param_grid, X_train, y_train)
+                            scores = mdl.cv_results_
+                            saving = ClassifierResults(data = str(scores))
+                            saving.save()
+                        except Exception as e:
+                            print("Eval Split Fail")
+                            print("An exception occurred:", e)
+                        
+                        # predictor = factory.Predictor(featureeex=factory.MFCCFeatures(**featureconfig['mfcc']), clf=clf)
+                        # with open("predictor.pickle", "wb") as file:
+                        #     pickle.dump(predictor, file)
+                        return JsonResponse({"Status": "Success","Scores": scores, "Config": data, "Timestamp": datetime.now().isoformat()})
+
+                        
+                    except Exception as e:
+                        print("Classifier Fail ")
+                        print(data['classifier'])
+                        print("An exception occurred:", e)
+                except Exception as e:
+                    print("Features Fail")
+                    print("An exception occurred:", e)
+            except Exception as e:
+                print("Dataset pickle fail")
+                print("An exception occurred:", e)
+        except Exception as e:
+            print("Fail")
+            print("An exception occurred:", e)
+    print(request)
+    return JsonResponse({'ok':'Fail'})

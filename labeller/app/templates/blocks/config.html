@@ -33,29 +33,56 @@
               </div>
             </div>
             <div class="row">
-              <label class="col-sm-3 form-check-label" for="enable_segment" data-toggle="tooltip" title="Segments audio if a period of silence is detected">
-                 Enable Normalise
-               </label>
-             <div class="col-sm-9">
-                 <input type="checkbox" class="form-check-input" id="enable_normalize">
-             </div>
-           </div>
-            <div class="row">
-                <label class="col-sm-3 form-check-label" for="enable_segment" data-toggle="tooltip" title="Segments audio if a period of silence is detected">
-                   Enable Segment
-                 </label>
-               <div class="col-sm-9">
-                   <input type="checkbox" class="form-check-input" id="enable_segment">
-               </div>
-             </div>
-            <div class="row">
-                 <label class="col-sm-3 form-check-label" for="enable_trim" data-toggle="tooltip" title="Removes leading and trailing silence from audio signals">
-                    Enable Trim Silence
-                  </label>
-                <div class="col-sm-9">
-                    <input type="checkbox" class="form-check-input" id="enable_trim">
-                </div>
+              <label
+                class="col-sm-3 form-check-label"
+                for="enable_segment"
+                data-toggle="tooltip"
+                title="Segments audio if a period of silence is detected"
+              >
+                Enable Normalise
+              </label>
+              <div class="col-sm-9">
+                <input
+                  type="checkbox"
+                  class="form-check-input"
+                  id="enable_normalize"
+                />
               </div>
+            </div>
+            <div class="row">
+              <label
+                class="col-sm-3 form-check-label"
+                for="enable_segment"
+                data-toggle="tooltip"
+                title="Segments audio if a period of silence is detected"
+              >
+                Enable Segment
+              </label>
+              <div class="col-sm-9">
+                <input
+                  type="checkbox"
+                  class="form-check-input"
+                  id="enable_segment"
+                />
+              </div>
+            </div>
+            <div class="row">
+              <label
+                class="col-sm-3 form-check-label"
+                for="enable_trim"
+                data-toggle="tooltip"
+                title="Removes leading and trailing silence from audio signals"
+              >
+                Enable Trim Silence
+              </label>
+              <div class="col-sm-9">
+                <input
+                  type="checkbox"
+                  class="form-check-input"
+                  id="enable_trim"
+                />
+              </div>
+            </div>
           </div>
         </div>
         <ul class="nav nav-tabs" id="myTab" role="tablist">
@@ -595,7 +622,7 @@
               aria-controls="GMMHMM-tab-pane"
               aria-selected="false"
             >
-                GMMHMM
+              GMMHMM
             </button>
           </li>
         </ul>
@@ -735,6 +762,20 @@
                     <option selected="" value="uniform">Uniform</option>
                     <option value="distance">Distance</option>
                   </select>
+                </div>
+              </div>
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Tune Hyperparameters</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="knn_tune_hyperparameters"
+                    id="knn_tune_hyperparameters"
+                    aria-describedby="knn_tune_hyperparameters"
+                  />
                 </div>
               </div>
             </div>
@@ -912,6 +953,20 @@
                   />
                 </div>
               </div>
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Tune Hyperparameters</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="svc_tune_hyperparameters"
+                    id="svm_tune_hyperparameters"
+                    aria-describedby="svm_tune_hyperparameters"
+                  />
+                </div>
+              </div>
             </div>
           </div>
           <div
@@ -919,7 +974,8 @@
             id="adaboost-tab-pane"
             role="tabpanel"
             aria-labelledby="adaboost-tab"
-            tabindex="0">
+            tabindex="0"
+          >
             <div class="container mt-2 mb-2">
               <div class="row">
                 <label for="colFormLabel" class="col-sm-3 col-form-label"
@@ -1640,7 +1696,7 @@
                 </div>
               </div>
             </div>
-        </div>
+          </div>
           <div
             class="tab-pane fade"
             id="disabled-tab-pane"
@@ -1952,20 +2008,31 @@
         Submit Configuration
       </button>
     </div>
-    <div class="row mt-1 mb-1 invisible"  id="runningspinner" >
-        <div class="d-flex align-items-center">
-            <strong>Running...</strong>
-            <div class="spinner-border ms-auto" role="status" aria-hidden="true"></div>
-          </div>
+    <div class="row mt-1 mb-1 invisible" id="runningspinner">
+      <div class="d-flex align-items-center">
+        <strong>Running...</strong>
+        <div
+          class="spinner-border ms-auto"
+          role="status"
+          aria-hidden="true"
+        ></div>
+      </div>
     </div>
     <div class="row mt-3 mb-3 p-3" id="resultsrow"></div>
     <div class="row mt-3 mb-3">
       <div>
-        <a class="btn btn-primary" data-bs-toggle="collapse" href="#collapseResult" role="button" aria-expanded="false" aria-controls="collapseResult">
-            Show Response
-          </a>
+        <a
+          class="btn btn-primary"
+          data-bs-toggle="collapse"
+          href="#collapseResult"
+          role="button"
+          aria-expanded="false"
+          aria-controls="collapseResult"
+        >
+          Show Response
+        </a>
         <div class="collapse" id="collapseResult">
-        <ul id="results"></ul>
+          <ul id="results"></ul>
         </div>
       </div>
     </div>
@@ -2020,7 +2087,6 @@
     config.classifier.logistic_regression = {};
     config.classifier.decision_tree = {};
     config.classifier.GMMHMM = {};
-    
 
     config.evaluation = {};
     config.evaluation.train_test = {};
@@ -2031,12 +2097,11 @@
     var select = document.getElementById("dataset-pickle");
     config.datasetpickle = select.value;
     config.dataset.processing.enable_normalize =
-    document.querySelector("#enable_normalize").checked;
+      document.querySelector("#enable_normalize").checked;
     config.dataset.processing.enable_segment =
-    document.querySelector("#enable_segment").checked;
+      document.querySelector("#enable_segment").checked;
     config.dataset.processing.enable_trim =
       document.querySelector("#enable_trim").checked;
-      
 
     // Dataset Entries lenght adjust
     config.dataset.frame.enable =
@@ -2047,7 +2112,8 @@
       document.querySelector("#frame_hop_length").value;
     config.dataset.fixed.enable =
       document.querySelector("#fixed_enable").checked;
-    config.dataset.fixed.fixed_length = document.querySelector("#fixed_size").value;
+    config.dataset.fixed.fixed_length =
+      document.querySelector("#fixed_size").value;
 
     //Features
 
@@ -2062,8 +2128,7 @@
     config.features.mfcc.n_fft = document.querySelector("#mfcc_n_fft").value;
     config.features.mfcc.hop_length =
       document.querySelector("#mfcc_hop_length").value;
-    config.features.mfcc.delta =
-      document.querySelector("#mfcc_delta").checked;
+    config.features.mfcc.delta = document.querySelector("#mfcc_delta").checked;
     config.features.mfcc.delta2 =
       document.querySelector("#mfcc_delta2").checked;
 
@@ -2098,6 +2163,9 @@
       document.getElementById("knn_metric_power").value;
     config.classifier.knn.knn_weights =
       document.getElementById("knn_weights").value;
+    config.classifier.knn.tune_hyperparameters = document.getElementById(
+      "knn_tune_hyperparameters"
+    ).checked;
 
     // SVM
     config.classifier.svm.enable =
@@ -2116,6 +2184,9 @@
     config.classifier.svm.svm_tol = document.getElementById("svm_tol").value;
     config.classifier.svm.svm_max_iter =
       document.getElementById("svm_max_iter").value;
+    config.classifier.svm.tune_hyperparameters = document.getElementById(
+      "svm_tune_hyperparameters"
+    ).checked;
 
     // AdaBoost
     config.classifier.adaboost.enable =
@@ -2168,8 +2239,9 @@
       document.getElementById("ada_random_state").value;
 
     // logistic_regression
-    config.classifier.logistic_regression.enable =
-      document.getElementById("logistic_regression_enable").checked;
+    config.classifier.logistic_regression.enable = document.getElementById(
+      "logistic_regression_enable"
+    ).checked;
     config.classifier.logistic_regression.logreg_penalty =
       document.getElementById("logreg_penalty").value;
     config.classifier.logistic_regression.logreg_C =
@@ -2188,8 +2260,9 @@
       document.getElementById("logistic_regression_intercept_scaling").value;
 
     // decision tree
-    config.classifier.decision_tree.enable =
-      document.getElementById("decision_tree_enable").checked;
+    config.classifier.decision_tree.enable = document.getElementById(
+      "decision_tree_enable"
+    ).checked;
     config.classifier.decision_tree.max_depth =
       document.getElementById("dt_max_depth").value;
     config.classifier.decision_tree.min_samples_split = parseInt(
@@ -2210,8 +2283,6 @@
     // GMMHMM
     config.classifier.GMMHMM.enable =
       document.getElementById("GMMHMM_enable").checked;
-
-
 
     // Evaluation
     config.evaluation.train_test.enable = document.getElementById(
@@ -2236,8 +2307,9 @@
     config.evaluation.kfold.kfold_random_state =
       document.getElementById("kfold_random_state").value;
 
-    config.evaluation.stratifiedkfold.enable =
-      document.getElementById("stratifiedkfold_enable").checked;
+    config.evaluation.stratifiedkfold.enable = document.getElementById(
+      "stratifiedkfold_enable"
+    ).checked;
     config.evaluation.stratifiedkfold.stratifiedkfold_n_splits =
       document.getElementById("stratifiedkfold_n_splits").value;
     config.evaluation.stratifiedkfold.stratifiedkfold_shuffle =
@@ -2270,12 +2342,11 @@
       }
     });
 
-
   document
     .getElementById("submit-config")
     .addEventListener("click", function () {
-        document.getElementById("runningspinner").classList.add("visible");
-        document.getElementById("runningspinner").classList.remove("invisible");
+      document.getElementById("runningspinner").classList.add("visible");
+      document.getElementById("runningspinner").classList.remove("invisible");
       postConfig(getValues())
         .then((result) => {
           console.log(result);

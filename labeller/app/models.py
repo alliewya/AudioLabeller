@@ -20,3 +20,8 @@ class TaskProgress(models.Model):
     id = models.AutoField(primary_key=True)
     progress = models.FloatField(default=0)
     progressname = models.CharField(max_length=255,blank=False,default="")
+
+class ClassifierResults(models.Model):
+    id = models.AutoField(primary_key=True)
+    data = models.TextField()
+    updatedate = models.DateTimeField(default=timezone.now)

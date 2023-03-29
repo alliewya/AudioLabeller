@@ -10,7 +10,7 @@ from sklearn.svm import SVC
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
-
+from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import accuracy_score,confusion_matrix, f1_score, precision_score, recall_score, roc_auc_score
 
 
@@ -342,7 +342,7 @@ class MFCCFeatures(Featuresbase):
         # hop_length = int(kwargs.get('hop_length', 512))
         # features = []
         # mfcc = librosa.feature.mfcc(
-        #     y=audioframe, sr=44100, n_mfcc=n_mfcc, center=center, dct_type=dct_type, norm=norm, n_fft=n_fft, hop_length=hop_length
+        #     y=audioframe, sr=22050, n_mfcc=n_mfcc, center=center, dct_type=dct_type, norm=norm, n_fft=n_fft, hop_length=hop_length
         # )
         # mfcc = mfcc.ravel()
         # features.append(mfcc)
@@ -354,7 +354,7 @@ class MFCCFeatures(Featuresbase):
         n_fft = int(kwargs.get('n_fft', 2048))
         hop_length = int(kwargs.get('hop_length', 512))
         mfcc = librosa.feature.mfcc(
-                y=audioframe, sr=44100, n_mfcc=n_mfcc, center=center, dct_type=dct_type, norm=norm, n_fft=n_fft, hop_length=hop_length
+                y=audioframe, sr=22050, n_mfcc=n_mfcc, center=center, dct_type=dct_type, norm=norm, n_fft=n_fft, hop_length=hop_length
             )
         if(bool(kwargs.get('delta'))==True):
             mfcc_delta = librosa.feature.delta(mfcc)
@@ -401,7 +401,7 @@ class MFCCFeatures(Featuresbase):
         return {'feature': mfcc, 'label': audio.label}
 
     def features_from_dataset_multi(self, dataset,**kwargs):
-        with multiprocessing.Pool() as pool:
+        with multiprocessing.Pool(processes=5) as pool:
             results = pool.starmap(
                 self.process_sample,
                 [(audio, kwargs) for audio in dataset.samples]
@@ -485,7 +485,7 @@ class FeaturesFactory():
         if(dataset):
             bing = 1
             print(type(dataset.samples))
-            with multiprocessing.Pool() as pool:
+            with multiprocessing.Pool(processes=5) as pool:
                 results = pool.starmap(
                     self.process_sample_multi_extractor,
                     [(audio, bing) for audio in dataset.samples]
@@ -815,3 +815,9 @@ class Predictor():
         features = features.reshape(1, -1)
         prediction = self.classifier.predict(features)
         return prediction
+
+
+def tune_hyperparameters( clf, param_grid, X, y, cv=5):
+    grid_search = GridSearchCV(estimator=clf, param_grid=param_grid, cv=cv,n_jobs=10)
+    grid_search.fit(X, y)
+    return grid_search

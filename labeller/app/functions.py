@@ -11,7 +11,7 @@ def returnPredictions(classifier, filename):
 
     regions = []
     filepath = os.path.join("app", "static", "audiofiles",filename)
-    audio, sr = librosa.load(filepath,sr=44100)
+    audio, sr = librosa.load(filepath,sr=22050)
     framelength = sr // 2
     hop_lenght = sr // 12
 
@@ -135,7 +135,7 @@ def generate_dataset_file():
             #print(a)
             #print(type(json.loads(a.labelregions)))
             if json.loads(a.labelregions):
-                audio, sr = librosa.load(os.path.join("app", "static", "audiofiles", file), sr=44100)
+                audio, sr = librosa.load(os.path.join("app", "static", "audiofiles", file), sr=22050)
                 file_length = librosa.get_duration(y=audio)
                 not_coughs = []
                 sorted_regions = sorted(json.loads(a.labelregions), key=lambda x: x['start'])
@@ -162,13 +162,13 @@ def generate_dataset_file():
                 for i, region in enumerate(sorted_regions_samples):
                     regionaudio = audio[region["start"]:region["end"]]
                     filename = file[:-4]+str(i)+".wav"
-                    path = os.path.join("app", "static", "dataset2", "cough", filename)
+                    path = os.path.join("app", "static", "dataset3", "cough", filename)
                     sf.write(path, regionaudio, sr, subtype='PCM_16' )
 
                 for i, region in enumerate(sorted_not_cough):
                     regionaudio = audio[region["start"]:region["end"]]
                     filename = file[:-4]+str(i)+".wav"
-                    path = os.path.join("app", "static", "dataset2", "notcough", filename)
+                    path = os.path.join("app", "static", "dataset3", "notcough", filename)
                     sf.write(path, regionaudio, sr, subtype='PCM_16' )
 
                 cough.append(sorted_regions_samples)
@@ -178,11 +178,11 @@ def generate_dataset_file():
     print(not_cough)
     status = {"Number": len(list1), "Files": list1, }
 
-    cough = factory.Dataset(path1=os.path.join("app", "static", "dataset2", "cough"), load=True, samplerate=44100)
+    cough = factory.Dataset(path1=os.path.join("app", "static", "dataset3", "cough"), load=True, samplerate=22050)
     cough.set_label("0")
     print(str(len(cough.samples))+" Cough Samples")
     print(str(len(cough.labels))+" Cough Labels")
-    notcough = factory.Dataset(path1=os.path.join("app", "static", "dataset2", "notcough"),load=True, samplerate=44100)
+    notcough = factory.Dataset(path1=os.path.join("app", "static", "dataset3", "notcough"),load=True, samplerate=22050)
     notcough.set_label("1")
     print(str(len(notcough.samples))+" Not Cough Samples")
     print(str(len(notcough.labels))+" Not Cough Labels")  
@@ -190,7 +190,7 @@ def generate_dataset_file():
     combineddataset = cough.combine_dataset(notcough)
 
 
-    notcoughexternal = factory.Dataset(path1=os.path.join("app", "static", "dataset1", "external"), load=True, samplerate=44100)
+    notcoughexternal = factory.Dataset(path1=os.path.join("app", "static", "dataset1", "external"), load=True, samplerate=22050)
     notcoughexternal.set_label("1")
     print(str(len(notcoughexternal.samples))+"External Not Cough Samples")
     print(str(len(notcoughexternal.labels))+"External Not Cough Labels")  

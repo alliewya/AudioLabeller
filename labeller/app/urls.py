@@ -28,6 +28,7 @@ urlpatterns = [
     path('api/providelabelsforcopy/<key>',views.providelabelsforcopy, name="providelabelsforcopy"),
     path('api/generateDatasetFile',views.generateDatasetFile, name="generateDatasetFile"),
     path('api/config',views.modelfromconfig, name="modelfromconfig"),
+    path('api/hyperparam',views.hyperparam, name="hyperparameters"),
     path('api/resultscard', views.resultsCard, name="resultscard"),
     path('backups/<backup>', views.jsonbackupdownload, name="jsonbackupdownload"),
     path('register/', views.register, name='register'),
