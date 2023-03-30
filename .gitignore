@@ -159,4 +159,5 @@ backups
 
 
 *.wav
-*.pickle
+#*.pickle
+datasetpickles
