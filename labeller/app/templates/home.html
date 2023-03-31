@@ -36,6 +36,12 @@
         <hr />
         <div><a href="/app/datasetlist">Dataset List</a></div>
         <div><a href="/accounts/logout">Logout</a></div>
+        <div class="text-right"> {% if user.is_authenticated %}
+          <Small>Logged in as: </small>{{ user.username }}
+            {% else %}
+            <a href="/accounts/login">You are not logged in</a>
+          {% endif %}
+        </div>
         {% comment %}
         <div><a href="/app/utilities">Utilities</a></div>
         {% endcomment %}
