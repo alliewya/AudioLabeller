@@ -294,10 +294,10 @@ def audiowavesnewtouser(request, userid):
     return render(request, 'waves3.html', {'page_obj': page_obj, 'audiolist': audiopredictions, 'user': request.user})
 
 
-def audiowavesnewtouserfromtarget(request, userid, targetuser):
+def audiowavesnewtouserfromtarget(request, userid, targetuser, numberfiles=5):
     audiofiles = AudioLabels.objects.filter(labeluser=targetuser).exclude(filename__in=AudioLabels.objects.filter(labeluser=userid).values('filename'))
-    paginator = Paginator(audiofiles, 5)
-    paginator.limit_pagination_display = 5
+    paginator = Paginator(audiofiles, numberfiles)
+    paginator.limit_pagination_display = numberfiles
 
     page_number = request.GET.get('page')
 
