@@ -421,7 +421,19 @@ def save_events_json(request, userid = None):
             return JsonResponse({'status': 'error', 'message': 'Invalid JSON'})
     return HttpResponse("OK")
 
-
+@csrf_exempt
+def delete_events_json(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            for audio in data:
+                label_to_delete = AudioLabels.objects.get(filename=audio['filename'],labeluser=request.user.id)
+                label_to_delete.delete()
+                #AudioLabels.objects.update_or_create(filename=audio['filename'],labeluser=request.user.id, defaults={'updatedate':timezone.now,'labelregions':json.dumps(audio['regions']),'labelusername':request.user.username,'lowquality':audio['lowquality'],'unclear':audio['unclear']})
+            return JsonResponse({'status': 'success'})
+        except json.JSONDecodeError as e:
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON'})
+    return HttpResponse("OK")
 
 @csrf_exempt
 def generate_all_model_predictions(request):

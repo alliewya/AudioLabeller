@@ -2,7 +2,43 @@
 
 <!---->
 
-{% block content%} {% if user.is_authenticated %}
+{% block content%} {% if user.is_authenticated %} {% for group in
+request.user.groups.all %} {% if group.name == 'verifier' %}
+<div class="Row">
+  <div class="col-12">
+    <div class="d-flex justify-content-center align-items-center p-3">
+      <div class="card p-3">
+        <h2>Audio Labelling</h2>
+
+        <hr />
+        <div>
+          <h5>
+            <a href="/app/{{user.id }}/newaudio/1">View Unverified Audio</a>
+          </h5>
+          - Shows audio which has not had it's labels verified
+        </div>
+        <div>
+          <h5>
+            <a href="/app/{{user.id }}/audiolabelled">View your labels</a>
+          </h5>
+          - Shows the audio which you have verified
+        </div>
+        <hr />
+        <div>
+          <h5><a href="/app/audiopages">View Whole Dataset</a></h5>
+          - Shows all of the audio
+        </div>
+        <hr />
+        <div><a href="/app/datasetlist">Dataset List</a></div>
+        <div><a href="/accounts/logout">Logout</a></div>
+        {% comment %}
+        <div><a href="/app/utilities">Utilities</a></div>
+        {% endcomment %}
+      </div>
+    </div>
+  </div>
+</div>
+{% elif group.name == 'admin' %}
 <div class="Row">
   <div class="col-12">
     <div class="d-flex justify-content-center align-items-center p-3">
@@ -12,16 +48,15 @@
         <div>
           <a href="/app/{{user.id }}/newaudio">Label Dataset</a
           ><span class="text-right">
-            - Shows the audio that you have not labelled
+            Shows the audio that you have not labelled
           </span>
         </div>
         <div>
-          <a href="/app/audiopages">View Whole Dataset</a> - Shows all of the
-          audio
+          <a href="/app/audiopages">View Whole Dataset</a>Shows all of the audio
         </div>
         <hr />
         <div>
-          <a href="/app/{{user.id }}/audiolabelled">View your labels</a> - Shows
+          <a href="/app/{{user.id }}/audiolabelled">View your labels</a>Shows
           the audio which you have labelled, with your labels
         </div>
         <hr />
@@ -45,7 +80,7 @@
   </div>
 </div>
 
-{% else %} .
+{% endif %} {% endfor %} {% else %}
 <div class="Row">
   <div class="col-12">
     <div class="d-flex justify-content-center align-items-center p-3">
