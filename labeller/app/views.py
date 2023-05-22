@@ -33,6 +33,7 @@ from app import factory
 from django.utils import timezone
 from .models import AudioLabels,TaskProgress,ClassifierResults
 
+import traceback
 
 with open(os.path.join(settings.BASE_DIR,"app","models","coughknn5mfcc40.bark"), "rb") as f:
     knnmodel = pickle.load(f)
@@ -639,8 +640,19 @@ def modelfromconfig(request):
                     print("bb")
                     print(data['features'])
                     print(type(data['features']))
-                    c = factory.FeaturesFactory(**data['features'])
-                    mfc3, labels2 = c.extract_features(dataset=dataset)
+
+
+                    # c = factory.FeaturesFactory(**data['features'])
+                    # mfc3, labels2 = c.extract_features(dataset=dataset)
+
+
+                    ################ TEMP SCATTER WAVELET
+                    print("Scatter Start")
+                    d = factory.WaveletScatterFeatures(**data['features'])
+                    scatter, labels2 = d.features_from_dataset_multi(dataset=dataset)
+
+
+
 
                     print("whoop")
                     #print(type(mfc))
@@ -672,6 +684,7 @@ def modelfromconfig(request):
                         print("clf made")
                         print(type(mdl))
                         print(dir(mdl))
+                        print(mdl.get_params(deep=True))
                         mfc2 =  np.asarray(mfc)
                         print(mfc2.shape)
                         mfc2 = mfc2.reshape((mfc2.shape[0], -1))
@@ -690,7 +703,12 @@ def modelfromconfig(request):
                                     # X_train, X_test, y_train, y_test = train_test_split(mfc2, labels, 
                                     # test_size=float(params['train_test']['tts_test_size']), 
                                     # shuffle=params['train_test']['tts_shuffle'])
-                                    X_train, X_test, y_train, y_test = train_test_split(mfc3, labels2, 
+                                    ##SCATTER TEMP DEACTIVATE
+                                    # X_train, X_test, y_train, y_test = train_test_split(mfc3, labels2, 
+                                    # test_size=float(params['train_test']['tts_test_size']), 
+                                    # shuffle=params['train_test']['tts_shuffle'])
+                                    #####
+                                    X_train, X_test, y_train, y_test = train_test_split(scatter, labels2, 
                                     test_size=float(params['train_test']['tts_test_size']), 
                                     shuffle=params['train_test']['tts_shuffle'])
                                     print("train test 2 ")
@@ -729,15 +747,32 @@ def modelfromconfig(request):
                                         saving.save()
                                     elif bool(data['classifier']['svm']['tune_hyperparameters']):
                                             params = data['evaluation']
+                                            # svm_param_grid = {
+                                            #     'C': [0.1, 1, 10, 100, 1000],
+                                            #     'kernel': ['linear', 'poly', 'rbf', 'sigmoid'],
+                                            #     'degree': [2, 3, 4, 5],  # Only used for the 'poly' kernel
+                                            #     'gamma': ['scale', 'auto'] + list(np.logspace(-3, 2, 6)),  # 'scale', 'auto', and some values between 0.001 and 100
+                                            #     'shrinking': [True, False],
+                                            #     'probability': [True],
+                                            #     'tol': [1e-4, 1e-3, 1e-2, 1e-1, 1],
+                                            #     'max_iter': [-1, 100, 500, 1000, 5000],
+                                            # }
+                                            # svm_param_grid = {
+                                            #     'C': [0.1, 1, 100, 1000],
+                                            #     'kernel': ['linear', 'rbf',],
+                                            #     'gamma': ['scale', 'auto'] + list(np.logspace(-3, 2, 6)),  # 'scale', 'auto', and some values between 0.001 and 100
+                                            #     'shrinking': [True, False],
+                                            #     'probability': [True],
+                                            #     'tol': [1e-4, 1e-3, 1e-2, 1e-1, 1],
+                                            #     'max_iter': [-1, 100, 500],
+                                            # }
                                             svm_param_grid = {
-                                                'C': [0.1, 1, 10, 100, 1000],
-                                                'kernel': ['linear', 'poly', 'rbf', 'sigmoid'],
-                                                'degree': [2, 3, 4, 5],  # Only used for the 'poly' kernel
-                                                'gamma': ['scale', 'auto'] + list(np.logspace(-3, 2, 6)),  # 'scale', 'auto', and some values between 0.001 and 100
+                                                'C': [0.1, 1, 100, 1000],
+                                                'kernel': ['linear', 'rbf',],
+                                                'gamma': ['scale', 'auto'] ,  # 'scale', 'auto', and some values between 0.001 and 100
                                                 'shrinking': [True, False],
                                                 'probability': [True],
-                                                'tol': [1e-4, 1e-3, 1e-2, 1e-1, 1],
-                                                'max_iter': [-1, 100, 500, 1000, 5000],
+                                                'max_iter': [-1, 100, 500],
                                             }
                                             knn_param_grid = {
                                                 "n_neighbors": list(range(1, 15)),
@@ -746,7 +781,11 @@ def modelfromconfig(request):
                                                 "leaf_size": [10, 20, 30],
 
                                             }
-                                            X_train, X_test, y_train, y_test = train_test_split(mfc3, labels2,
+                                            # X_train, X_test, y_train, y_test = train_test_split(mfc3, labels2,
+                                            #                                                     test_size=float(
+                                            #                                                         params['train_test']['tts_test_size']),
+                                            #                                                     shuffle=params['train_test']['tts_shuffle'])
+                                            X_train, X_test, y_train, y_test = train_test_split(scatter, labels2,
                                                                                                 test_size=float(
                                                                                                     params['train_test']['tts_test_size']),
                                                                                                 shuffle=params['train_test']['tts_shuffle'])
@@ -763,13 +802,15 @@ def modelfromconfig(request):
                                             saving.save()
 
                                 else:
-                                    X_train, X_test, y_train, y_test = train_test_split(mfc2, labels, 
+                                    X_train, X_test, y_train, y_test = train_test_split(mfc3, labels, 
                                     test_size=float(params['train_test']['tts_test_size']), 
                                     shuffle=params['train_test']['tts_shuffle'], 
                                     random_state=int(params['train_test']['tts_random_state']))
                                 try:
                                     print("mdl fit start")
                                     start_time = time.time()
+                                    #print(" n neigh")
+                                    #print(mdl.n_neighbors)
                                     clf = mdl.fit(X_train, y_train)
                                     end_time = time.time()
                                     timetaken = end_time - start_time
@@ -788,23 +829,34 @@ def modelfromconfig(request):
                                 print("kfold")
                                 cv = factory.CrossVal(**data['evaluation'])
                                 try:
-                                    results = cv.cross_validate(clf=mdl, X=mfc2,y=dataset.labels)
+                                    print("Cross val model type")
+                                    print(type(mdl))
+                                    print(dir(mdl))
+                                    print("Pre-crossval")
+                                    results = cv.do_cross_validate(clfin= mdl, clfparm = data['classifier'], X=mfc3,y=labels2)
                                     print(results)
                                     scores = {}
-                                    scores['test_scores'] = results['test_score'].tolist()
+                                    #scores['results'] = results
+                                    #scores['test_scores'] = results['test_score'].tolist()
+                                    scores['test_accuracy'] = results['test_accuracy'].tolist()
+                                    scores['test_precision_macro'] = results['test_precision_macro'].tolist()
+                                    scores['test_recall_macro'] = results['test_recall_macro'].tolist()
+                                    scores['test_f1_macro'] = results['test_f1_macro'].tolist()
                                     scores['fit_time'] = results['fit_time'].tolist()
                                     scores['score_time'] = results['score_time'].tolist()
                                     print("kfoldbing")
                                 except Exception as e:
                                     print("Kfold fail")
                                     print("Exception:",e)
+                                    traceback.print_exc()
                             elif(bool(data['evaluation']['stratifiedkfold']['enable'])):
                                 print("Strat Kfold")
                                 cv = factory.CrossVal(**data['evaluation'])
                                 try:
-                                    results = cv.cross_validate(clf=mdl, X=mfc2,y=dataset.labels)
+                                    results = cv.cross_validate(clf=mdl, X=mfc3,y=labels2)
                                     scores = {}
-                                    scores['test_scores'] = results['test_score'].tolist()
+                                    scores['results'] = results
+                                    #scores['test_scores'] = results['test_score'].tolist()
                                     scores['fit_time'] = results['fit_time'].tolist()
                                     scores['score_time'] = results['score_time'].tolist()
                                 except Exception as e:
@@ -814,9 +866,9 @@ def modelfromconfig(request):
                             print("Eval Split Fail")
                             print("An exception occurred:", e)
                         
-                        predictor = factory.Predictor(featureeex=factory.MFCCFeatures(**featureconfig['mfcc']), clf=clf)
-                        with open("predictor.pickle", "wb") as file:
-                            pickle.dump(predictor, file)
+                        # predictor = factory.Predictor(featureeex=factory.MFCCFeatures(**featureconfig['mfcc']), clf=clf)
+                        # with open("predictor.pickle", "wb") as file:
+                        #     pickle.dump(predictor, file)
                         return JsonResponse({"Status": "Success","Scores": scores, "Config": data, "Timestamp": datetime.now().isoformat()})
 
                         

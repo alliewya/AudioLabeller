@@ -12,7 +12,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import accuracy_score,confusion_matrix, f1_score, precision_score, recall_score, roc_auc_score
-
+import traceback
 
 import multiprocessing
 from hmmlearn import hmm
@@ -21,6 +21,11 @@ from hmmlearn import hmm
 #tempforpi
 import scipy.signal as signal
 import scipy.fftpack as fft
+
+
+#
+from kymatio.numpy import Scattering1D
+
 
 # ==================================================
 #             Data & Dataset
@@ -469,6 +474,134 @@ class MelSpectrogramFeatures(Featuresbase):
 
 
 
+class WaveletScatterFeatures(Featuresbase):
+
+    def __init__(self, **kwargs):
+            self.kwargs = kwargs
+        
+
+    def features_from_dataset2(self,dataset, **kwargs):
+        sr = 22500
+        framelength = sr // 2
+        hop_lenght = sr // 4
+        
+        frames = librosa.util.frame(dataset.samples[0], frame_length=framelength, hop_length=hop_lenght)
+        features = np.empty
+
+
+    def features_from_dataset(self, dataset,**kwargs):
+
+        kwargs = self.kwargs
+        print("Scatter Start")
+        features = []
+        labels = []
+        templist = []
+        for audio in dataset.samples:
+            sample_rate = 22050
+            J = 6  # The maximum scale of the scattering transform (2**J should be smaller than the signal length)
+            Q = 1  # The number of wavelets per octave
+            T = len(audio.audiodata)
+            # print("Scatter 1")
+            scattering = Scattering1D(J, T, Q)
+            # print("Scatter 2")
+            features = scattering(audio.audiodata)
+            # print("Scatter 3")
+            features = features.ravel()
+            # print("Scatter 4")
+            #features = np.concatenate((features, mfcc), axis=0)
+            templist.append({'feature':features, 'label':audio.label})
+        print("Scatter Loop End")
+        features = [x['feature'] for x in templist]
+        labels = [x['label'] for x in templist]
+        return features,labels
+
+    def single_features(self, audiosample=None,audioframe = None, **kwargs):
+        # n_mfcc = int(self.kwargs.get('n_mfcc',20))
+        # features = np.empty((0, n_mfcc))
+        # np.append(features, librosa.feature.mfcc(
+        #         y=audiosample.audiodata, sr=audiosample.samplerate, n_mfcc=n_mfcc
+        #     ), axis=0)
+
+
+        # kwargs = self.kwargs
+        # n_mfcc = int(kwargs.get('n_mfcc', 20))
+        # center = bool(kwargs.get('center', False))
+        # dct_type = int(kwargs.get('dct_type', 2))
+        # norm = kwargs.get('norm', 'ortho')
+        # n_fft = int(kwargs.get('n_fft', 2048))
+        # hop_length = int(kwargs.get('hop_length', 512))
+        # features = []
+        # mfcc = librosa.feature.mfcc(
+        #     y=audioframe, sr=22050, n_mfcc=n_mfcc, center=center, dct_type=dct_type, norm=norm, n_fft=n_fft, hop_length=hop_length
+        # )
+        # mfcc = mfcc.ravel()
+        # features.append(mfcc)
+        kwargs = self.kwargs
+        n_mfcc = int(kwargs.get('n_mfcc', 20))
+        center = bool(kwargs.get('center', False))
+        dct_type = int(kwargs.get('dct_type', 2))
+        norm = kwargs.get('norm', 'ortho')
+        n_fft = int(kwargs.get('n_fft', 2048))
+        hop_length = int(kwargs.get('hop_length', 512))
+        mfcc = librosa.feature.mfcc(
+                y=audioframe, sr=22050, n_mfcc=n_mfcc, center=center, dct_type=dct_type, norm=norm, n_fft=n_fft, hop_length=hop_length
+            )
+        if(bool(kwargs.get('delta'))==True):
+            mfcc_delta = librosa.feature.delta(mfcc)
+            if(bool(self.kwargs.get('delta2'))==True):
+                mfcc_delta2 = librosa.feature.delta(mfcc, order=2)
+                mfcc_delta = np.concatenate((mfcc_delta, mfcc_delta2), axis=1)
+            mfcc = np.concatenate((mfcc, mfcc_delta), axis=1)
+        mfcc = mfcc.ravel()
+        
+        features = np.asarray(mfcc)
+        return features
+
+    def single_features_from_audio(self, audiofilepath, **kwargs):
+        audiosample = AudioSample(path=audiofilepath, samplerate=self.kwargs.get('samplerate',22050))
+        features = np.empty((0, kwargs.get('n_mfcc', 20)))
+        np.append(features, librosa.feature.mfcc(
+                y=audiosample.audiodata, sr=audiosample.samplerate, n_mfcc=n_mfcc
+            ), axis=0)
+        features = features.ravel()
+        return features
+
+    def process_sample(self, audio, kwargs):
+        # mfcc = librosa.feature.mfcc(
+        #     y=audio.audiodata, sr=audio.samplerate, n_mfcc=n_mfcc
+        # )
+        sample_rate = 22050
+        J = 6  # The maximum scale of the scattering transform (2**J should be smaller than the signal length)
+        Q = 1  # The number of wavelets per octave
+        T = len(audio.audiodata)
+        # print("Scatter 1")
+        scattering = Scattering1D(J, T, Q)
+        # print("Scatter 2")
+        features = scattering(audio.audiodata)
+        # print("Scatter 3")
+        
+        features = features.ravel()
+        
+        #AVG Fatures
+        avg_features = np.mean(features, axis=1)
+        features = avg_features.ravel()
+
+        # print("Scatter 4")
+        
+        return {'feature':features, 'label':audio.label}
+
+    def features_from_dataset_multi(self, dataset,**kwargs):
+        with multiprocessing.Pool(processes=5) as pool:
+            results = pool.starmap(
+                self.process_sample,
+                [(audio, kwargs) for audio in dataset.samples]
+            )
+        features = [x['feature'] for x in results]
+        labels = [x['label'] for x in results]
+        return features, labels
+
+
+
 
 class FeaturesFactory():
     """Features class that returns a feature extractor"""
@@ -568,6 +701,7 @@ class ModelBase():
 
 class KNNModel(ModelBase, KNeighborsClassifier):
     def __init__(self, **kwargs):
+        self.kwargs = kwargs
         super().__init__(
             n_neighbors=int(kwargs["knn_k"]),
             algorithm=kwargs["knn_algorithm"],
@@ -576,6 +710,8 @@ class KNNModel(ModelBase, KNeighborsClassifier):
             metric_params={"p": int(kwargs["knn_metric_power"])},
             weights=kwargs["knn_weights"],
         )
+
+
 
 
 class SVMModel(ModelBase, SVC):
@@ -783,15 +919,19 @@ class CrossVal():
     def __init__(self, **kwargs):
         self.kwargs = kwargs
 
-    def cross_validate(self,clf, X, y):
+    def do_cross_validate(self,clfin, clfparm, X, y):
+        print("Cross Val 1")
         params = self.kwargs
+        #print(self.kwargs)
         if(bool(params['kfold']['enable'])):
+            print("Cross Val 2")
             spram = params['kfold']
             if spram['kfold_random_state'] == 'None':
                 random_state = None
             else:
                 random_state = int(spram['kfold_random_state'])
             cv = KFold(n_splits=int(spram['kfold_n_splits']),shuffle=bool(spram['kfold_shuffle']),random_state=random_state)
+            print("Cross Val 3")
         elif(bool(params['stratifiedkfold']['enable'])):
             spram = params['stratifiedkfold']
             if spram['stratifiedkfold_random_state'] == 'None':
@@ -799,7 +939,51 @@ class CrossVal():
             else:
                 random_state = int(spram['stratifiedkfold_random_state'])
             cv = StratifiedKFold(n_splits=int(spram['stratifiedkfold_n_splits']),shuffle=bool(spram['stratifiedkfold_shuffle']),random_state=random_state)
-        cv_results = cross_validate(clf, X=X, y=y, cv=cv, n_jobs=-1)
+        print("Cross Val 4")
+        print(clfin)
+        #modelfactory = ClassifierFactory(**clfin)
+        #mdl = modelfactory.create_classifier()
+
+        if bool(clfparm["knn"]['enable']):  
+            knn_params = {
+            "n_neighbors": int(clfparm["knn"]["knn_k"]),
+            "algorithm": clfparm["knn"]["knn_algorithm"],
+            "leaf_size": int(clfparm["knn"]["knn_leaf_size"]),
+            "metric": clfparm["knn"]["knn_metric"],
+            "metric_params": {"p": int(clfparm["knn"]["knn_metric_power"])},
+            "weights": clfparm["knn"]["knn_weights"]
+            }
+            mdl = KNeighborsClassifier(**knn_params)
+        # elif bool(clfparm["svm"]['enable']):
+        #     svm_params = self.kwargs["svm"]
+        #     return SVMModel(**svm_params)
+        # elif bool(clfparm["adaboost"]['enable']):
+        #     adaboost_params = self.kwargs["adaboost"]
+        #     return AdaBoostModel(**adaboost_params)
+        # elif  bool(clfparm["logistic_regression"]['enable']):
+        #     logreg_params = self.kwargs["logistic_regression"]
+        #     return LogisticRegressionModel(**logreg_params)
+        # elif bool(clfparm["decision_tree"]['enable']):
+        #     dt_params = self.kwargs["decision_tree"]
+        #     return DecisionTreeModel(**dt_params)
+        # elif bool(clfparm["GMMHMM"]['enable']):
+        #     GMMHMM_params = self.kwargs['GMMHMM']
+        # else:
+        #     return None
+
+        scoring = ['accuracy', 'precision_macro', 'recall_macro', 'f1_macro']
+        cv_results = cross_validate(estimator=mdl, X=X, y=y, cv=cv, n_jobs=-1, verbose=1, scoring=scoring)
+        #clfin.set_params(**clfparm)
+        #cv_results = cross_validate(estimator=clfin, X=X, y=y, cv=cv, n_jobs=-1, verbose=1)
+        # h = KNeighborsClassifier()
+        # print(type(h))
+        # print(dir(h))
+        # print(h.get_params(deep=True))
+        # print(type(clfin))
+        # print(dir(clfin))
+        # #print(clfin.get_params(deep=True))
+        #cv_results = cross_validate(estimator=KNeighborsClassifier(), X=X, y=y, cv=cv, n_jobs=-1, verbose=1)
+        print("Cross Val 5")
         return cv_results
 
 
