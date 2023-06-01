@@ -30,6 +30,7 @@ urlpatterns = [
     path('api/config',views.modelfromconfig, name="modelfromconfig"),
     path('api/hyperparam',views.hyperparam, name="hyperparameters"),
     path('api/resultscard', views.resultsCard, name="resultscard"),
+    path('api/labeluserslist/<fname>', views.listoflabelusers, name="listoflabelusers"),
     path('backups/<backup>', views.jsonbackupdownload, name="jsonbackupdownload"),
     path('register/', views.register, name='register'),
     path('config2',views.config2, name="config2test"),

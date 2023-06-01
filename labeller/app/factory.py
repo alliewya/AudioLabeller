@@ -583,12 +583,16 @@ class WaveletScatterFeatures(Featuresbase):
         features = features.ravel()
         
         #AVG Fatures
-        avg_features = np.mean(features, axis=1)
-        features = avg_features.ravel()
+        #avg_features = np.mean(features, axis=1)
+        avg_features = np.mean(features)
+        avg_features = avg_features.ravel()
+        std_features = np.std(features)
+        std_features = std_features.ravel()
 
+        feats = np.concatenate((avg_features,std_features))
         # print("Scatter 4")
         
-        return {'feature':features, 'label':audio.label}
+        return {'feature':feats, 'label':audio.label}
 
     def features_from_dataset_multi(self, dataset,**kwargs):
         with multiprocessing.Pool(processes=5) as pool:

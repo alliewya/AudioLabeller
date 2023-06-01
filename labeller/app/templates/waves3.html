@@ -11,6 +11,7 @@
       integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65"
       crossorigin="anonymous"
     />
+    
     {% load static %}
     <link rel="shortcut icon" href="{% static 'favicon.ico' %}">
     <!-- <link rel="stylesheet" href="style.css"> -->
@@ -45,7 +46,8 @@
       {% for audiofile in audiolist %} {% with forloop.counter as count %}
       <div class="row">
         <div class="col-12 mt-3 mb-4">
-          <h2 class="float-start">{{ audiofile.filename }}</h2><span class="float-end badge rounded-pill text-bg-info">{{ audiofile.labelusername }}</span>
+          <h2 class="float-start">{{ audiofile.filename }}</h2>
+            <span class="float-end badge rounded-pill text-bg-info" id="username_badge_{{ count }}">{{ audiofile.labelusername }}</span>
           <div id="wave-timeline{{count}}"></div>
           <div id="waveform{{count}}"></div>
           <div id="wave-spectrogram{{count}}" class="spectrogram"></div>
@@ -411,6 +413,33 @@
       wavesurfer{{ count }}.on('interaction', function () {
           activewaveform = wavesurfer{{ count }};
       })
+
+      // Button for Username list 
+      document.getElementById("username_badge_{{ count }}").addEventListener('click', function () {
+        console.log("{{audiofile.filename}}".slice(0, -4));
+        fname = ("{{audiofile.filename}}".slice(0,-4));
+        url = "/app/api/labeluserslist/" + fname;
+        fetch(url, {
+          method: "GET",
+          {% comment %} headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(regions_master) {% endcomment %}
+      })
+      {% comment %} .then(res => {
+          console.log("Request complete! response:", res);
+          if (res.status == 200) {
+              var today = new Date();
+              var date = today.getFullYear() + '-' + (today.getMonth() + 1) + '-' + today.getDate();
+              var time = today.getHours() + ":" + today.getMinutes() + ":" + today.getSeconds();
+              var dateTime = date + ' ' + time;
+              document.getElementById('regions-text{{count}}').innerHTML = res.text;
+          }
+      }) {% endcomment %}
+      .then(res => res.json())
+      .then(data => {document.getElementById('regions-text{{count}}').innerHTML = data;})
+      ;
+        //wavesurfer{{ count }}.zoom(Number(this.value));
+        //console.log(slider{{count}}.value);
+      });
 
       {% endwith %}
       {% endfor %}

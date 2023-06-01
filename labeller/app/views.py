@@ -14,6 +14,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
+
 import pandas as pd
 
 import requests
@@ -52,6 +54,11 @@ with open(os.path.join(settings.BASE_DIR,"app","models","SVMmfcc40CoughvidFrames
 
 with open(os.path.join(settings.BASE_DIR,"app","models","predictor.pickle"), "rb") as f:
     predictor = pickle.load(f)
+
+#Retrieve user id's and names for caching
+userlist = User.objects.values_list('id', 'username')
+user_dict = dict(userlist)
+
 
 def index(request):
     context = {'user':request.user}
@@ -336,6 +343,7 @@ def audiowavesbyuser(request, userid):
     return render(request, 'waves3.html', {'page_obj': page_obj, 'audiolist': audiolist, 'user': request.user})
 
 def singlefilewave(request, fname):
+    fname = str(fname)+".wav"
     audiofiles = [fname]
     
     audiopredictions = []
@@ -353,6 +361,7 @@ def singlefilewave(request, fname):
     return render(request, 'waves3.html', {'page_obj': audiopredictions, 'audiolist': audiopredictions, 'user': request.user})
 
 def singlefilewaveuser(request, fname, userid):
+    fname = str(fname)+".wav"
     audiofiles = [fname]
     
     audiopredictions = []
@@ -374,6 +383,16 @@ def singlefilewaveuser(request, fname, userid):
     # do something with the processed data
     
     return render(request, 'waves3.html', {'page_obj': audiopredictions, 'audiolist': audiopredictions, 'user': request.user})
+
+def listoflabelusers(request, fname):
+    #Returns a list of users who have labelled the audiofile
+    fname = str(fname) + ".wav"
+    labelusers = []
+    labelid = []
+    for userid in user_dict:
+        if AudioLabels.objects.filter(filename=fname, labeluser =userid).exists():
+            labelusers.append(user_dict[userid])
+    return JsonResponse(labelusers, safe=False)
 
 
 def datasetlist(request):
@@ -442,7 +461,7 @@ def generate_all_model_predictions(request):
         try:
             data = json.loads(request.body)
             selecteduserid = int(data['userselected'])
-            modelperid = [{"id":"2","model":knnmodel,"modelname":"Default Model"},{"id":"3","model":knnmodel2,"modelname":"KNN Model 2"},{"id":"4","model":knnmodel3,"modelname":"KNN Model 3 - Augmented"},{"id":"5","model":svmmodel1,"modelname":"SVM Model 1"},{"id":"6","model":svmmodel2,"modelname":"SVM Model 2 - Augmented"},{"id":"11","model":predictor,"modelname":"Predictor1"}]
+            modelperid = [{"id":"2","model":knnmodel,"modelname":"Default Model"},{"id":"3","model":knnmodel2,"modelname":"KNN Model 2"},{"id":"4","model":knnmodel3,"modelname":"KNN Model 3 - Augmented"},{"id":"5","model":svmmodel1,"modelname":"SVM Model 1"},{"id":"6","model":svmmodel2,"modelname":"SVM Model 2 - Augmented"},{"id":"11","model":predictor,"modelname":"Predictor1"},{"id":"12","model":predictor,"modelname":"Predictor2"}]
 
             for x in modelperid:
                 if int(x["id"]) == selecteduserid:
@@ -866,9 +885,9 @@ def modelfromconfig(request):
                             print("Eval Split Fail")
                             print("An exception occurred:", e)
                         
-                        # predictor = factory.Predictor(featureeex=factory.MFCCFeatures(**featureconfig['mfcc']), clf=clf)
-                        # with open("predictor.pickle", "wb") as file:
-                        #     pickle.dump(predictor, file)
+                        predictor = factory.Predictor(featureeex=factory.WaveletScatterFeatures(**featureconfig['mfcc']), clf=clf)
+                        with open("predictor.pickle", "wb") as file:
+                            pickle.dump(predictor, file)
                         return JsonResponse({"Status": "Success","Scores": scores, "Config": data, "Timestamp": datetime.now().isoformat()})
 
                         
