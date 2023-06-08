@@ -17,13 +17,20 @@
     <!-- <link rel="stylesheet" href="style.css"> -->
 
     <!--Waveform JS-->
-    <script src="https://unpkg.com/wavesurfer.js@6.4.0/dist/wavesurfer.js"></script>
-    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.minimap.js"></script>
+    {% comment %} <script src="https://unpkg.com/wavesurfer.js@6.4.0/dist/wavesurfer.js"></script> {% endcomment %}
+    {% comment %} <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.minimap.js"></script>
     <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.regions.js"></script>
     <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.spectrogram.js"></script>
     <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.regions.js"></script>
     <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.timeline.js"></script>
-    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.cursor.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.cursor.js"></script> {% endcomment %}
+    <script src="https://unpkg.com/wavesurfer.js@6.6.3"></script>
+    <script src="https://unpkg.com/wavesurfer.js@6.6.3/dist/plugin/wavesurfer.minimap.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js@6.6.3/dist/plugin/wavesurfer.regions.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js@6.6.3/dist/plugin/wavesurfer.spectrogram.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js@6.6.3/dist/plugin/wavesurfer.regions.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js@6.6.3/dist/plugin/wavesurfer.timeline.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js@6.6.3/dist/plugin/wavesurfer.cursor.js"></script>
   </head>
 
   {% if user.is_authenticated %}
