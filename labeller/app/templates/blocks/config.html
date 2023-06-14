@@ -242,6 +242,34 @@
               Mel Spectrogram
             </button>
           </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="wavedec-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#wavedec-tab-pane"
+              type="button"
+              role="tab"
+              aria-controls="wavedec-tab-pane"
+              aria-selected="false"
+            >
+              Discrete Wavelet
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="wav-scat-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#wav-scat-tab-pane"
+              type="button"
+              role="tab"
+              aria-controls="wav-scat-tab-pane"
+              aria-selected="false"
+            >
+              Wavelet Scattering
+            </button>
+          </li>
         </ul>
         <div class="tab-content" id="featureTabContent">
           <div
@@ -511,6 +539,190 @@
                     <option value="1">1 - Energy</option>
                     <option selected value="2">2 - Power</option>
                   </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-content" id="featureTabContent">
+            <div
+              class="tab-pane fade show active"
+              id="wavedec-tab-pane"
+              role="tabpanel"
+              aria-labelledby="wavedec-tab"
+              tabindex="0"
+            >
+              <div class="container mt-2 mb-2">
+                <div class="row">
+                  <label for="colFormLabel" class="col-sm-3 col-form-label"
+                    >Enable Wavelet</label
+                  >
+                  <div class="col-sm-9">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="wavedec_enable"
+                      aria-describedby="wavedec_enable"
+                    />
+                  </div>
+                </div>
+                <div class="row">
+                  <label for="colFormLabel" class="col-sm-3 col-form-label" data-toggle="tooltip" data-placement="top" title="Wavelet">Wavelet</label>
+                  <div class="col-sm-9">
+                    <select class="form-select" id="wavedec_wavelet" aria-label="Wavelet">
+                      <option value="cmor">cmor</option>
+                      <option value="coif1">coif1</option>
+                      <option value="coif2">coif2</option>
+                      <option value="coif3">coif3</option>
+                      <option value="coif4">coif4</option>
+                      <option value="coif5">coif5</option>
+                      <option value="coif6">coif6</option>
+                      <option value="coif7">coif7</option>
+                      <option value="coif8">coif8</option>
+                      <option value="coif9">coif9</option>
+                      <option value="coif10">coif10</option>
+                      <option value="coif11">coif11</option>
+                      <option value="coif12">coif12</option>
+                      <option value="coif13">coif13</option>
+                      <option value="coif14">coif14</option>
+                      <option value="coif15">coif15</option>
+                      <option value="coif16">coif16</option>
+                      <option value="coif17">coif17</option>
+                      <option value="db1">db1</option>
+                      <option value="db2">db2</option>
+                      <option value="db3">db3</option>
+                      <option value="db4">db4</option>
+                      <option value="db5">db5</option>
+                      <option value="db6">db6</option>
+                      <option value="db7">db7</option>
+                      <option value="db8">db8</option>
+                      <option value="db9">db9</option>
+                      <option value="db10">db10</option>
+                      <option value="db11">db11</option>
+                      <option value="db12">db12</option>
+                      <option value="db20">db20</option>
+                      <option value="db36">db36</option>
+                      <option value="db37">db37</option>
+                      <option value="db38">db38</option>
+                      <option value="dmey">dmey</option>
+                      <option value="fbsp">fbsp</option>
+                      <option value="gaus1">gaus1</option>
+                      <option value="gaus2">gaus2</option>
+                      <option value="gaus3">gaus3</option>
+                      <option value="gaus4">gaus4</option>
+                      <option value="gaus5">gaus5</option>
+                      <option value="gaus6">gaus6</option>
+                      <option value="gaus7">gaus7</option>
+                      <option value="gaus8">gaus8</option>
+                      <option value="haar">haar</option>
+                      <option value="mexh">mexh</option>
+                      <option value="morl">morl</option>
+                      <option value="shan">shan</option>
+                      <option value="sym2">sym2</option>
+                      <option value="sym3">sym3</option>
+                      <option value="sym4">sym4</option>
+                      <option value="sym5">sym5</option>
+                      <option value="sym6">sym6</option>
+                      <option value="sym7">sym7</option>
+                      <option value="sym8">sym8</option>
+                      <option value="sym9">sym9</option>
+                      <option value="sym10">sym10</option>
+                      <option value="sym15">sym15</option>
+                      <option value="sym20">sym20</option>
+                      <!-- Add more wavelet options here -->
+                    </select>
+                  </div>
+                </div>
+                <div class="row">
+                  <label for="colFormLabel" class="col-sm-3 col-form-label"
+                    >Level</label
+                  >
+                  <div class="col-sm-9">
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="wavedec_level"
+                      aria-describedby="wavedec_level"
+                      value="3"
+                    />
+                  </div>
+                </div>
+                <div class="row">
+                  <label for="colFormLabel" class="col-sm-3 col-form-label"
+                    >Mode</label
+                  >
+                  <div class="col-sm-9">
+                    <select
+                      class="form-select"
+                      id="wavedec_mode"
+                      aria-label="Mode"
+                    >
+                      <option value="symmetric">symmetric</option>
+                      <option value="periodic">periodic</option>
+                      <!-- Add more mode options here -->
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="tab-pane fade"
+            id="wav-scat-tab-pane"
+            role="tabpanel"
+            aria-labelledby="wav-scat-tab"
+            tabindex="0"
+          >
+            <div class="container mt-2 mb-2">
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Enable Wavelet Scattering</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="wav_scat_enable"
+                    id="wav_scat_enable"
+                    aria-describedby="wav_scat_enable"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="The maximum scale of the scattering transform (2**J should be smaller than the signal length)"
+                  >Max Scale of Transform</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="wav_scat_j"
+                    aria-describedby="wav_scat_j"
+                    value="6"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="The number of wavelets per octave"
+                  >Wavelets per Octave</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="wav_scat_q"
+                    aria-describedby="wav_scat_q"
+                    value="1"
+                  />
                 </div>
               </div>
             </div>
@@ -2079,6 +2291,7 @@
     config.features = {};
     config.features.mfcc = {};
     config.features.mel_spec = {};
+    config.features.wav_scat = {};
 
     config.classifier = {};
     config.classifier.knn = {};
@@ -2146,6 +2359,14 @@
       document.querySelector("#mel_spec_center").checked;
     config.features.mel_spec.mel_spec_power =
       document.querySelector("#mel_spec_power").value;
+
+    // Wavelet Scattering
+    config.features.wav_scat.enable =
+      document.querySelector("#wav_scat_enable").checked;
+    config.features.wav_scat.wav_scat_j =
+      document.querySelector("#wav_scat_j").value;
+    config.features.wav_scat.wav_scat_q =
+      document.querySelector("#wav_scat_q").value;
 
     //Classifier
 
@@ -2369,6 +2590,8 @@
         });
     });
 </script>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 <script>
   //Activate bootstrap tooltips

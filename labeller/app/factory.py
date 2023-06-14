@@ -1,9 +1,12 @@
 from abc import ABC, abstractmethod
 import librosa
+import librosa.display
 #from IPython.display import Audio
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import numpy as np
-import os, pickle
+import os, pickle, time
+from datetime import datetime
+import pandas as pd
 from sklearn.model_selection import KFold
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
@@ -11,6 +14,7 @@ from sklearn.ensemble import AdaBoostClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score,confusion_matrix, f1_score, precision_score, recall_score, roc_auc_score
 import traceback
 
@@ -261,6 +265,28 @@ class Featuresbase():
     def single_features_from_audio(audiofilepath):
         pass
 
+    @abstractmethod
+    def process_sample():
+        pass
+
+    #Process the dataset using multiple processes
+    def features_from_dataset_multi(self, dataset,**kwargs):
+        with multiprocessing.Pool(processes=8) as pool:
+            results = pool.starmap(
+                self.process_sample,
+                [(audio, kwargs) for audio in dataset.samples]
+            )
+        features = [x['feature'] for x in results]
+        labels = [x['label'] for x in results]
+        return features, labels
+
+    #Print the input config
+    def testfeaturekwargs(self, **kwargs):
+        print(f' Kwargs: {kwargs}' )
+
+
+
+
 class MFCCFeatures(Featuresbase):
 
     def __init__(self, **kwargs):
@@ -405,16 +431,6 @@ class MFCCFeatures(Featuresbase):
         
         return {'feature': mfcc, 'label': audio.label}
 
-    def features_from_dataset_multi(self, dataset,**kwargs):
-        with multiprocessing.Pool(processes=5) as pool:
-            results = pool.starmap(
-                self.process_sample,
-                [(audio, kwargs) for audio in dataset.samples]
-            )
-        features = [x['feature'] for x in results]
-        labels = [x['label'] for x in results]
-        return features, labels
-
 
 
 
@@ -466,12 +482,15 @@ class MelSpectrogramFeatures(Featuresbase):
         features = np.concatenate((features, melspec),axis=0)
         return features
 
-    def testfeaturekwargs(self, **kwargs):
-        print("hoh")
-        print(f' Kwargs: {kwargs}' )
-        print(kwargs.get('mel_spec_n_fft'))
-        print(kwargs.get('mel_spec_window'))
-
+    def process_sample(self, audio, kwargs):
+        melspec = librosa.feature.melspectrogram(
+                y=audio.audiodata, sr=audio.samplerate, n_fft=self.kwargs.get('n_fft', 2048),hop_length=self.kwargs.get('hop_length',512),
+                window=self.kwargs.get('window','hann'),center=self.kwargs.get('center',True),pad_mode=self.kwargs.get('pad_mode','constant'),
+                power=self.kwargs.get('power',2.0)
+            )
+        #melspec = melspec.ravel()
+        
+        return {'feature': melspec, 'label': audio.label}
 
 
 class WaveletScatterFeatures(Featuresbase):
@@ -594,15 +613,6 @@ class WaveletScatterFeatures(Featuresbase):
         
         return {'feature':feats, 'label':audio.label}
 
-    def features_from_dataset_multi(self, dataset,**kwargs):
-        with multiprocessing.Pool(processes=5) as pool:
-            results = pool.starmap(
-                self.process_sample,
-                [(audio, kwargs) for audio in dataset.samples]
-            )
-        features = [x['feature'] for x in results]
-        labels = [x['label'] for x in results]
-        return features, labels
 
 
 
@@ -622,7 +632,7 @@ class FeaturesFactory():
         if(dataset):
             bing = 1
             print(type(dataset.samples))
-            with multiprocessing.Pool(processes=5) as pool:
+            with multiprocessing.Pool(processes=8) as pool:
                 results = pool.starmap(
                     self.process_sample_multi_extractor,
                     [(audio, bing) for audio in dataset.samples]
@@ -988,6 +998,7 @@ class CrossVal():
         # #print(clfin.get_params(deep=True))
         #cv_results = cross_validate(estimator=KNeighborsClassifier(), X=X, y=y, cv=cv, n_jobs=-1, verbose=1)
         print("Cross Val 5")
+        print(cv_results)
         return cv_results
 
 
@@ -1009,3 +1020,334 @@ def tune_hyperparameters( clf, param_grid, X, y, cv=5):
     grid_search = GridSearchCV(estimator=clf, param_grid=param_grid, cv=cv,n_jobs=10)
     grid_search.fit(X, y)
     return grid_search
+
+
+###################
+# Config Handler 
+###################
+
+
+def savemelspec(params):
+    spec, name, sr = params
+    # Convert amplitude to decibels
+    mel_spectrogram_db = librosa.power_to_db(spec, ref=np.max)
+
+    # Plot the Mel spectrogram
+    plt.figure(figsize=(10, 4))
+    librosa.display.specshow(mel_spectrogram_db, sr=sr, x_axis='time', y_axis='mel')
+    plt.colorbar(format='%+2.0f dB')
+    plt.title('Mel Spectrogram')
+    plt.tight_layout()
+
+    # Specify the folder path to save the images
+    folder_path = 'C:/Users/Alliewya/Documents/Cough Monitor/Spectrograms/low- Norm - trim'
+    os.makedirs(folder_path, exist_ok=True)  # Create the folder if it doesn't exist
+
+    # Save the Mel spectrogram in the folder with the specified filename
+    fn = os.path.join(folder_path, name + "-1024-512-" + "norm-trim" + ".png")
+    plt.savefig(fn)
+    plt.close()
+
+class ConfigProcessor:
+    def process_config(self, data):
+        feature_extractor = FeatureExtractor()
+        dataset_processor = DatasetProcessor()
+        classifier_factory = ClassifierFactory(**data['classifier'])
+        # evaluation_processor = EvaluationProcessor()
+        predictor_saver = PredictorSaver()
+
+        #Feature Extractor Creation
+        featureconfig = data['features']
+        a = feature_extractor.create_mel_spectrogram_feature(**featureconfig['mel_spec'])
+        b = feature_extractor.create_mfcc_feature(**featureconfig['mfcc'])
+        extractor = feature_extractor.create_extractor_from_config(featureconfig)
+
+        #Dataset Loading
+        dataset = dataset_processor.load_dataset(data['datasetpickle'])
+        dataset_processor.process_dataset(dataset, data['dataset'])
+        print("Dataset processed")
+    
+        #Feature Extracting
+        # mfc, labels = b.features_from_dataset_multi(dataset)
+        # print("Mfcc extracted")
+        # scatter, labels2 = feature_extractor.create_wavelet_scatter_features(**data['features']).features_from_dataset_multi(dataset)
+        # print("Scatter extracted")
+        features, labels = extractor.features_from_dataset_multi(dataset)
+
+        # Save features and labels to a pickle file
+        with open('features_labels.pkl', 'wb') as f:
+            pickle.dump((features, labels), f)
+
+
+        #Saving MelSpec ###############################################################
+        # # for index, feats in enumerate(features):
+        # #     fn = str(labels[index])  + "_" + str(index)
+        # #     savemelspec(feats,fn)
+
+        params_list = [(feat, str(labels[i]) + "_" + str(i), 22050) for i, feat in enumerate(features)]
+         
+        # Create a pool of worker processes
+        pool = multiprocessing.Pool(processes=20)
+
+        # Apply the savemelspec function to each set of parameters in parallel
+        pool.map(savemelspec, params_list)
+
+
+        
+
+
+        #Classifier Create
+        mdl = classifier_factory.create_classifier()
+        print("Mdl Created")
+        
+        #Evaluation
+        scores = self.evaluate_model(mdl,data, data['evaluation'], features, labels)
+
+        #Hyperparamter search enabled
+        if bool(data['classifier']['knn']['tune_hyperparameters']) or bool(data['classifier']['svm']['tune_hyperparameters']):
+            self.tune_hyperparameters_config( mdl, data, features, labels)
+
+        predictor = predictor_saver.save_predictor(mdl, feature_extractor)
+        return {"Status": "Success", "Scores": scores, "Config": data, "Timestamp": datetime.now().isoformat()}
+
+
+    def evaluate_model(self, mdl, data,evaluation_data,features, labels):
+        scores = {}
+        if evaluation_data['train_test']['enable']:
+            scores = self.evaluate_train_test(mdl, evaluation_data['train_test'],features, labels)
+        elif evaluation_data['kfold']['enable']:
+            scores = self.evaluate_kfold(mdl,data, evaluation_data, features, labels)
+        elif evaluation_data['stratifiedkfold']['enable']:
+            scores = self.evaluate_stratified_kfold(mdl, evaluation_data['stratifiedkfold'],features, labels)
+        return scores
+
+    def evaluate_train_test(self, mdl, train_test_data,features, labels):
+        params = train_test_data
+        print(train_test_data)
+        if params['tts_random_state'] == "None":
+            X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size=float(params['tts_test_size']),
+                                                                shuffle=params['tts_shuffle'])
+        else:
+            X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size=float(params['tts_test_size']),
+                                                                shuffle=params['tts_shuffle'],
+                                                                random_state=int(params['tts_random_state']))
+
+        # Fit the model and calculate scores
+        clf = mdl.fit(X_train, y_train)
+        scores = common_scores(clf, X_test=X_test, y_test=y_test)
+
+        return scores
+
+    def evaluate_kfold(self, mdl, data,evaluationdata, features, labels):
+        cv = CrossVal(**evaluationdata)
+        print(data)
+        print(evaluationdata)
+        results = cv.do_cross_validate(clfin=mdl, clfparm=data['classifier'], X=features, y=labels)
+        scores = {}
+
+        scores['accuracy_mean'] = np.mean(results['test_accuracy'])
+        scores['accuracy_standard_deviation'] = np.std(results['test_accuracy'])
+        scores['precision_macro_mean'] = np.mean(results['test_precision_macro'])
+        scores['precision_macro_standard_deviation'] = np.std(results['test_precision_macro'])
+        scores['recall_macro_mean'] = np.mean(results['test_recall_macro'])
+        scores['recall_macro_standard_deviation'] = np.std(results['test_recall_macro'])
+        scores['f1_macro_mean'] = np.mean(results['test_f1_macro'])
+        scores['f1_macro_standard_deviation'] = np.std(results['test_f1_macro'])
+        scores['fit_time_mean'] = np.mean(results['fit_time'])
+        scores['fit_time_standard_deviation'] = np.std(results['fit_time'])
+        scores['score_time_mean'] = np.mean(results['score_time'])
+        scores['score_time_standard_deviation'] = np.std(results['score_time'])
+
+
+        scores['test_accuracy'] = results['test_accuracy'].tolist()
+        scores['test_precision_macro'] = results['test_precision_macro'].tolist()
+        scores['test_recall_macro'] = results['test_recall_macro'].tolist()
+        scores['test_f1_macro'] = results['test_f1_macro'].tolist()
+        scores['fit_time'] = results['fit_time'].tolist()
+        scores['score_time'] = results['score_time'].tolist()
+        return scores
+
+    def evaluate_stratified_kfold(self, mdl, stratified_kfold_data, mfc, labels, scatter, labels2):
+        cv = CrossVal(**stratified_kfold_data)
+        results = cv.cross_validate(clf=mdl, X=mfc, y=labels)
+        scores = {}
+        scores['fit_time'] = results['fit_time'].tolist()
+        scores['score_time'] = results['score_time'].tolist()
+        return scores
+
+    def tune_hyperparameters_config(self, clf, data, features, labels):
+        if bool(data['classifier']['knn']['tune_hyperparameters']):
+            params = data['evaluation']
+            knn_param_grid = {
+                "n_neighbors": list(range(1, 15)),
+                "weights": ["uniform", "distance"],
+                "algorithm": ["auto", "ball_tree", "kd_tree", "brute"],
+                "leaf_size": [10,20,30],
+                
+            }
+            knn_param_grid = {
+                "n_neighbors": list(range(1, 31)),
+                "weights": ["uniform", "distance"],
+                "algorithm": ["auto", "ball_tree", "kd_tree", "brute"],
+                "leaf_size": 20,
+                "metric": ["euclidean", "manhattan", "chebyshev", "minkowski"],
+                "metric_params": [None, {"p": 1}, {"p": 2}, {"p": 3}],
+            }
+            #"metric": ["euclidean", "manhattan", "chebyshev", "minkowski"],
+            #    "metric_params": [None, {"p": 1}, {"p": 2}, {"p": 3}],
+            X_train, X_test, y_train, y_test = train_test_split(features, labels, 
+                    test_size=float(params['train_test']['tts_test_size']), 
+                    shuffle=params['train_test']['tts_shuffle'])
+            mdl = tune_hyperparameters(KNeighborsClassifier(), knn_param_grid, X_train, y_train)
+            scores = mdl.cv_results_
+            #saving = ClassifierResults(data = str(scores))
+            df = pd.DataFrame(scores)
+            # Export the dataframe to a CSV file
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            fname = timestamp + "-result.csv"
+            df.to_csv(fname, index=False)
+            #saving.save()
+        elif bool(data['classifier']['svm']['tune_hyperparameters']):
+                params = data['evaluation']
+                # svm_param_grid = {
+                #     'C': [0.1, 1, 10, 100, 1000],
+                #     'kernel': ['linear', 'poly', 'rbf', 'sigmoid'],
+                #     'degree': [2, 3, 4, 5],  # Only used for the 'poly' kernel
+                #     'gamma': ['scale', 'auto'] + list(np.logspace(-3, 2, 6)),  # 'scale', 'auto', and some values between 0.001 and 100
+                #     'shrinking': [True, False],
+                #     'probability': [True],
+                #     'tol': [1e-4, 1e-3, 1e-2, 1e-1, 1],
+                #     'max_iter': [-1, 100, 500, 1000, 5000],
+                # }
+                # svm_param_grid = {
+                #     'C': [0.1, 1, 100, 1000],
+                #     'kernel': ['linear', 'rbf',],
+                #     'gamma': ['scale', 'auto'] + list(np.logspace(-3, 2, 6)),  # 'scale', 'auto', and some values between 0.001 and 100
+                #     'shrinking': [True, False],
+                #     'probability': [True],
+                #     'tol': [1e-4, 1e-3, 1e-2, 1e-1, 1],
+                #     'max_iter': [-1, 100, 500],
+                # }
+                svm_param_grid = {
+                    'C': [0.1, 1, 100, 1000],
+                    'kernel': ['linear', 'rbf',],
+                    'gamma': ['scale', 'auto'] ,  # 'scale', 'auto', and some values between 0.001 and 100
+                    'shrinking': [True, False],
+                    'probability': [True],
+                    'max_iter': [-1, 100, 500],
+                }
+                knn_param_grid = {
+                    "n_neighbors": list(range(1, 15)),
+                    "weights": ["uniform", "distance"],
+                    "algorithm": ["auto", "ball_tree", "kd_tree", "brute"],
+                    "leaf_size": [10, 20, 30],
+
+                }
+                # X_train, X_test, y_train, y_test = train_test_split(mfc3, labels2,
+                #                                                     test_size=float(
+                #                                                         params['train_test']['tts_test_size']),
+                #                                                     shuffle=params['train_test']['tts_shuffle'])
+                X_train, X_test, y_train, y_test = train_test_split(features, labels,
+                                                                    test_size=float(
+                                                                        params['train_test']['tts_test_size']),
+                                                                    shuffle=params['train_test']['tts_shuffle'])
+                mdl = tune_hyperparameters(
+                    SVC(), svm_param_grid, X_train, y_train)
+                scores = mdl.cv_results_
+               # saving = ClassifierResults(
+                #    data=str(scores))
+                df = pd.DataFrame(scores)
+                # Export the dataframe to a CSV file
+                timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                fname = timestamp + "-result.csv"
+                df.to_csv(fname, index=False)
+                #saving.save()
+        #mdl = tune_hyperparameters(clf, param_grid, X_train, y_train)
+        return mdl
+
+
+class FeatureExtractor:
+    def create_extractor_from_config(self, featureconfig,**kwargs):
+        if(featureconfig['mfcc']['enable']):
+            print("MFCC")
+            extractor = self.create_mfcc_feature(**featureconfig['mfcc'])
+        elif(featureconfig['mel_spec']['enable']):
+            print("Mel Spec")
+            extractor = self.create_mel_spectrogram_feature(**featureconfig['mel_spec'])
+
+        elif(featureconfig['wav_scat']['enable']):
+            print("Wavelet Scatter")
+            extractor = self.create_wavelet_scatter_features(**featureconfig['wav_scat'])
+        extractor.testfeaturekwargs(**kwargs)
+        return extractor
+
+    def create_mel_spectrogram_feature(self, **kwargs):
+        extractor = MelSpectrogramFeatures()
+        extractor.testfeaturekwargs(**kwargs)
+        return extractor
+
+    def create_mfcc_feature(self, **kwargs):
+        extractor = MFCCFeatures(**kwargs)
+        extractor.testfeaturekwargs(**kwargs)
+        return extractor
+
+    def create_wavelet_scatter_features(self, **kwargs):
+        extractor = WaveletScatterFeatures(**kwargs)
+        extractor.testfeaturekwargs(**kwargs)
+        return extractor
+
+
+class DatasetProcessor:
+    def load_dataset(self, dataset_pickle):
+        path = os.path.join("app", "static", "datasetpickles", dataset_pickle)
+        with open(path, 'rb') as f:
+            dataset = pickle.load(f)
+        return dataset
+
+    def process_dataset(self, dataset, dataset_config):
+        dataset.add_labels_to_audiosamps()
+        if bool(dataset_config['processing']['enable_normalize']):
+            dataset.normalize()
+        if bool(dataset_config['processing']['enable_segment']):
+            dataset.segment()
+        if bool(dataset_config['processing']['enable_trim']):
+            dataset.trim_audio()
+        if bool(dataset_config['fixed']['enable']):
+            dataset.fix_length(length=dataset_config['fixed']['fixed_length'])
+        elif bool(dataset_config['frame']['enable']):
+            dataset.create_frames(frame_size=int(dataset_config['frame']['frame_frame_size']),
+                                  hop_length=int(dataset_config['frame']['frame_hop_length']))
+
+
+
+
+# class EvaluationProcessor:
+#     def evaluate_model(self, mdl, evaluation_data, mfc, labels):
+#         scores = {}
+#         if evaluation_data['train_test']['enable']:
+#             scores = self.evaluate_train_test(mdl, evaluation_data['train_test'], mfc, labels)
+#         elif evaluation_data['kfold']['enable']:
+#             scores = self.evaluate_kfold(mdl, evaluation_data['kfold'], mfc, labels)
+#         elif evaluation_data['stratifiedkfold']['enable']:
+#             scores = self.evaluate_stratified_kfold(mdl, evaluation_data['stratifiedkfold'], mfc, labels)
+#         return scores
+
+#     def evaluate_train_test(self, mdl, train_test_data, mfc, labels):
+#         pass
+#         # Code for evaluating the model using train-test split
+
+#     def evaluate_kfold(self, mdl, kfold_data, mfc, labels):
+#         pass
+#         # Code for evaluating the model using k-fold cross-validation
+
+#     def evaluate_stratified_kfold(self, mdl, stratified_kfold_data, mfc, labels):
+#         pass
+#         # Code for evaluating the model using stratified k-fold cross-validation
+
+
+class PredictorSaver:
+    def save_predictor(self, mdl, feature_extractor):
+        predictor = Predictor(featureeex=feature_extractor, clf=mdl)
+        with open("predictor.pickle", "wb") as file:
+            pickle.dump(predictor, file)
+        return predictor

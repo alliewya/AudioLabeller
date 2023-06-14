@@ -1,41 +1,32 @@
-import os, time
+import os, time, json, pickle, traceback, math, copy
+from datetime import datetime
+import numpy as np
+import pandas as pd
+import librosa
+import requests
 
-from django.shortcuts import render
-from django.http import HttpResponse
-from django.conf import settings
-from .apps import AppConfig
-
+from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse, JsonResponse, FileResponse
-from django.shortcuts import get_object_or_404, redirect
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from django.views.decorators.csrf import csrf_exempt
-from django.core.paginator import Paginator
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
+from django.views.decorators.csrf import csrf_exempt
+from django.core.paginator import Paginator
+from django.utils import timezone
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
 
-import pandas as pd
-
-import requests
-import json
-import librosa
-import pickle
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
-from sklearn.model_selection import train_test_split
-from sklearn.model_selection import GridSearchCV
-import math, time, copy
-from datetime import datetime
-import numpy as np
+from sklearn.model_selection import train_test_split, GridSearchCV
+
+from app.apps import AppConfig
+from app.models import AudioLabels, TaskProgress, ClassifierResults
 from app import functions
 from app import factory
 
-from django.utils import timezone
-from .models import AudioLabels,TaskProgress,ClassifierResults
-
-import traceback
 
 with open(os.path.join(settings.BASE_DIR,"app","models","coughknn5mfcc40.bark"), "rb") as f:
     knnmodel = pickle.load(f)
@@ -76,6 +67,14 @@ def utilities(request):
 
 def model_config(request):
     datasetpickleslist = os.listdir(os.path.join("app","static","datasetpickles"))
+    # for datasetfname in datasetpickleslist:
+    #     path = os.path.join("app", "static", "datasetpickles", datasetfname)
+    #     with open(path, 'rb') as f:
+    #         dataset = pickle.load(f)
+    #     print("Dataset Name:"+str(datasetfname))
+    #     print("Length: "+str(len(dataset.samples)))
+    #     print("Sample Rate: "+str(dataset.samplerate))
+    #     dataset = None
     return render(request, 'blocks/config.html', {'datasetpickleslist':datasetpickleslist})
 
 def jsonbackupdownload(request,backup):
@@ -606,7 +605,8 @@ def config2(request):
 
 
 @csrf_exempt
-def modelfromconfig(request):
+#original model from config
+def modelfromconfig1(request):
     if request.method == 'POST':
         try:
             # Load and Parse Config
@@ -908,6 +908,20 @@ def modelfromconfig(request):
     return JsonResponse({'ok':'Fail'})
 
 
+@csrf_exempt
+#Temp name change for testing
+def modelfromconfig(request):
+    if request.method == 'POST':
+        try:
+            print("Model 2")
+            data = json.loads(request.body)
+            config_processor = factory.ConfigProcessor()
+            result = config_processor.process_config(data)
+            return JsonResponse(result)
+        except Exception as e:
+            print("An exception occurred:", e)
+            traceback.print_exc()
+        return JsonResponse({'ok': 'Fail'})
 
 @csrf_exempt
 def hyperparam(request):
