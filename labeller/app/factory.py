@@ -16,15 +16,24 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score,confusion_matrix, f1_score, precision_score, recall_score, roc_auc_score
+from sklearn.decomposition import PCA
 import traceback
 
 import multiprocessing
 from hmmlearn import hmm
 
 
+from scipy.stats import skew, kurtosis
+
 #tempforpi
 import scipy.signal as signal
 import scipy.fftpack as fft
+
+
+
+#Discrete wavelet
+import pywt
+import soundfile as sf
 
 
 #
@@ -246,11 +255,230 @@ class Dataset:
         for audio in self.samples:
             audio.audiodata = librosa.util.normalize(S = audio.audiodata)
 
+
+
+# ==================================================
+#             Preprocessing
+# ==================================================
+
+
+
+class Preprocessorbase():
+    """An abstract base class for all preprocessors"""
+    
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+    
+    @abstractmethod
+    def process_sample(self):
+        pass
+
+    #Process the dataset using multiple processes
+    def preprocess_audio_dataset_multi(self, dataset, **kwargs):
+        start_time = time.time()
+
+        with multiprocessing.Pool(processes=12) as pool:
+            processed_audio = pool.starmap(
+                self.process_sample,
+                [(audio, kwargs) for audio in dataset.samples],
+                chunksize=250
+            )
+
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        print(f"Pre-Processing time: {elapsed_time} seconds")
+
+        dataset.samples = processed_audio
+        return dataset
+
+    #Print the input config
+    def testfeaturekwargs(self, **kwargs):
+        print(f' Kwargs: {kwargs}' )
+
+
+class WaveletDenoise(Preprocessorbase):
+    
+    def process_sample(self, audio, kwargs):
+        
+        #sample_rate = 22050
+        #folder_path = 'G:/Cough/Wavelet/denoise/alt/quart/level5-5/'
+        folder_path = 'G:/Cough/Wavelet/mfcc-norm-trim'
+        folder_path2 = 'G:/Cough/Wavelet/amplitude-norm-trim'
+        folder_path3 = 'G:/Cough/Wavelet/mfcc-amplitude-norm-trim'
+
+        extract_save_amplitude(audio.audiodata, (str(audio.label)+"_"+audio.sourcefile[:-4]+"_org"), folder_path2, audio.samplerate)
+        extract_save_mfcc(audio.audiodata, (str(audio.label)+"_"+audio.sourcefile[:-4]+"_org"), folder_path, audio.samplerate)
+        plot_mfcc_and_amplitude(audio.audiodata, (str(audio.label)+"_"+audio.sourcefile[:-4]+"_org"), folder_path3, audio.samplerate)
+        
+        wavelet = kwargs.get("wavelet","haar")
+        level = int(kwargs.get("level",3))
+        magnitude = float(kwargs.get("magnitude",2))
+        include_level = int(kwargs.get("include_level",(level+1)))
+        threshold_enable = bool(kwargs.get("threshold_enable",True))
+        #extract_save_melspec(audio.audiodata, (str(audio.label)+"_"+audio.sourcefile[:-4]+"_org"), folder_path, audio.samplerate)
+        #sf.write((folder_path+str(audio.label)+"_"+audio.sourcefile[:-4]+"_org"+".wav"), audio.audiodata, audio.samplerate)
+
+        #denoise
+        coeffs = pywt.wavedec(audio.audiodata, wavelet, level=level)
+
+
+        
+        #Speed Up Audio!
+        #coeffs = coeffs[:include_level]
+        
+        #Remove not included subbands
+        for i in range(len(coeffs)):
+            if i >= include_level:
+                #print("thresh"+str(i))
+                coeffs[i] = np.zeros_like(coeffs[i])
+
+        #alt for all
+        #threshold = self.universal_threshold(np.concatenate(coeffs))
+
+        if(threshold_enable):
+            # print("Thresh")
+            for i in range(len(coeffs)):
+                
+                threshold = self.universal_threshold(coeffs[i])
+                #print(threshold)
+                
+                #print(coeffs[i])
+                if(threshold!=0):
+                    #print(float(threshold)*magnitude)
+                    #print(type(self.universal_threshold(coeffs[i])))
+                    #print(type(magnitude))
+                    coeffs[i] = pywt.threshold(coeffs[i],(threshold*magnitude))
+                #coeffs[i] = self.sure_threshold(coeffs[i],sigma)
+                #coeffs[i] = pywt.threshold(coeffs[i],self.universal_threshold(coeffs[i]))
+    
+
+        #coeffs = [pywt.threshold(c, (np.std(c)*2),'hard') for c in coeffs]
+        denoised_audio = pywt.waverec(coeffs, wavelet)
+        #extract_save_melspec(denoised_audio, (str(audio.label)+"_"+audio.sourcefile[:-4]+"_denoise"), folder_path, audio.samplerate)
+        #sf.write((folder_path+str(audio.label)+"_"+audio.sourcefile[:-4]+"_denoise"+".wav"), denoised_audio, audio.samplerate)
+        audio.audiodata = denoised_audio
+
+        return audio
+    
+    def sure_threshold(self, coeffs, sigma):
+        num_coeffs = len(coeffs)
+        var_noise = sigma**2
+        lambda_factor = np.sqrt(2 * np.log(num_coeffs))
+
+        thresholded_coeffs = []
+        for i in range(num_coeffs):
+            coeff_i = coeffs[i]
+            threshold_i = lambda_factor * np.sqrt(var_noise + 2 * np.log(num_coeffs))
+            thresholded_i = pywt.threshold(coeff_i, threshold_i, 'soft').tolist()
+            thresholded_coeffs.append(thresholded_i)
+
+        return thresholded_coeffs
+    
+    def universal_threshold(self, data):
+        # Computes the universal threshold using the Donoho-Johnstone heuristic, which is based on the data's standard deviation and the signal length.
+          # Compute the standard deviation of the data
+        sigma = np.std(data)
+
+        if sigma == 0:
+                # If sigma is zero, return the original data
+                return 0
+
+        # Calculate the universal threshold using the Donoho-Johnstone heuristic
+        threshold = sigma * np.sqrt(2 * np.log(len(data)))
+
+        return threshold
+
+
+    # def process_sample(self, audio, kwargs):
+        
+    #     #sample_rate = 22050
+    #     # extract_save_melspec(audio.audiodata, (audio.sourcefile[:-4]+"_org"), None, audio.samplerate)
+
+    #     wavelet = kwargs.get("wavelet","haar")
+    #     level = kwargs.get("level",3)
+    #     magnitude = kwargs.get("magnitude",2)
+
+    #     #denoise
+    #     coeffs = pywt.wavedec(audio.audiodata, wavelet, level=level)
+    #     # Apply thresholding to the wavelet coefficients
+    #     threshold = np.std(coeffs[-1]) * 1  # Adjust the threshold as needed - threshold is set as twice the standard deviation of the last level coefficients. 
+    #     # print(threshold)
+    #     #coeffs = [pywt.threshold(c, threshold,'hard') for c in coeffs]
+    #     o = np.median(coeffs[-1])/0/6745
+
+    #     for i in range(len(coeffs)):
+    #         threshold = np.std(coeffs[i]) * magnitude
+    #         if threshold != 0:
+    #             coeffs[i] = pywt.threshold(coeffs[i], threshold, 'soft')
+
+
+    #     #coeffs = [pywt.threshold(c, (np.std(c)*2),'hard') for c in coeffs]
+    #     denoised_audio = pywt.waverec(coeffs, wavelet)
+    #     # extract_save_melspec(denoised_audio, (audio.sourcefile[:-4]+"_denoise"), None, audio.samplerate)
+    #     audio.audiodata = denoised_audio
+
+    #     return audio
+    
+    # def process_sample(self, audio, kwargs):
+        
+    #     #sample_rate = 22050
+    #     # extract_save_melspec(audio.audiodata, (audio.sourcefile[:-4]+"_org"), None, audio.samplerate)
+
+    #     wavelet = kwargs.get("wavelet","haar")
+    #     level = kwargs.get("level",3)
+    #     magnitude = kwargs.get("magnitude",2)
+
+    #     #denoise
+    #     coeffs = pywt.wavedec(audio.audiodata, 'db4', level=5)
+    #     # Apply thresholding to the wavelet coefficients
+    #     threshold = np.std(coeffs[-1]) * 1  # Adjust the threshold as needed - threshold is set as twice the standard deviation of the last level coefficients. 
+    #     # print(threshold)
+    #     #coeffs = [pywt.threshold(c, threshold,'hard') for c in coeffs]
+    #     for c in coeffs:
+    #         threshold = np.std(c)*2
+    #         if(threshold!=0):
+    #             c = pywt.threshold(c, threshold,'soft')
+
+
+    #     #coeffs = [pywt.threshold(c, (np.std(c)*2),'hard') for c in coeffs]
+    #     denoised_audio = pywt.waverec(coeffs, 'db4')
+    #     # extract_save_melspec(denoised_audio, (audio.sourcefile[:-4]+"_denoise"), None, audio.samplerate)
+    #     audio.audiodata = denoised_audio
+
+    #     return audio
+
+
+    # def process_sample(self, audio, kwargs):
+    #     # Define the thresholding function
+    #     def thresholding_function(value, magnitude):
+    #         with np.errstate(divide='ignore', invalid='ignore'):
+    #             thresholded = np.where(magnitude != 0, (1 - value / magnitude), value)
+    #         return thresholded
+
+
+    #     wavelet = kwargs.get("wavelet","haar")
+    #     level = kwargs.get("level",3)
+    #     magnitude = kwargs.get("magnitude",2)
+        
+    #     extract_save_melspec(audio.audiodata, (audio.sourcefile[:-4]+"_org"), None, audio.samplerate)
+    #     # Denoise
+    #     coeffs = pywt.wavedec(audio.audiodata, wavelet, level=level)
+    #     # Apply thresholding to the wavelet coefficients
+    #     threshold = np.std(coeffs[-1]) * magnitude
+    #     coeffs = [thresholding_function(c, threshold) for c in coeffs]
+    #     denoised_audio = pywt.waverec(coeffs, wavelet)
+    #     extract_save_melspec(denoised_audio, (audio.sourcefile[:-4]+"_denoise"), None, audio.samplerate)
+    #     audio.audiodata = denoised_audio
+
+    #     return audio
+
+
+
 # =======================================================
 #               Features
 # =======================================================
 
-class Featuresbase():
+class FeaturesBase():
     """An abstract base class for all feature extractors"""
 
     @abstractmethod
@@ -271,7 +499,7 @@ class Featuresbase():
 
     #Process the dataset using multiple processes
     def features_from_dataset_multi(self, dataset,**kwargs):
-        with multiprocessing.Pool(processes=8) as pool:
+        with multiprocessing.Pool(processes=12) as pool:
             results = pool.starmap(
                 self.process_sample,
                 [(audio, kwargs) for audio in dataset.samples]
@@ -285,9 +513,7 @@ class Featuresbase():
         print(f' Kwargs: {kwargs}' )
 
 
-
-
-class MFCCFeatures(Featuresbase):
+class MFCCFeatures(FeaturesBase):
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
@@ -433,9 +659,7 @@ class MFCCFeatures(Featuresbase):
 
 
 
-
-
-class MelSpectrogramFeatures(Featuresbase):
+class MelSpectrogramFeatures(FeaturesBase):
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
@@ -488,12 +712,77 @@ class MelSpectrogramFeatures(Featuresbase):
                 window=self.kwargs.get('window','hann'),center=self.kwargs.get('center',True),pad_mode=self.kwargs.get('pad_mode','constant'),
                 power=self.kwargs.get('power',2.0)
             )
-        #melspec = melspec.ravel()
+        melspec = melspec.ravel()
         
         return {'feature': melspec, 'label': audio.label}
 
 
-class WaveletScatterFeatures(Featuresbase):
+class WaveletDecFeatures(FeaturesBase):
+
+    def __init__(self, **kwargs):
+            self.kwargs = kwargs
+        
+
+    def features_from_dataset2(self,dataset, **kwargs):
+        sr = 22500
+        framelength = sr // 2
+        hop_lenght = sr // 4
+        
+        frames = librosa.util.frame(dataset.samples[0], frame_length=framelength, hop_length=hop_lenght)
+        features = np.empty
+
+
+
+    def process_sample(self, audio, kwargs):
+
+        sample_rate = 22050
+
+        # Maximum useful decomposition level
+        # w = pywt.Wavelet('db4')
+        # print (pywt.dwt_max_level(data_len=len(audio.audiodata), filter_len=w.dec_len))
+        
+        # lvl = int(self.kwargs.get('level',None))
+        # cooef = pywt.wavedec(audio.audiodata, wavelet=self.kwargs.get('wavelet', 'haar'), mode=self.kwargs.get('mode', 'sym'), level=lvl)
+        # print(len(cooef))
+        # print(type(cooef[0]))
+
+
+        # melspec = librosa.feature.melspectrogram(
+        #         y=audio.audiodata, sr=audio.samplerate, n_fft=self.kwargs.get('n_fft', 2048),hop_length=self.kwargs.get('hop_length',512),
+        #         window=self.kwargs.get('window','hann'),center=self.kwargs.get('center',True),pad_mode=self.kwargs.get('pad_mode','constant'),
+        #         power=self.kwargs.get('power',2.0)
+        #     )
+        # fn = str(audio.label) + "_" + audio.sourcefile[:-4] + "org"
+        # savemelspec([melspec,fn,audio.samplerate])
+        
+        # wafn = "C:/Users/Alliewya/Documents/Cough Monitor/Spectrograms/Denoise_2/" + fn + ".wav"
+        # sf.write(wafn, audio.audiodata, audio.samplerate)
+
+
+        #denoise
+        coeffs = pywt.wavedec(audio.audiodata, 'db4', level=5)
+        # Apply thresholding to the wavelet coefficients
+        threshold = np.std(coeffs[-1]) * 3  # Adjust the threshold as needed - threshold is set as twice the standard deviation of the last level coefficients. 
+        coeffs = [pywt.threshold(c, threshold) for c in coeffs]
+        denoised_audio = pywt.waverec(coeffs, 'db4')
+
+        # melspec2 = librosa.feature.melspectrogram(
+        #                 y=denoised_audio, sr=audio.samplerate, n_fft=self.kwargs.get('n_fft', 2048),hop_length=self.kwargs.get('hop_length',512),
+        #                 window=self.kwargs.get('window','hann'),center=self.kwargs.get('center',True),pad_mode=self.kwargs.get('pad_mode','constant'),
+        #                 power=self.kwargs.get('power',2.0)
+        #             )
+        # #fn2 = audio.sourcefile + "denoise"
+        # fn2 = str(audio.label) + "_" + audio.sourcefile[:-4] + "noi"
+        # savemelspec([melspec2,fn2,audio.samplerate])
+
+        # wafn2 = "C:/Users/Alliewya/Documents/Cough Monitor/Spectrograms/Denoise_2/" + fn2 + ".wav"
+        # sf.write(wafn2, audio.audiodata, audio.samplerate)
+
+        feats = coeffs[0].ravel()
+        return {'feature':feats, 'label':audio.label}
+
+
+class WaveletScatterFeatures(FeaturesBase):
 
     def __init__(self, **kwargs):
             self.kwargs = kwargs
@@ -510,70 +799,12 @@ class WaveletScatterFeatures(Featuresbase):
 
     def features_from_dataset(self, dataset,**kwargs):
 
-        kwargs = self.kwargs
-        print("Scatter Start")
-        features = []
-        labels = []
-        templist = []
-        for audio in dataset.samples:
-            sample_rate = 22050
-            J = 6  # The maximum scale of the scattering transform (2**J should be smaller than the signal length)
-            Q = 1  # The number of wavelets per octave
-            T = len(audio.audiodata)
-            # print("Scatter 1")
-            scattering = Scattering1D(J, T, Q)
-            # print("Scatter 2")
-            features = scattering(audio.audiodata)
-            # print("Scatter 3")
-            features = features.ravel()
-            # print("Scatter 4")
-            #features = np.concatenate((features, mfcc), axis=0)
-            templist.append({'feature':features, 'label':audio.label})
-        print("Scatter Loop End")
-        features = [x['feature'] for x in templist]
-        labels = [x['label'] for x in templist]
+        features = None
+        labels = None
         return features,labels
 
     def single_features(self, audiosample=None,audioframe = None, **kwargs):
-        # n_mfcc = int(self.kwargs.get('n_mfcc',20))
-        # features = np.empty((0, n_mfcc))
-        # np.append(features, librosa.feature.mfcc(
-        #         y=audiosample.audiodata, sr=audiosample.samplerate, n_mfcc=n_mfcc
-        #     ), axis=0)
-
-
-        # kwargs = self.kwargs
-        # n_mfcc = int(kwargs.get('n_mfcc', 20))
-        # center = bool(kwargs.get('center', False))
-        # dct_type = int(kwargs.get('dct_type', 2))
-        # norm = kwargs.get('norm', 'ortho')
-        # n_fft = int(kwargs.get('n_fft', 2048))
-        # hop_length = int(kwargs.get('hop_length', 512))
-        # features = []
-        # mfcc = librosa.feature.mfcc(
-        #     y=audioframe, sr=22050, n_mfcc=n_mfcc, center=center, dct_type=dct_type, norm=norm, n_fft=n_fft, hop_length=hop_length
-        # )
-        # mfcc = mfcc.ravel()
-        # features.append(mfcc)
-        kwargs = self.kwargs
-        n_mfcc = int(kwargs.get('n_mfcc', 20))
-        center = bool(kwargs.get('center', False))
-        dct_type = int(kwargs.get('dct_type', 2))
-        norm = kwargs.get('norm', 'ortho')
-        n_fft = int(kwargs.get('n_fft', 2048))
-        hop_length = int(kwargs.get('hop_length', 512))
-        mfcc = librosa.feature.mfcc(
-                y=audioframe, sr=22050, n_mfcc=n_mfcc, center=center, dct_type=dct_type, norm=norm, n_fft=n_fft, hop_length=hop_length
-            )
-        if(bool(kwargs.get('delta'))==True):
-            mfcc_delta = librosa.feature.delta(mfcc)
-            if(bool(self.kwargs.get('delta2'))==True):
-                mfcc_delta2 = librosa.feature.delta(mfcc, order=2)
-                mfcc_delta = np.concatenate((mfcc_delta, mfcc_delta2), axis=1)
-            mfcc = np.concatenate((mfcc, mfcc_delta), axis=1)
-        mfcc = mfcc.ravel()
-        
-        features = np.asarray(mfcc)
+        features = None
         return features
 
     def single_features_from_audio(self, audiofilepath, **kwargs):
@@ -590,8 +821,11 @@ class WaveletScatterFeatures(Featuresbase):
         #     y=audio.audiodata, sr=audio.samplerate, n_mfcc=n_mfcc
         # )
         sample_rate = 22050
-        J = 6  # The maximum scale of the scattering transform (2**J should be smaller than the signal length)
-        Q = 1  # The number of wavelets per octave
+        # J = 6  # The maximum scale of the scattering transform (2**J should be smaller than the signal length)
+        # Q = 1  # The number of wavelets per octave
+        J = int(kwargs.get('wav_scat_j', 6)) 
+        Q = int(kwargs.get('wav_scat_q',1))
+
         T = len(audio.audiodata)
         # print("Scatter 1")
         scattering = Scattering1D(J, T, Q)
@@ -599,21 +833,221 @@ class WaveletScatterFeatures(Featuresbase):
         features = scattering(audio.audiodata)
         # print("Scatter 3")
         
-        features = features.ravel()
-        
-        #AVG Fatures
-        #avg_features = np.mean(features, axis=1)
-        avg_features = np.mean(features)
-        avg_features = avg_features.ravel()
-        std_features = np.std(features)
-        std_features = std_features.ravel()
 
-        feats = np.concatenate((avg_features,std_features))
-        # print("Scatter 4")
+
+        # features = features.ravel()
         
+        # #AVG Fatures
+        # #avg_features = np.mean(features, axis=1)
+        # avg_features = np.mean(features)
+        # avg_features = avg_features.ravel()
+        # std_features = np.std(features)
+        # std_features = std_features.ravel()
+
+        # feats = np.concatenate((avg_features,std_features))
+
+
+        # print("Scatter 4")
+
+        feats = self.calculate_summary_features(features)
+        #print(feats)
+        #print(type(feats))
+        feats = np.array(feats)
+        feats = np.nan_to_num(feats)
+        feats = feats.ravel()
+
+        #print(contains_nan) 
         return {'feature':feats, 'label':audio.label}
 
+    def calculate_summary_features(self, scattering_coeffs):
+        features = []
 
+        if scattering_coeffs.ndim == 1:
+            scattering_coeffs = scattering_coeffs.reshape(1, -1)
+
+        for i in range(scattering_coeffs.shape[0]):
+            # # Calculate energy
+            # energy = np.sum(np.abs(scattering_coeffs[i]) ** 2)
+
+            # # Calculate entropy
+            # entropy = 0.0
+            # if np.any(scattering_coeffs[i] != 0):
+            #     entropy = -np.sum(np.abs(scattering_coeffs[i]) ** 2 * np.log(np.abs(scattering_coeffs[i]) ** 2))
+            # entropy = np.nan_to_num(entropy)
+
+            # Calculate skewness
+            skewness = skew(scattering_coeffs[i])
+
+            # Calculate kurtosis
+            kurtosis_val = kurtosis(scattering_coeffs[i])
+
+            # Calculate variance
+            variance = np.var(scattering_coeffs[i])
+
+            # Calculate maximum
+            maximum = np.max(scattering_coeffs[i])
+
+            # Calculate minimum
+            minimum = np.min(scattering_coeffs[i])
+
+            # Calculate mean
+            mean = np.mean(scattering_coeffs[i])
+
+            # Calculate standard deviation
+            std_dev = np.std(scattering_coeffs[i])
+
+            #features.append([energy, entropy, skewness, kurtosis_val, variance, maximum, minimum, mean, std_dev])
+            features.append([ skewness, kurtosis_val, variance, maximum, minimum, mean, std_dev])
+
+        return features
+
+
+class SpectralCentroidFeatures(FeaturesBase):
+    """Spectral Centroid features represent the weighted mean of the frequencies in an audio signal."""
+    def single_features(self, audio, **kwargs):
+        spectral_centroids = librosa.feature.spectral_centroid(
+            y=audio.audiodata, sr=audio.samplerate, **kwargs
+        )
+        return spectral_centroids
+
+    def process_sample(self, audio, kwargs):
+        spectral_centroids = librosa.feature.spectral_centroid(
+            y=audio.audiodata, sr=audio.samplerate, **kwargs
+        )
+        spectral_centroids = spectral_centroids.ravel()
+
+        return {'feature': spectral_centroids, 'label': audio.label}
+
+
+class SpectralBandwidthFeatures(FeaturesBase):
+    """Spectral Bandwidth features measure the width of the frequency distribution in an audio signal."""
+    def single_features(self, audio, **kwargs):
+        spectral_bandwidths = librosa.feature.spectral_bandwidth(
+            y=audio.audiodata, sr=audio.samplerate, **kwargs
+        )
+        return spectral_bandwidths
+
+    def process_sample(self, audio, kwargs):
+        spectral_bandwidths = librosa.feature.spectral_bandwidth(
+            y=audio.audiodata, sr=audio.samplerate, **kwargs
+        )
+        spectral_bandwidths = spectral_bandwidths.ravel()
+
+        return {'feature': spectral_bandwidths, 'label': audio.label}
+
+
+class SpectralContrastFeatures(FeaturesBase):
+    """Spectral Contrast features represent the difference in amplitude between peaks and valleys in an audio signal."""
+    def single_features(self, audio, **kwargs):
+        spectral_contrasts = librosa.feature.spectral_contrast(
+            y=audio.audiodata, sr=audio.samplerate, **kwargs
+        )
+        return spectral_contrasts
+
+    def process_sample(self, audio, kwargs):
+        spectral_contrasts = librosa.feature.spectral_contrast(
+            y=audio.audiodata, sr=audio.samplerate, **kwargs
+        )
+        spectral_contrasts = spectral_contrasts.ravel()
+
+        return {'feature': spectral_contrasts, 'label': audio.label}
+
+
+class SpectralRolloffFeatures(FeaturesBase):
+    """Spectral Rolloff features represent the frequency below which a specified percentage of the total spectral energy lies."""
+    def single_features(self, audio, **kwargs):
+        spectral_rolloffs = librosa.feature.spectral_rolloff(
+            y=audio.audiodata, sr=audio.samplerate, **kwargs
+        )
+        return spectral_rolloffs
+
+    def process_sample(self, audio, kwargs):
+        spectral_rolloffs = librosa.feature.spectral_rolloff(
+            y=audio.audiodata, sr=audio.samplerate, **kwargs
+        )
+        spectral_rolloffs = spectral_rolloffs.ravel()
+
+        return {'feature': spectral_rolloffs, 'label': audio.label}
+
+
+class ChromaFeatures(FeaturesBase):
+    """Chroma features represent the 12 different pitch classes in music."""
+    def single_features(self, audio, **kwargs):
+        chroma_features = librosa.feature.chroma_stft(
+            y=audio.audiodata, sr=audio.samplerate, **kwargs
+        )
+        return chroma_features
+
+    def process_sample(self, audio, kwargs):
+        chroma_features = librosa.feature.chroma_stft(
+            y=audio.audiodata, sr=audio.samplerate, **kwargs
+        )
+        chroma_features = chroma_features.ravel()
+
+        return {'feature': chroma_features, 'label': audio.label}
+
+
+class ZeroCrossingRateFeatures(FeaturesBase):
+    """Zero Crossing Rate features represent the rate at which a signal changes from positive to negative or vice versa."""
+    def single_features(self, audio, **kwargs):
+        zero_crossing_rates = librosa.feature.zero_crossing_rate(
+            y=audio.audiodata, **kwargs
+        )
+        return zero_crossing_rates
+
+    def process_sample(self, audio, kwargs):
+        zero_crossing_rates = librosa.feature.zero_crossing_rate(
+            y=audio.audiodata, **kwargs
+        )
+        zero_crossing_rates = zero_crossing_rates.ravel()
+
+        return {'feature': zero_crossing_rates, 'label': audio.label}
+
+
+
+#Multi-Features Extractor
+class MultiExtractor(FeaturesBase):
+    def __init__(self, extractors):
+        self.extractors = extractors
+
+    def features_from_dataset(self, dataset, **kwargs):
+        features = []
+        labels = []
+        for audio in dataset.samples:
+            sample_features = self.single_features(audio, **kwargs)
+            features.append(sample_features['feature'])
+            labels.append(sample_features['label'])
+        return features, labels
+
+    def single_features(self, audio, **kwargs):
+        features = {}
+        for extractor in self.extractors:
+            extractor_features = extractor.single_features(audio, **kwargs)
+            features.update(extractor_features)
+        return features
+
+    def single_features_from_audio(self, audiofilepath, **kwargs):
+        features = {}
+        for extractor in self.extractors:
+            extractor_features = extractor.single_features_from_audio(audiofilepath, **kwargs)
+            features.update(extractor_features)
+        return features
+
+    def process_sample(self, audio, kwargs):
+        audio_features = []
+        for extractor in self.extractors:
+            #print(type(extractor))
+            sample_result = extractor.process_sample(audio, kwargs)
+            features = sample_result['feature']
+            audio_features.append(features)
+
+        combined_features = np.concatenate(audio_features)
+
+        contains_nan = np.isnan(combined_features).any()
+        if contains_nan:
+            print("NaN values detected in features")
+
+        return {'feature': combined_features, 'label': audio.label}
 
 
 
@@ -690,6 +1124,38 @@ class FeaturesFactory():
             features.append(f['feature'])
             label = f['label']
         return {'feature':features,'label':label}
+
+# ========================================================
+#               Feature Preprocessing
+# ========================================================
+
+
+class FeaturePreprocessorBase(ABC):
+    @abstractmethod
+    def preprocess_features(self, features):
+        pass
+
+
+
+class PCAFeaturePreprocessor(FeaturePreprocessorBase):
+    def __init__(self, n_components=128):
+        self.n_components = n_components
+        self.pca = PCA(n_components=self.n_components)
+
+    def preprocess_features(self, features):
+        import sys
+        #flattened_features = np.concatenate(features, axis=0)
+        transformed_features = self.pca.fit_transform(features)
+        np.set_printoptions(threshold=sys.maxsize)
+        print(self.pca.explained_variance_ratio_)
+        print(self.pca.explained_variance_)
+        return transformed_features
+
+
+
+
+
+
 # =======================================================
 #               Model Section
 # =======================================================
@@ -724,7 +1190,6 @@ class KNNModel(ModelBase, KNeighborsClassifier):
             metric_params={"p": int(kwargs["knn_metric_power"])},
             weights=kwargs["knn_weights"],
         )
-
 
 
 
@@ -884,7 +1349,6 @@ class ClassifierFactory:
 
                     
 
-
 #a = MFCCFeatures().features_from_dataset()
 
 
@@ -1027,39 +1491,22 @@ def tune_hyperparameters( clf, param_grid, X, y, cv=5):
 ###################
 
 
-def savemelspec(params):
-    spec, name, sr = params
-    # Convert amplitude to decibels
-    mel_spectrogram_db = librosa.power_to_db(spec, ref=np.max)
 
-    # Plot the Mel spectrogram
-    plt.figure(figsize=(10, 4))
-    librosa.display.specshow(mel_spectrogram_db, sr=sr, x_axis='time', y_axis='mel')
-    plt.colorbar(format='%+2.0f dB')
-    plt.title('Mel Spectrogram')
-    plt.tight_layout()
-
-    # Specify the folder path to save the images
-    folder_path = 'C:/Users/Alliewya/Documents/Cough Monitor/Spectrograms/low- Norm - trim'
-    os.makedirs(folder_path, exist_ok=True)  # Create the folder if it doesn't exist
-
-    # Save the Mel spectrogram in the folder with the specified filename
-    fn = os.path.join(folder_path, name + "-1024-512-" + "norm-trim" + ".png")
-    plt.savefig(fn)
-    plt.close()
 
 class ConfigProcessor:
     def process_config(self, data):
         feature_extractor = FeatureExtractor()
         dataset_processor = DatasetProcessor()
+        audio_preprocessor = PreprocessingProcessor()
+        feature_preprocessor = FeaturePreprocessor()  # Create an instance of the feature preprocessing class
         classifier_factory = ClassifierFactory(**data['classifier'])
         # evaluation_processor = EvaluationProcessor()
         predictor_saver = PredictorSaver()
 
         #Feature Extractor Creation
         featureconfig = data['features']
-        a = feature_extractor.create_mel_spectrogram_feature(**featureconfig['mel_spec'])
-        b = feature_extractor.create_mfcc_feature(**featureconfig['mfcc'])
+        #a = feature_extractor.create_mel_spectrogram_feature(**featureconfig['mel_spec'])
+        #b = feature_extractor.create_mfcc_feature(**featureconfig['mfcc'])
         extractor = feature_extractor.create_extractor_from_config(featureconfig)
 
         #Dataset Loading
@@ -1067,34 +1514,22 @@ class ConfigProcessor:
         dataset_processor.process_dataset(dataset, data['dataset'])
         print("Dataset processed")
     
+        #Audio Preprocessing
+        dataset = audio_preprocessor.preprocessing_from_config(dataset,data['preprocessing'])
+
+
         #Feature Extracting
         # mfc, labels = b.features_from_dataset_multi(dataset)
         # print("Mfcc extracted")
         # scatter, labels2 = feature_extractor.create_wavelet_scatter_features(**data['features']).features_from_dataset_multi(dataset)
         # print("Scatter extracted")
         features, labels = extractor.features_from_dataset_multi(dataset)
-
-        # Save features and labels to a pickle file
-        with open('features_labels.pkl', 'wb') as f:
-            pickle.dump((features, labels), f)
+        print("Features Extracted " + str(features[0].shape))
 
 
-        #Saving MelSpec ###############################################################
-        # # for index, feats in enumerate(features):
-        # #     fn = str(labels[index])  + "_" + str(index)
-        # #     savemelspec(feats,fn)
-
-        params_list = [(feat, str(labels[i]) + "_" + str(i), 22050) for i, feat in enumerate(features)]
-         
-        # Create a pool of worker processes
-        pool = multiprocessing.Pool(processes=20)
-
-        # Apply the savemelspec function to each set of parameters in parallel
-        pool.map(savemelspec, params_list)
-
-
-        
-
+        # Feature Preprocessing
+        #preprocessed_features = feature_preprocessor.featurepreprocessing_from_config(features,data['featurepreprocessing'])  # Call feature preprocessing method
+        #preprocessed_features = feature_preprocessor.featurepreprocessing_from_config(features,data) 
 
         #Classifier Create
         mdl = classifier_factory.create_classifier()
@@ -1102,6 +1537,7 @@ class ConfigProcessor:
         
         #Evaluation
         scores = self.evaluate_model(mdl,data, data['evaluation'], features, labels)
+        #scores = self.evaluate_model(mdl,data, data['evaluation'], preprocessed_features, labels)
 
         #Hyperparamter search enabled
         if bool(data['classifier']['knn']['tune_hyperparameters']) or bool(data['classifier']['svm']['tune_hyperparameters']):
@@ -1189,7 +1625,7 @@ class ConfigProcessor:
                 "n_neighbors": list(range(1, 31)),
                 "weights": ["uniform", "distance"],
                 "algorithm": ["auto", "ball_tree", "kd_tree", "brute"],
-                "leaf_size": 20,
+                "leaf_size": [20],
                 "metric": ["euclidean", "manhattan", "chebyshev", "minkowski"],
                 "metric_params": [None, {"p": 1}, {"p": 2}, {"p": 3}],
             }
@@ -1267,34 +1703,57 @@ class ConfigProcessor:
 
 
 class FeatureExtractor:
-    def create_extractor_from_config(self, featureconfig,**kwargs):
-        if(featureconfig['mfcc']['enable']):
-            print("MFCC")
-            extractor = self.create_mfcc_feature(**featureconfig['mfcc'])
-        elif(featureconfig['mel_spec']['enable']):
-            print("Mel Spec")
-            extractor = self.create_mel_spectrogram_feature(**featureconfig['mel_spec'])
+    def create_extractor_from_config(self, featureconfig, **kwargs):
+        extractor_classes = {
+            'mfcc': MFCCFeatures,
+            'mel_spec': MelSpectrogramFeatures,
+            'wavedec': WaveletDecFeatures,
+            'wav_scat': WaveletScatterFeatures,
+            'spectral_centroid': SpectralCentroidFeatures,
+            'spectral_bandwidth': SpectralBandwidthFeatures,
+            'spectral_contrast': SpectralContrastFeatures,
+            'spectral_rolloff': SpectralRolloffFeatures,
+            'chroma': ChromaFeatures,
+            'zero_crossing_rate': ZeroCrossingRateFeatures
+        }
 
-        elif(featureconfig['wav_scat']['enable']):
-            print("Wavelet Scatter")
-            extractor = self.create_wavelet_scatter_features(**featureconfig['wav_scat'])
-        extractor.testfeaturekwargs(**kwargs)
-        return extractor
+        enabled_extractors = []
+        for feature_name, feature_params in featureconfig.items():
+            enable = feature_params.get('enable', False)
+            if enable and feature_name in extractor_classes:
+                #print(feature_name)
+                extractor_class = extractor_classes[feature_name]
+                extractor = extractor_class(**feature_params)
+                extractor.testfeaturekwargs(**kwargs)
+                enabled_extractors.append(extractor)
 
-    def create_mel_spectrogram_feature(self, **kwargs):
-        extractor = MelSpectrogramFeatures()
-        extractor.testfeaturekwargs(**kwargs)
-        return extractor
+        if len(enabled_extractors) == 0:
+            raise ValueError("No feature extractor enabled.")
+        elif len(enabled_extractors) > 1:
+            return MultiExtractor(enabled_extractors)
+        else:
+            return enabled_extractors[0]
 
-    def create_mfcc_feature(self, **kwargs):
-        extractor = MFCCFeatures(**kwargs)
-        extractor.testfeaturekwargs(**kwargs)
-        return extractor
+    # def create_feature_extractor(self, feature_name, **kwargs):
+    #     extractor_classes = {
+    #         'mfcc': MFCCFeatures,
+    #         'mel_spec': MelSpectrogramFeatures,
+    #         'wavedec': WaveletDecFeatures,
+    #         'wav_scat': WaveletScatterFeatures,
+    #         'spectral_centroid': SpectralCentroidFeatures,
+    #         'spectral_bandwidth': SpectralBandwidthFeatures,
+    #         'spectral_contrast': SpectralContrastFeatures,
+    #         'spectral_rolloff': SpectralRolloffFeatures,
+    #         'chroma': ChromaFeatures,
+    #         'zero_crossing_rate': ZeroCrossingRateFeatures
+    #     }
 
-    def create_wavelet_scatter_features(self, **kwargs):
-        extractor = WaveletScatterFeatures(**kwargs)
-        extractor.testfeaturekwargs(**kwargs)
-        return extractor
+    #     if feature_name in extractor_classes:
+    #         extractor_class = extractor_classes[feature_name]
+    #         extractor = extractor_class(**kwargs)
+    #         return extractor
+    #     else:
+    #         return None
 
 
 class DatasetProcessor:
@@ -1307,6 +1766,7 @@ class DatasetProcessor:
     def process_dataset(self, dataset, dataset_config):
         dataset.add_labels_to_audiosamps()
         if bool(dataset_config['processing']['enable_normalize']):
+            print("Norm")
             dataset.normalize()
         if bool(dataset_config['processing']['enable_segment']):
             dataset.segment()
@@ -1319,7 +1779,25 @@ class DatasetProcessor:
                                   hop_length=int(dataset_config['frame']['frame_hop_length']))
 
 
+class PreprocessingProcessor:
 
+    def preprocessing_from_config(self, dataset, preprocessing_config):
+        if bool(preprocessing_config['wavelet_denoise']['enable']):
+            print(preprocessing_config)
+            dataset = WaveletDenoise().preprocess_audio_dataset_multi(dataset,**preprocessing_config['wavelet_denoise'])
+            print("Wavelet Denoise Compete")
+        return dataset
+    
+
+class FeaturePreprocessor:
+
+    def featurepreprocessing_from_config(self, features, featurepreprocessing_config):
+        #featurepreprocessing_config['PCA']['enable'] = True
+        #if bool(featurepreprocessing_config['PCA']['enable']):
+        print(featurepreprocessing_config)
+        #features = PCAFeaturePreprocessor().preprocess_features(features, **featurepreprocessing_config['PCA'])
+        features = PCAFeaturePreprocessor().preprocess_features(features)
+        return features
 
 # class EvaluationProcessor:
 #     def evaluate_model(self, mdl, evaluation_data, mfc, labels):
@@ -1351,3 +1829,163 @@ class PredictorSaver:
         with open("predictor.pickle", "wb") as file:
             pickle.dump(predictor, file)
         return predictor
+    
+
+
+#########################
+# Helper / Misc Functions
+############################
+
+
+def savemelspec(params):
+    spec, name, sr = params
+    # Convert amplitude to decibels
+    mel_spectrogram_db = librosa.power_to_db(spec, ref=np.max)
+
+    # Plot the Mel spectrogram
+    plt.figure(figsize=(10, 4))
+    librosa.display.specshow(mel_spectrogram_db, sr=sr, x_axis='time', y_axis='mel')
+    plt.colorbar(format='%+2.0f dB')
+    plt.title('Mel Spectrogram')
+    plt.tight_layout()
+
+    # Specify the folder path to save the images
+    folder_path = 'C:/Users/Alliewya/Documents/Cough Monitor/Spectrograms/Denoise_2'
+    os.makedirs(folder_path, exist_ok=True)  # Create the folder if it doesn't exist
+
+    # Save the Mel spectrogram in the folder with the specified filename
+    fn = os.path.join(folder_path, name + "" + ".png")
+    plt.savefig(fn)
+    plt.close()
+
+
+        # #Saving MelSpec ###############################################################
+        # # Save features and labels to a pickle file
+        # with open('features_labels.pkl', 'wb') as f:
+        #     pickle.dump((features, labels), f)
+
+        # # # for index, feats in enumerate(features):
+        # # #     fn = str(labels[index])  + "_" + str(index)
+        # # #     savemelspec(feats,fn)
+
+        # params_list = [(feat, str(labels[i]) + "_" + str(i), 22050) for i, feat in enumerate(features)]
+         
+        # # Create a pool of worker processes
+        # pool = multiprocessing.Pool(processes=20)
+
+        # # Apply the savemelspec function to each set of parameters in parallel
+        # pool.map(savemelspec, params_list)
+
+def extract_save_melspec(audio, fname, folder_path, samplerate):
+    
+    melspec = librosa.feature.melspectrogram(
+                y=audio, sr=samplerate)
+       # Convert amplitude to decibels
+    mel_spectrogram_db = librosa.power_to_db(melspec, ref=np.max)
+
+    # Plot the Mel spectrogram
+    plt.figure(figsize=(10, 4))
+    librosa.display.specshow(mel_spectrogram_db, sr=samplerate, x_axis='time', y_axis='mel')
+    plt.colorbar(format='%+2.0f dB')
+    plt.title('Mel Spectrogram')
+    plt.tight_layout()
+
+    # Specify the folder path to save the images
+    #folder_path = 'G:/Cough/Three'
+    #folder_path = 'C:/Users/Alliewya/Documents/Cough Monitor/Spectrograms/Denoise_4'
+    os.makedirs(folder_path, exist_ok=True)  # Create the folder if it doesn't exist
+
+    # Save the Mel spectrogram in the folder with the specified filename
+    fn = os.path.join(folder_path, fname + "" + ".png")
+    plt.savefig(fn)
+    plt.close()
+
+def extract_save_mfcc(audio, fname, folder_path, samplerate):
+    # Calculate MFCCs
+    mfccs = librosa.feature.mfcc(y=audio, sr=samplerate, n_mfcc=20)
+
+    # Plot the first 13 MFCCs
+    plt.figure(figsize=(10, 4))
+    librosa.display.specshow(mfccs[:13, :], sr=samplerate, x_axis='time')
+    plt.colorbar(format='%+2.0f')
+    
+    # Append title based on fname condition
+    if fname.startswith('0'):
+        plt.title('MFCCs - Not Cough')
+    elif fname.startswith('1'):
+        plt.title('MFCCs - Cough')
+    else:
+        plt.title('MFCCs')
+    
+    plt.tight_layout()
+
+    # Create the folder if it doesn't exist
+    os.makedirs(folder_path, exist_ok=True)
+
+    # Save the MFCC plot as a PNG file
+    fn = os.path.join(folder_path, fname + ".png")
+    plt.savefig(fn)
+    plt.close()
+
+def extract_save_amplitude(audio, fname, folder_path, samplerate, frame_size=2048):
+    # Calculate RMS
+    rms = librosa.feature.rms(y=audio, frame_length=frame_size, hop_length=frame_size // 2)[0]
+
+    # Plot the amplitude
+    plt.figure(figsize=(10, 4))
+    frames = range(len(rms))
+    t = librosa.frames_to_time(frames, sr=samplerate, hop_length=frame_size // 2)
+    plt.plot(t, rms)
+    plt.xlabel('Time (s)')
+    plt.ylabel('Amplitude')
+    # Append title based on fname condition
+    if fname.startswith('0'):
+        plt.title('Amplitude - Not Cough')
+    elif fname.startswith('1'):
+        plt.title('Amplitude - Cough')
+    else:
+        plt.title('Amplitude')
+    #plt.title('Amplitude')
+    plt.tight_layout()
+
+    # Create the folder if it doesn't exist
+    os.makedirs(folder_path, exist_ok=True)
+
+    # Save the amplitude plot as a PNG file
+    fn = os.path.join(folder_path, fname + ".png")
+    plt.savefig(fn)
+    plt.close()
+
+def plot_mfcc_and_amplitude(audio, fname, folder_path, samplerate):
+    # Calculate MFCCs
+    mfccs = librosa.feature.mfcc(y=audio, sr=samplerate, n_mfcc=20)
+
+    # Calculate amplitude (RMS)
+    amplitude = librosa.feature.rms(y=audio)
+
+    # Convert frame indices to time values
+    frames_mfcc = range(mfccs.shape[1])
+    times_mfcc = librosa.frames_to_time(frames_mfcc, sr=samplerate)
+
+    frames_amp = range(amplitude.shape[1])
+    times_amp = librosa.frames_to_time(frames_amp, sr=samplerate)
+
+    # Create figure and axes
+    fig, ax1 = plt.subplots(figsize=(10, 4))
+
+    # Plot MFCCs
+    librosa.display.specshow(mfccs[:13, :], sr=samplerate, x_axis='time', ax=ax1)
+    ax1.set(title='MFCCs')
+
+    # Create twin axes for amplitude
+    ax2 = ax1.twinx()
+    ax2.plot(times_amp, amplitude[0], color='red', alpha=0.5)
+    ax2.set_ylabel('Amplitude')
+
+    # Create the folder if it doesn't exist
+    os.makedirs(folder_path, exist_ok=True)
+
+    # Save the plot as a PNG file
+    fn = os.path.join(folder_path, fname + ".png")
+    plt.savefig(fn)
+    plt.close()
