@@ -306,9 +306,9 @@ class WaveletDenoise(Preprocessorbase):
         folder_path2 = 'G:/Cough/Wavelet/amplitude-norm-trim'
         folder_path3 = 'G:/Cough/Wavelet/mfcc-amplitude-norm-trim'
 
-        extract_save_amplitude(audio.audiodata, (str(audio.label)+"_"+audio.sourcefile[:-4]+"_org"), folder_path2, audio.samplerate)
-        extract_save_mfcc(audio.audiodata, (str(audio.label)+"_"+audio.sourcefile[:-4]+"_org"), folder_path, audio.samplerate)
-        plot_mfcc_and_amplitude(audio.audiodata, (str(audio.label)+"_"+audio.sourcefile[:-4]+"_org"), folder_path3, audio.samplerate)
+        #extract_save_amplitude(audio.audiodata, (str(audio.label)+"_"+audio.sourcefile[:-4]+"_org"), folder_path2, audio.samplerate)
+        #extract_save_mfcc(audio.audiodata, (str(audio.label)+"_"+audio.sourcefile[:-4]+"_org"), folder_path, audio.samplerate)
+        #plot_mfcc_and_amplitude(audio.audiodata, (str(audio.label)+"_"+audio.sourcefile[:-4]+"_org"), folder_path3, audio.samplerate)
         
         wavelet = kwargs.get("wavelet","haar")
         level = int(kwargs.get("level",3))
@@ -481,6 +481,9 @@ class WaveletDenoise(Preprocessorbase):
 class FeaturesBase():
     """An abstract base class for all feature extractors"""
 
+    def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
     @abstractmethod
     def features_from_dataset():
         pass
@@ -634,9 +637,6 @@ class MFCCFeatures(FeaturesBase):
         return features
 
     def process_sample(self, audio, kwargs):
-        # mfcc = librosa.feature.mfcc(
-        #     y=audio.audiodata, sr=audio.samplerate, n_mfcc=n_mfcc
-        # )
         kwargs = self.kwargs
         n_mfcc = int(kwargs.get('n_mfcc', 20))
         center = bool(kwargs.get('center', False))
@@ -644,15 +644,28 @@ class MFCCFeatures(FeaturesBase):
         norm = kwargs.get('norm', 'ortho')
         n_fft = int(kwargs.get('n_fft', 2048))
         hop_length = int(kwargs.get('hop_length', 512))
+        n_mfcc_trun = int(kwargs.get('n_mfcc_trun', n_mfcc))
+        #print(n_mfcc_trun)
+
         mfcc = librosa.feature.mfcc(
-                y=audio.audiodata, sr=audio.samplerate, n_mfcc=n_mfcc, center=center, dct_type=dct_type, norm=norm, n_fft=n_fft, hop_length=hop_length
-            )
-        if(bool(kwargs.get('delta'))==True):
+            y=audio.audiodata, sr=audio.samplerate, n_mfcc=n_mfcc, center=center, dct_type=dct_type,
+            norm=norm, n_fft=n_fft, hop_length=hop_length
+        )
+        
+        #print(mfcc.shape)
+        if(n_mfcc_trun < n_mfcc):
+            mfcc = mfcc.T[:n_mfcc_trun].T
+            #print("oo")
+            #print(mfcc.shape)
+        #mfcc = mfcc[:n_mfcc_trun]  # Take only the first n_mfcc_trun number of MFCCs
+        
+        if bool(kwargs.get('delta')):
             mfcc_delta = librosa.feature.delta(mfcc)
-            if(bool(self.kwargs.get('delta2'))==True):
+            if bool(kwargs.get('delta2')):
                 mfcc_delta2 = librosa.feature.delta(mfcc, order=2)
                 mfcc_delta = np.concatenate((mfcc_delta, mfcc_delta2), axis=1)
             mfcc = np.concatenate((mfcc, mfcc_delta), axis=1)
+        
         mfcc = mfcc.ravel()
         
         return {'feature': mfcc, 'label': audio.label}
@@ -817,6 +830,8 @@ class WaveletScatterFeatures(FeaturesBase):
         return features
 
     def process_sample(self, audio, kwargs):
+
+        kwargs = self.kwargs
         # mfcc = librosa.feature.mfcc(
         #     y=audio.audiodata, sr=audio.samplerate, n_mfcc=n_mfcc
         # )
@@ -904,6 +919,10 @@ class WaveletScatterFeatures(FeaturesBase):
 
 class SpectralCentroidFeatures(FeaturesBase):
     """Spectral Centroid features represent the weighted mean of the frequencies in an audio signal."""
+
+    def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
     def single_features(self, audio, **kwargs):
         spectral_centroids = librosa.feature.spectral_centroid(
             y=audio.audiodata, sr=audio.samplerate, **kwargs
@@ -911,8 +930,18 @@ class SpectralCentroidFeatures(FeaturesBase):
         return spectral_centroids
 
     def process_sample(self, audio, kwargs):
+        n_fft = int(kwargs.get('n_fft', 2048))
+        hop_length = int(kwargs.get('hop_length', 512))
+        win_length = kwargs.get('win_length', None)
+        if(win_length != None):
+            win_length = int(win_length)
+        window = kwargs.get('window', 'hann')
+        center = bool(kwargs.get('center', True))
+        pad_mode = kwargs.get('pad_mode', 'constant')
+
         spectral_centroids = librosa.feature.spectral_centroid(
-            y=audio.audiodata, sr=audio.samplerate, **kwargs
+            y=audio.audiodata, sr=audio.samplerate, n_fft=n_fft, hop_length=hop_length,
+            win_length=win_length, window=window, center=center, pad_mode=pad_mode
         )
         spectral_centroids = spectral_centroids.ravel()
 
@@ -928,8 +957,21 @@ class SpectralBandwidthFeatures(FeaturesBase):
         return spectral_bandwidths
 
     def process_sample(self, audio, kwargs):
+        n_fft = int(kwargs.get('n_fft', 2048))
+        hop_length = int(kwargs.get('hop_length', 512))
+        win_length = kwargs.get('win_length', None)
+        if(win_length != None):
+            win_length = int(win_length)
+        window = kwargs.get('window', 'hann')
+        center = bool(kwargs.get('center', True))
+        pad_mode = kwargs.get('pad_mode', 'constant')
+        centroid = kwargs.get('centroid', None)
+        norm = kwargs.get('norm', False)
+
         spectral_bandwidths = librosa.feature.spectral_bandwidth(
-            y=audio.audiodata, sr=audio.samplerate, **kwargs
+            y=audio.audiodata, sr=audio.samplerate, n_fft=n_fft, hop_length=hop_length,
+            win_length=win_length, window=window, center=center, pad_mode=pad_mode,
+            centroid=centroid, norm=norm
         )
         spectral_bandwidths = spectral_bandwidths.ravel()
 
@@ -945,8 +987,26 @@ class SpectralContrastFeatures(FeaturesBase):
         return spectral_contrasts
 
     def process_sample(self, audio, kwargs):
+        kwargs = self.kwargs
+        n_bands = int(kwargs.get('n_bands', 6))
+        fmin = float(kwargs.get('fmin', 200.0))
+        #fmax = float(kwargs.get('fmax', 6000.0))
+        hop_length = int(kwargs.get('hop_length', 512))
+        n_fft = int(kwargs.get('n_fft', 2048))
+        win_length = kwargs.get('win_length', None)
+        if(win_length != None):
+            win_length = int(win_length)
+        window = kwargs.get('window', 'hann')
+        center = bool(kwargs.get('center', True))
+        pad_mode = kwargs.get('pad_mode', 'constant')
+        #freqs = kwargs.get('freqs', None)
+        #harmonics = bool(kwargs.get('harmonics', False))
+        #norm = bool(kwargs.get('norm', False))
+
         spectral_contrasts = librosa.feature.spectral_contrast(
-            y=audio.audiodata, sr=audio.samplerate, **kwargs
+            y=audio.audiodata, sr=audio.samplerate, n_bands=n_bands, fmin=fmin,
+            hop_length=hop_length, n_fft=n_fft, win_length=win_length, window=window,
+            center=center, pad_mode=pad_mode, 
         )
         spectral_contrasts = spectral_contrasts.ravel()
 
@@ -962,12 +1022,25 @@ class SpectralRolloffFeatures(FeaturesBase):
         return spectral_rolloffs
 
     def process_sample(self, audio, kwargs):
-        spectral_rolloffs = librosa.feature.spectral_rolloff(
-            y=audio.audiodata, sr=audio.samplerate, **kwargs
-        )
-        spectral_rolloffs = spectral_rolloffs.ravel()
+        kwargs = self.kwargs
 
-        return {'feature': spectral_rolloffs, 'label': audio.label}
+        roll_percent = float(kwargs.get('roll_percent', 0.85))
+        hop_length = int(kwargs.get('hop_length', 512))
+        n_fft = int(kwargs.get('n_fft', 2048))
+        win_length = kwargs.get('win_length', None)
+        if(win_length != None):
+            win_length = int(win_length)
+        window = kwargs.get('window', 'hann')
+        center = bool(kwargs.get('center', True))
+        pad_mode = kwargs.get('pad_mode', 'reflect')
+
+        spectral_rolloff = librosa.feature.spectral_rolloff(
+            y=audio.audiodata, sr=audio.samplerate, roll_percent=roll_percent, hop_length=hop_length,
+            n_fft=n_fft, win_length=win_length, window=window, center=center, pad_mode=pad_mode
+        )
+        spectral_rolloff = spectral_rolloff.ravel()
+
+        return {'feature': spectral_rolloff, 'label': audio.label}
 
 
 class ChromaFeatures(FeaturesBase):
@@ -979,6 +1052,7 @@ class ChromaFeatures(FeaturesBase):
         return chroma_features
 
     def process_sample(self, audio, kwargs):
+        kwargs = self.kwargs
         chroma_features = librosa.feature.chroma_stft(
             y=audio.audiodata, sr=audio.samplerate, **kwargs
         )
@@ -996,6 +1070,7 @@ class ZeroCrossingRateFeatures(FeaturesBase):
         return zero_crossing_rates
 
     def process_sample(self, audio, kwargs):
+        kwargs = self.kwargs
         zero_crossing_rates = librosa.feature.zero_crossing_rate(
             y=audio.audiodata, **kwargs
         )
@@ -1383,6 +1458,7 @@ def common_scores(clf, X_test, y_test):
     y_score = clf.predict_proba(X_test)[:,1]
     scores["roc_auc"] = roc_auc_score(y_test, y_score, multi_class='ovr')
     #print("4")
+    #scores["confusion_matrix"] = confusion_matrix(y_test, y_pred, labels=['1', '0']).tolist()
     scores["confusion_matrix"] = confusion_matrix(y_test, y_pred).tolist()
     #scores["confusion_matrix"]= scores["confusion_matrix"]
     print(scores)
@@ -1505,6 +1581,7 @@ class ConfigProcessor:
 
         #Feature Extractor Creation
         featureconfig = data['features']
+        print(featureconfig)
         #a = feature_extractor.create_mel_spectrogram_feature(**featureconfig['mel_spec'])
         #b = feature_extractor.create_mfcc_feature(**featureconfig['mfcc'])
         extractor = feature_extractor.create_extractor_from_config(featureconfig)
@@ -1529,7 +1606,7 @@ class ConfigProcessor:
 
         # Feature Preprocessing
         #preprocessed_features = feature_preprocessor.featurepreprocessing_from_config(features,data['featurepreprocessing'])  # Call feature preprocessing method
-        #preprocessed_features = feature_preprocessor.featurepreprocessing_from_config(features,data) 
+        preprocessed_features = feature_preprocessor.featurepreprocessing_from_config(features,data) 
 
         #Classifier Create
         mdl = classifier_factory.create_classifier()
@@ -1720,6 +1797,7 @@ class FeatureExtractor:
         enabled_extractors = []
         for feature_name, feature_params in featureconfig.items():
             enable = feature_params.get('enable', False)
+            #feature_params.pop('enable')
             if enable and feature_name in extractor_classes:
                 #print(feature_name)
                 extractor_class = extractor_classes[feature_name]

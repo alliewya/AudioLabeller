@@ -263,7 +263,11 @@
                     >Wavelet</label
                   >
                   <div class="col-sm-9">
-                    <select class="form-select" id="wavelet_denoise_wavelet" aria-label="Wavelet">
+                    <select
+                      class="form-select"
+                      id="wavelet_denoise_wavelet"
+                      aria-label="Wavelet"
+                    >
                       <option value="cmor">cmor</option>
                       <option value="coif1">coif1</option>
                       <option value="coif2">coif2</option>
@@ -342,10 +346,12 @@
                   </div>
                 </div>
                 <div class="row">
-                  <label for="colFormLabel" class="col-sm-3 col-form-label"
-                  data-toggle="tooltip"
-                  data-placement="top"
-                  title="Maximum of Levels + 1"
+                  <label
+                    for="colFormLabel"
+                    class="col-sm-3 col-form-label"
+                    data-toggle="tooltip"
+                    data-placement="top"
+                    title="Maximum of Levels + 1"
                     >Level to include</label
                   >
                   <div class="col-sm-9">
@@ -369,12 +375,12 @@
                   >
                   <div class="col-sm-9">
                     <input
-                    class="form-check-input"
-                    type="checkbox"
-                    aria-label="wavelet_threshold_enable"
-                    id="wavelet_threshold_enable"
-                    aria-describedby="wavelet_threshold_enable"
-                  />
+                      class="form-check-input"
+                      type="checkbox"
+                      aria-label="wavelet_threshold_enable"
+                      id="wavelet_threshold_enable"
+                      aria-describedby="wavelet_threshold_enable"
+                    />
                   </div>
                 </div>
                 <div class="row">
@@ -464,6 +470,21 @@
               Wavelet Scattering
             </button>
           </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="spectral-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#spectral-tab-pane"
+              type="button"
+              role="tab"
+              aria-controls="spectral-tab-pane"
+              aria-selected="false"
+            >
+              Spectral Features
+            </button>
+          </li>
+         
         </ul>
         <div class="tab-content" id="featureTabContent">
           <div
@@ -503,6 +524,25 @@
                     class="form-control"
                     id="mfcc_n_mfcc"
                     aria-describedby="mfcc_n_mfcc"
+                    value="20"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title="Number of Mel-frequency bins"
+                  >Number of MFCC to use</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="mffc_n_mfcc_trun"
+                    aria-describedby="mffc_n_mfcc_trun"
                     value="20"
                   />
                 </div>
@@ -761,9 +801,20 @@
                   </div>
                 </div>
                 <div class="row">
-                  <label for="colFormLabel" class="col-sm-3 col-form-label" data-toggle="tooltip" data-placement="top" title="Wavelet">Wavelet</label>
+                  <label
+                    for="colFormLabel"
+                    class="col-sm-3 col-form-label"
+                    data-toggle="tooltip"
+                    data-placement="top"
+                    title="Wavelet"
+                    >Wavelet</label
+                  >
                   <div class="col-sm-9">
-                    <select class="form-select" id="wavedec_wavelet" aria-label="Wavelet">
+                    <select
+                      class="form-select"
+                      id="wavedec_wavelet"
+                      aria-label="Wavelet"
+                    >
                       <option value="cmor">cmor</option>
                       <option value="coif1">coif1</option>
                       <option value="coif2">coif2</option>
@@ -856,7 +907,6 @@
                       <option value="cpd">Constant Padding</option>
                       <option value="zpd">Zero Padding</option>
                       <option value="sp1">Smooth Padding</option>
-
                     </select>
                   </div>
                 </div>
@@ -924,7 +974,396 @@
               </div>
             </div>
           </div>
+          
+          <!--Spectral Sub Tabs-->
+          <div
+            class="tab-pane fade"
+            id="spectral-tab-pane"
+            role="tabpanel"
+            aria-labelledby="spectral-scat-tab"
+            tabindex="0"
+          >
+            <div class="container mt-2 mb-2">
+              <div class="row">
+                <div class="col-3">
+                  <div class="nav flex-column nav-pills" id="v-pills-tab" role="tablist" aria-orientation="vertical">
+                    <button class="nav-link active" id="spec-centroid-tab" data-bs-toggle="pill" data-bs-target="#spec-centroid-tab-pane" type="button" role="tab" aria-controls="spec-centroid-tab-pane" aria-selected="true">
+                      Spectral Centroid
+                    </button>
+                    <button class="nav-link" id="spectral-bandwidth-tab" data-bs-toggle="pill" data-bs-target="#spectral-bandwidth-tab-pane" type="button" role="tab" aria-controls="spectral-bandwidth-tab-pane" aria-selected="false">
+                      Spectral Bandwidth
+                    </button>
+                    <button class="nav-link" id="spectral-contrast-tab" data-bs-toggle="pill" data-bs-target="#spectral-contrast-tab-pane" type="button" role="tab" aria-controls="spectral-contrast-tab-pane" aria-selected="false">
+                      Spectral Contrast
+                    </button>
+                    <button class="nav-link" id="spectral-rolloff-tab" data-bs-toggle="pill" data-bs-target="#spectral-rolloff-tab-pane" type="button" role="tab" aria-controls="spectral-rolloff-tab-pane" aria-selected="false">
+                      Spectral Rolloff
+                    </button>
+                  </div>
+                </div>
+                <div class="col-9">
+                  <div class="tab-content" id="v-pills-tabContent">
+                    <div class="tab-pane fade show active" id="spec-centroid-tab-pane" role="tabpanel" aria-labelledby="spec-centroid-tab">
+                      <div class="container mt-2 mb-2">
+                        <div class="row">
+                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                            >Enable Spectral Centroid</label
+                          >
+                          <div class="col-sm-9">
+                            <input
+                              class="form-check-input"
+                              type="checkbox"
+                              aria-label="spectral_centroid_enable"
+                              id="spectral_centroid_enable"
+                              aria-describedby="spectral_centroid_enable"
+                            />
+                          </div>
+                        </div>
+                        <div class="row">
+                          <label
+                            for="colFormLabel"
+                            class="col-sm-3 col-form-label"
+                            data-toggle="tooltip"
+                            data-placement="top"
+                            title="Number of ffts (in samples)"
+                            >FFT Length</label
+                          >
+                          <div class="col-sm-9">
+                            <input
+                              type="text"
+                              class="form-control"
+                              id="spectral_centroid_n_fft"
+                              aria-describedby="spectral_centroid_n_fft"
+                              value="2048"
+                            />
+                          </div>
+                        </div>
+                        <div class="row">
+                          <label
+                            for="colFormLabel"
+                            class="col-sm-3 col-form-label"
+                            data-toggle="tooltip"
+                            data-placement="top"
+                            title="Hop Length (in samples)"
+                            >Hop Length</label
+                          >
+                          <div class="col-sm-9">
+                            <input
+                              type="text"
+                              class="form-control"
+                              id="spectral_centroid_hop_length"
+                              aria-describedby="spectral_centroid_hop_length"
+                              value="512"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="tab-pane fade" id="spectral-bandwidth-tab-pane" role="tabpanel" aria-labelledby="spectral-bandwidth-tab">
+                      <div class="container mt-2 mb-2">
+                        <div class="row">
+                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                            >Enable Spectral Bandwidth</label
+                          >
+                          <div class="col-sm-9">
+                            <input
+                              class="form-check-input"
+                              type="checkbox"
+                              aria-label="spectral_bandwidth_enable"
+                              id="spectral_bandwidth_enable"
+                              aria-describedby="spectral_bandwidth_enable"
+                            />
+                          </div>
+                        </div>
+                        <div class="row">
+                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                            >Number of FFT</label
+                          >
+                          <div class="col-sm-9">
+                            <input
+                              type="text"
+                              class="form-control"
+                              id="spectral_bandwidth_n_fft"
+                              aria-describedby="spectral_bandwidth_n_fft"
+                              value="2048"
+                            />
+                          </div>
+                        </div>
+                        <div class="row">
+                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                            >Hop Length</label
+                          >
+                          <div class="col-sm-9">
+                            <input
+                              type="text"
+                              class="form-control"
+                              id="spectral_bandwidth_hop_length"
+                              aria-describedby="spectral_bandwidth_hop_length"
+                              value="512"
+                            />
+                          </div>
+                        </div>
+                        <div class="row">
+                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                            >Window</label
+                          >
+                          <div class="col-sm-9">
+                            <select
+                              class="form-select"
+                              aria-label="spectral_bandwidth_window"
+                              id="spectral_bandwidth_window"
+                              aria-describedby="spectral_bandwidth_window"
+                            >
+                              <option selected value="hann">hann</option>
+                              <option value="hamming">hamming</option>
+                              <option value="kaiser">kaiser</option>
+                              <option value="boxcar">boxcar</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div class="row">
+                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                            >Center</label
+                          >
+                          <div class="col-sm-9">
+                            <input
+                              class="form-check-input"
+                              type="checkbox"
+                              aria-label="spectral_bandwidth_center"
+                              id="spectral_bandwidth_center"
+                              aria-describedby="spectral_bandwidth_center"
+                              checked
+                            />
+                          </div>
+                        </div>
+                        <div class="row">
+                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                            >Power</label
+                          >
+                          <div class="col-sm-9">
+                            <select
+                              class="form-select"
+                              aria-label="spectral_bandwidth_power"
+                              id="spectral_bandwidth_power"
+                              aria-describedby="spectral_bandwidth_power"
+                            >
+                              <option value="1">1 - Energy</option>
+                              <option selected value="2">2 - Power</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="tab-pane fade" id="spectral-contrast-tab-pane" role="tabpanel" aria-labelledby="spectral-contrast-tab">
+                      <div class="container mt-2 mb-2">
+                        <div class="row">
+                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                            >Enable Spectral Contrast</label
+                          >
+                          <div class="col-sm-9">
+                            <input
+                              class="form-check-input"
+                              type="checkbox"
+                              aria-label="spectral_contrast_enable"
+                              id="spectral_contrast_enable"
+                              aria-describedby="spectral_contrast_enable"
+                            />
+                          </div>
+                        </div>
+                        <div class="row">
+                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                            >Number of FFT</label
+                          >
+                          <div class="col-sm-9">
+                            <input
+                              type="text"
+                              class="form-control"
+                              id="spectral_contrast_n_fft"
+                              aria-describedby="spectral_contrast_n_fft"
+                              value="2048"
+                            />
+                          </div>
+                        </div>
+                        <div class="row">
+                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                            >Hop Length</label
+                          >
+                          <div class="col-sm-9">
+                            <input
+                              type="text"
+                              class="form-control"
+                              id="spectral_contrast_hop_length"
+                              aria-describedby="spectral_contrast_hop_length"
+                              value="512"
+                            />
+                          </div>
+                        </div>
+                        <div class="row">
+                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                            >Window</label
+                          >
+                          <div class="col-sm-9">
+                            <select
+                              class="form-select"
+                              aria-label="spectral_contrast_window"
+                              id="spectral_contrast_window"
+                              aria-describedby="spectral_contrast_window"
+                            >
+                              <option selected value="hann">hann</option>
+                              <option value="hamming">hamming</option>
+                              <option value="kaiser">kaiser</option>
+                              <option value="boxcar">boxcar</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div class="row">
+                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                            >Center</label
+                          >
+                          <div class="col-sm-9">
+                            <input
+                              class="form-check-input"
+                              type="checkbox"
+                              aria-label="spectral_contrast_center"
+                              id="spectral_contrast_center"
+                              aria-describedby="spectral_contrast_center"
+                              checked
+                            />
+                          </div>
+                        </div>
+                        <div class="row">
+                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                            >Number of Bands</label
+                          >
+                          <div class="col-sm-9">
+                            <input
+                              type="text"
+                              class="form-control"
+                              id="spectral_contrast_n_bands"
+                              aria-describedby="spectral_contrast_n_bands"
+                              value="6"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="tab-pane fade" id="spectral-rolloff-tab-pane" role="tabpanel" aria-labelledby="spectral-rolloff-tab" tabindex="0">
+                      <div class="container mt-2 mb-2">
+                        <div class="row">
+                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                            >Enable Spectral Rolloff</label
+                          >
+                          <div class="col-sm-9">
+                            <input
+                              class="form-check-input"
+                              type="checkbox"
+                              aria-label="spectral_rolloff_enable"
+                              id="spectral_rolloff_enable"
+                              aria-describedby="spectral_rolloff_enable"
+                            />
+                          </div>
+                        </div>
+                        <div class="row">
+                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                            >Number of FFT</label
+                          >
+                          <div class="col-sm-9">
+                            <input
+                              type="text"
+                              class="form-control"
+                              id="spectral_rolloff_n_fft"
+                              aria-describedby="spectral_rolloff_n_fft"
+                              value="2048"
+                            />
+                          </div>
+                        </div>
+                        <div class="row">
+                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                            >Hop Length</label
+                          >
+                          <div class="col-sm-9">
+                            <input
+                              type="text"
+                              class="form-control"
+                              id="spectral_rolloff_hop_length"
+                              aria-describedby="spectral_rolloff_hop_length"
+                              value="512"
+                            />
+                          </div>
+                        </div>
+                        <div class="row">
+                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                            >Window</label
+                          >
+                          <div class="col-sm-9">
+                            <select
+                              class="form-select"
+                              aria-label="spectral_rolloff_window"
+                              id="spectral_rolloff_window"
+                              aria-describedby="spectral_rolloff_window"
+                            >
+                              <option selected value="hann">hann</option>
+                              <option value="hamming">hamming</option>
+                              <option value="kaiser">kaiser</option>
+                              <option value="boxcar">boxcar</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div class="row">
+                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                            >Center</label
+                          >
+                          <div class="col-sm-9">
+                            <input
+                              class="form-check-input"
+                              type="checkbox"
+                              aria-label="spectral_rolloff_center"
+                              id="spectral_rolloff_center"
+                              aria-describedby="spectral_rolloff_center"
+                              checked
+                            />
+                          </div>
+                        </div>
+                        <div class="row">
+                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                            >Percent</label
+                          >
+                          <div class="col-sm-9">
+                            <input
+                              type="text"
+                              class="form-control"
+                              id="spectral_rolloff_percent"
+                              aria-describedby="spectral_rolloff_percent"
+                              value="85"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!--End Spectral Sub Tab-->
+
+
+
+
+        <div
+          class="tab-pane fade"
+          id="spectral-contrast-tab-pane"
+          role="tabpanel"
+          aria-labelledby="spectral-contrast-tab"
+          tabindex="0"
+        >
+
         </div>
+
+
+        <!---->
+        </div>
+
         <div
           class="tab-pane fade"
           id="contact-tab-pane"
@@ -945,6 +1384,124 @@
         </div>
       </div>
     </div>
+
+    <!--Feature preprocessing-->
+    <div class="row mb-3 mt-2" id="featurepreprocessing-row">
+      <div class="col">
+        <h2>Feature Preprocessing</h2>
+        <!-- Tabs  -->
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link active"
+              id="pca-tab-pane-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#pca-tab-pane"
+              type="button"
+              role="tab"
+              aria-controls="pca-tab-pane"
+              aria-selected="true"
+            >
+              PCA
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link active"
+              id="min-max-tab-pane-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#min-max-tab-pane"
+              type="button"
+              role="tab"
+              aria-controls="min-max-tab-pane"
+              aria-selected="true"
+            >
+              Min Max Scaling
+            </button>
+          </li>
+
+        </ul>
+
+        <!-- Tab content  -->
+
+        <div class="tab-content" id="featurepreprocessingTabContent">
+          <div class="tab-pane fade show active" id="pca-tab-pane" role="tabpanel" aria-labelledby="pca-tab" tabindex="0">
+            <div class="container mt-2 mb-2">
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Enable PCA</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="pca_enable"
+                    id="pca_enable"
+                    aria-describedby="pca_enablee"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="Number of components to keep. ."
+                  >Number of Components</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="pca_n_components"
+                    aria-describedby="pca_n_components"
+                    value="150"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="tab-pane fade" id="min-max-tab-pane" role="tabpanel" aria-labelledby="min-max-tab" tabindex="0">
+            <div class="container mt-2 mb-2">
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Enable Min Max Scaling</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="min_max_enable"
+                    id="min_max_enable"
+                    aria-describedby="min_max_enablee"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label
+                  for="colFormLabel"
+                  class="col-sm-3 col-form-label"
+                  data-toggle="tooltip"
+                  title="Number of components to keep. ."
+                  >Number of Components</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="min_max_n_components"
+                    aria-describedby="min_max_n_components"
+                    value="150"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!--End Feat Preprocessing-->
+
     <!-- Classifier -->
     <div class="row mb-3 mt-2" id="classifier-row">
       <div class="col">
@@ -2121,6 +2678,8 @@
     </div>
     <!-- End Classifier-->
 
+
+    
     <!-- Evaluation -->
     <div class="row mb-3 mt-2" id="evaluation-row">
       <div class="col">
@@ -2489,12 +3048,17 @@
     config.preprocessing = {};
     config.preprocessing.wavelet_denoise = {};
 
-
     config.features = {};
     config.features.mfcc = {};
     config.features.mel_spec = {};
     config.features.wavedec = {};
     config.features.wav_scat = {};
+    config.features.spectral_centroid = {};
+    config.features.spectral_bandwidth = {};
+    config.features.spectral_contrast = {};
+    config.features.spectral_rolloff = {};
+
+    config.featurepreprocessing.pca = {};
 
     config.classifier = {};
     config.classifier.knn = {};
@@ -2531,23 +3095,26 @@
     config.dataset.fixed.fixed_length =
       document.querySelector("#fixed_size").value;
 
-
     // Preprocessing
-    
+
     // Wavelet Denoising
-    config.preprocessing.wavelet_denoise.enable =
-      document.querySelector("#wavelet_denoise_enable").checked;
-    config.preprocessing.wavelet_denoise.wavelet =
-      document.querySelector("#wavelet_denoise_wavelet").value;
-    config.preprocessing.wavelet_denoise.level = 
-      document.querySelector("#wavelet_denoise_level").value;
-    config.preprocessing.wavelet_denoise.include_level =
-      document.querySelector("#wavelet_denoise_include_level").value;
+    config.preprocessing.wavelet_denoise.enable = document.querySelector(
+      "#wavelet_denoise_enable"
+    ).checked;
+    config.preprocessing.wavelet_denoise.wavelet = document.querySelector(
+      "#wavelet_denoise_wavelet"
+    ).value;
+    config.preprocessing.wavelet_denoise.level = document.querySelector(
+      "#wavelet_denoise_level"
+    ).value;
+    config.preprocessing.wavelet_denoise.include_level = document.querySelector(
+      "#wavelet_denoise_include_level"
+    ).value;
     config.preprocessing.wavelet_denoise.threshold_enable =
       document.querySelector("#wavelet_threshold_enable").checked;
-    config.preprocessing.wavelet_denoise.magnitude =
-      document.querySelector("#wavelet_denoise_magnitude").value;
-
+    config.preprocessing.wavelet_denoise.magnitude = document.querySelector(
+      "#wavelet_denoise_magnitude"
+    ).value;
 
     //Features
 
@@ -2565,15 +3132,16 @@
     config.features.mfcc.delta = document.querySelector("#mfcc_delta").checked;
     config.features.mfcc.delta2 =
       document.querySelector("#mfcc_delta2").checked;
+    config.features.mfcc.n_mfcc_trun =
+      document.querySelector("#mffc_n_mfcc_trun").value;
 
     // Mel Spectrogram tab values
     config.features.mel_spec.enable =
       document.querySelector("#mel_spec_enable").checked;
     config.features.mel_spec.mel_spec_n_fft =
       document.querySelector("#mel_spec_n_fft").value;
-    config.features.mel_spec.mel_spec_hop_length = document.querySelector(
-      "#mel_spec_hop_length"
-    ).value;
+    config.features.mel_spec.mel_spec_hop_length = 
+      document.querySelector("#mel_spec_hop_length").value;
     config.features.mel_spec.mel_spec_window =
       document.querySelector("#mel_spec_window").value;
     config.features.mel_spec.mel_spec_center =
@@ -2588,9 +3156,8 @@
       document.querySelector("#wavedec_wavelet").value;
     config.features.wavedec.level =
       document.querySelector("#wavedec_level").value;
-    config.features.wavedec.mode = 
+    config.features.wavedec.mode =
       document.querySelector("#wavedec_mode").value;
-
 
     // Wavelet Scattering
     config.features.wav_scat.enable =
@@ -2599,6 +3166,67 @@
       document.querySelector("#wav_scat_j").value;
     config.features.wav_scat.wav_scat_q =
       document.querySelector("#wav_scat_q").value;
+
+    // Spectral Centroid
+    config.features.spectral_centroid.enable = 
+      document.querySelector("#spectral_centroid_enable").checked;
+    config.features.spectral_centroid.n_fft =
+      document.querySelector("#spectral_centroid_n_fft").value;
+    config.features.spectral_centroid.hop_length = 
+      document.querySelector("#spectral_centroid_hop_length").value;
+
+    // Spectral Bandwidth tab values
+    config.features.spectral_bandwidth.enable =
+      document.querySelector("#spectral_bandwidth_enable").checked;
+    config.features.spectral_bandwidth.n_fft =
+      document.querySelector("#spectral_bandwidth_n_fft").value;
+    config.features.spectral_bandwidth.hop_length =
+      document.querySelector("#spectral_bandwidth_hop_length").value;
+    config.features.spectral_bandwidth.window =
+      document.querySelector("#spectral_bandwidth_window").value;
+    config.features.spectral_bandwidth.center =
+      document.querySelector("#spectral_bandwidth_center").checked;
+    config.features.spectral_bandwidth.power =
+      document.querySelector("#spectral_bandwidth_power").value;
+
+
+    // Spectral Contrast tab values
+    config.features.spectral_contrast.enable =
+      document.querySelector("#spectral_contrast_enable").checked;
+    config.features.spectral_contrast.n_fft =
+      document.querySelector("#spectral_contrast_n_fft").value;
+    config.features.spectral_contrast.hop_length =
+      document.querySelector("#spectral_contrast_hop_length").value;
+    config.features.spectral_contrast.window =
+      document.querySelector("#spectral_contrast_window").value;
+    config.features.spectral_contrast.center =
+      document.querySelector("#spectral_contrast_center").checked;
+    config.features.spectral_contrast.n_bands =
+      document.querySelector("#spectral_contrast_n_bands").value;
+
+    // Spectral Rolloff tab values
+    config.features.spectral_rolloff.enable =
+      document.querySelector("#spectral_rolloff_enable").checked;
+    config.features.spectral_rolloff.n_fft =
+      document.querySelector("#spectral_rolloff_n_fft").value;
+    config.features.spectral_rolloff.hop_length =
+      document.querySelector("#spectral_rolloff_hop_length").value;
+    config.features.spectral_rolloff.window =
+      document.querySelector("#spectral_rolloff_window").value;
+    config.features.spectral_rolloff.center =
+      document.querySelector("#spectral_rolloff_center").checked;
+    config.features.spectral_rolloff.percent =
+      document.querySelector("#spectral_rolloff_percent").value;
+
+
+    
+    // Feature Preprocessing
+    config.featurepreprocessing.pca.enable =
+      document.querySelector("#pca_enable").checked;
+    config.featurepreprocessing.pca.n_components =
+      document.querySelector("#pca_n_components").value;
+
+
 
     //Classifier
 
