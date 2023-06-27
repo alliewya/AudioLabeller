@@ -324,13 +324,13 @@ class WaveletDenoise(Preprocessorbase):
 
         
         #Speed Up Audio!
-        #coeffs = coeffs[:include_level]
+        coeffs = coeffs[:include_level]
         
         #Remove not included subbands
-        for i in range(len(coeffs)):
-            if i >= include_level:
-                #print("thresh"+str(i))
-                coeffs[i] = np.zeros_like(coeffs[i])
+        # for i in range(len(coeffs)):
+        #     if i >= include_level:
+        #         #print("thresh"+str(i))
+        #         coeffs[i] = np.zeros_like(coeffs[i])
 
         #alt for all
         #threshold = self.universal_threshold(np.concatenate(coeffs))

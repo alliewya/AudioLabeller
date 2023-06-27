@@ -383,6 +383,50 @@ def singlefilewaveuser(request, fname, userid):
     
     return render(request, 'waves3.html', {'page_obj': audiopredictions, 'audiolist': audiopredictions, 'user': request.user})
 
+def unclearwaves(request, userid):
+
+    audiofiles = AudioLabels.objects.filter(labeluser = userid,unclear = True).order_by("-updatedate")
+    paginator = Paginator(audiofiles, 10)
+    paginator.limit_pagination_display = 5
+
+    page_number = request.GET.get('page')
+
+    # get the current page
+    page_obj = paginator.get_page(page_number)
+    print(page_obj)
+    # loop through the items on the current page
+    audiolist = []
+    for item in page_obj:
+        print(item)
+        reg = item.labelregions
+        regions = json.loads(item.labelregions)
+        audiolist.append({'filename':item.filename,'regions':json.loads(item.labelregions),'labelusername':item.labelusername,'lowquality':item.lowquality,'unclear':item.unclear})
+    # do something with the processed data
+    print(page_obj)
+    return render(request, 'waves3.html', {'page_obj': page_obj, 'audiolist': audiolist, 'user': request.user})
+    
+def lowqualitywaves(request, userid):
+
+    audiofiles = AudioLabels.objects.filter(labeluser = userid,lowquality = True).order_by("-updatedate")
+    paginator = Paginator(audiofiles, 10)
+    paginator.limit_pagination_display = 5
+
+    page_number = request.GET.get('page')
+
+    # get the current page
+    page_obj = paginator.get_page(page_number)
+    print(page_obj)
+    # loop through the items on the current page
+    audiolist = []
+    for item in page_obj:
+        print(item)
+        reg = item.labelregions
+        regions = json.loads(item.labelregions)
+        audiolist.append({'filename':item.filename,'regions':json.loads(item.labelregions),'labelusername':item.labelusername,'lowquality':item.lowquality,'unclear':item.unclear})
+    # do something with the processed data
+    print(page_obj)
+    return render(request, 'waves3.html', {'page_obj': page_obj, 'audiolist': audiolist, 'user': request.user})
+
 def listoflabelusers(request, fname):
     #Returns a list of users who have labelled the audiofile
     fname = str(fname) + ".wav"
@@ -508,6 +552,13 @@ def return_progress(request):
 
     return JsonResponse({'progress': process.progress, 'task': process.progressname})
 
+def get_cough_statistics(request):
+    stats = functions.cough_length_statistics()
+    #return JsonResponse({'Stats':stats})
+    context = {
+        "status": stats,
+    }
+    return render(request, 'label_stats.html', context)
 
 class DownloadDBView(APIView):
     def get(self, request):

@@ -6,6 +6,9 @@ import os, pickle, datetime
 from .models import AudioLabels,TaskProgress
 import json
 from app import factory
+import statistics
+from scipy import stats
+import numpy as np
 
 def returnPredictions(classifier, filename):
 
@@ -216,6 +219,99 @@ def generate_dataset_file():
     
     return status
 
+def cough_length_statistics():
+    """
+    Calculate various statistics related to cough length in a labeled cough sound dataset.
+    
+    Returns:
+        A dictionary containing the following statistics:
+        - Quantity: Total number of cough sound instances in the dataset.
+        - Mean: Average cough length.
+        - Standard Deviation: Standard deviation of cough lengths.
+        - Minimum: Shortest cough length.
+        - Maximum: Longest cough length.
+        - Median: Median cough length.
+        - First Quartile: 25th percentile of cough lengths.
+        - Third Quartile: 75th percentile of cough lengths.
+        - Skewness: Skewness of the cough length distribution.
+        - Kurtosis: Kurtosis of the cough length distribution.
+        - Distribution: Indicates whether the cough lengths follow a normal distribution or not.
+        - Unclear Quantity: Total number of cough sound instances marked as unclear.
+        - Unclear Mean: Average cough length for unclear instances.
+        - Unclear Standard Deviation: Standard deviation of cough lengths for unclear instances.
+        - Low Quality Quantity: Total number of cough sound instances marked as low quality.
+        - Low Quality Mean: Average cough length for low quality instances.
+        - Low Quality Standard Deviation: Standard deviation of cough lengths for low quality instances.
+    """
+    status = {}
+    lengths = []
+    unclear_lengths = []
+    low_quality_lengths = []
+    outliers = []
+    a = AudioLabels.objects.filter(labeluser='1')
+    #a = a[:100]
+    for item in a:
+        regions = json.loads(item.labelregions)
+
+        for region in regions:
+            length = region['end'] - region['start']
+            if(item.lowquality == True or item.unclear == True):
+                if(item.lowquality == True):
+                    low_quality_lengths.append(length)
+                if(item.unclear == True):
+                    unclear_lengths.append(length)
+            else:
+                lengths.append(length)
+            if(length == 0.5):
+                print(item.filename)
+                outliers.append(str(item.filename))
+    
+    quantity = len(a)
+    mean = statistics.mean(lengths)
+    standard_deviation = statistics.stdev(lengths)
+    unclear_quantity = len(unclear_lengths)
+    unclear_mean = statistics.mean(unclear_lengths)
+    unclear_standard_deviation = statistics.stdev(unclear_lengths)
+    low_quality_quantity = len(low_quality_lengths)
+    low_quality_mean = statistics.mean(low_quality_lengths)
+    low_quality_standard_deviation = statistics.stdev(low_quality_lengths)
+    minimum = min(lengths)
+    maximum = max(lengths)
+    median = statistics.median(lengths)
+    first_quartile = np.percentile(lengths, 25)
+    third_quartile = np.percentile(lengths, 75)
+    skewness = stats.skew(lengths)
+    kurtosis = stats.kurtosis(lengths)
+    
+    p_value = stats.shapiro(lengths)[1]
+    if p_value > 0.05:
+        distribution = "Normal"
+    else:
+        distribution = "Not Normal"
+    
+    status = {
+        "Quantity": quantity,
+        "Mean": mean,
+        "Standard_Deviation": standard_deviation,
+        "Minimum": minimum,
+        "Maximum": maximum,
+        "Median": median,
+        "First_Quartile": first_quartile,
+        "Third_Quartile": third_quartile,
+        "Skewness": skewness,
+        "Kurtosis": kurtosis,
+        "Distribution": distribution,
+        "Outliers_for_Followup": outliers,
+        "Lengths": lengths,
+        "Unclear_Quantity": unclear_quantity,
+        "Unclear_Mean": unclear_mean,
+        "Unclear_Standard_Deviation": unclear_standard_deviation,
+        "Low_Quality_Quantity": low_quality_quantity,
+        "Low_Quality_Mean": low_quality_mean,
+        "Low_Quality_Standard_Deviation": low_quality_standard_deviation
+    }
+
+    return status
 
 def combine_overlapping_times(entries):
     # Sort the list by the 'start' key

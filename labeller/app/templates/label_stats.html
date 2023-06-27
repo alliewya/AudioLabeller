@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Cough Length Statistics</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+  <div class="container mt-4">
+    <h1>Cough Length Statistics</h1>
+    <hr>
+
+    <h2>General Statistics</h2>
+    <table class="table table-bordered">
+      <tbody>
+        <tr>
+          <th>Quantity</th>
+          <td>{{ status.Quantity }}</td>
+        </tr>
+        <tr>
+          <th>Mean</th>
+          <td>{{ status.Mean }}</td>
+        </tr>
+        <tr>
+          <th>Standard Deviation</th>
+          <td>{{ status.Standard_Deviation }}</td>
+        </tr>
+        <tr>
+          <th>Minimum</th>
+          <td>{{ status.Minimum }}</td>
+        </tr>
+        <tr>
+          <th>Maximum</th>
+          <td>{{ status.Maximum }}</td>
+        </tr>
+        <tr>
+          <th>Median</th>
+          <td>{{ status.Median }}</td>
+        </tr>
+        <tr>
+          <th>First Quartile</th>
+          <td>{{ status.First_Quartile }}</td>
+        </tr>
+        <tr>
+          <th>Third Quartile</th>
+          <td>{{ status.Third_Quartile }}</td>
+        </tr>
+        <tr>
+          <th>Skewness</th>
+          <td>{{ status.Skewness }}</td>
+        </tr>
+        <tr>
+          <th>Kurtosis</th>
+          <td>{{ status.Kurtosis }}</td>
+        </tr>
+        <tr>
+          <th>Distribution</th>
+          <td>{{ status.Distribution }}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Unclear Instances Statistics</h2>
+    <table class="table table-bordered">
+      <tbody>
+        <tr>
+          <th>Quantity</th>
+          <td>{{ status.Unclear_Quantity }}</td>
+        </tr>
+        <tr>
+          <th>Mean</th>
+          <td>{{ status.Unclear_Mean }}</td>
+        </tr>
+        <tr>
+          <th>Standard Deviation</th>
+          <td>{{ status.Unclear_Standard_Deviation }}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Low Quality Instances Statistics</h2>
+    <table class="table table-bordered">
+      <tbody>
+        <tr>
+          <th>Quantity</th>
+          <td>{{ status.Low_Quality_Quantity }}</td>
+        </tr>
+        <tr>
+          <th>Mean</th>
+          <td>{{ status.Low_Quality_Mean }}</td>
+        </tr>
+        <tr>
+          <th>Standard Deviation</th>
+          <td>{{ status.Low_Quality_Standard_Deviation }}</td>
+        </tr>
+      </tbody>
+    </table>
+  
+
+  <h2>Outliers for Follow-up</h2>
+  <table class="table table-bordered">
+    <tbody>
+      {% for outlier in status.Outliers_for_Followup %}
+      <tr>
+        <td>
+          <a href="/app/singlewave/{{ outlier|slice:"-4" }}/1">{{ outlier }}</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Lengths and Status JSON</h2>
+  <div id="lengthsAccordion">
+    <div class="card">
+      <div class="card-header" id="lengthsHeading">
+        <h5 class="mb-0">
+          <button class="btn btn-link" data-toggle="collapse" data-target="#lengthsCollapse" aria-expanded="true" aria-controls="lengthsCollapse">
+            Show Lengths and Status JSON
+          </button>
+        </h5>
+      </div>
+
+      <div id="lengthsCollapse" class="collapse" aria-labelledby="lengthsHeading" data-parent="#lengthsAccordion">
+        <div class="card-body">
+          <h4>Lengths</h4>
+          <ul>
+            {% for length in status.Lengths %}
+              <li>{{ length }}</li>
+            {% endfor %}
+          </ul>
+
+          <h4>Status JSON</h4>
+          <pre>{{ status|json_script }}</pre>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+        <div class="card-header" id="lengthscsvHeading">
+          <h5 class="mb-0">
+            <button class="btn btn-link" data-toggle="collapse" data-target="#lengthscsvCollapse" aria-expanded="false" aria-controls="lengthsCollapse">
+              Lengths CSV
+            </button>
+          </h5>
+        </div>
+  
+        <div id="lengthscsvCollapse" class="collapse" aria-labelledby="lengthscsvHeading" data-parent="#lengthsAccordion">
+          <div class="card-body">
+            <h4>Lengths CSV</h4>
+            <div>
+              {% for length in status.Lengths %}
+                {{ length }},
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    <div class="card">
+        <div class="card-header" id="statusHeading">
+          <h5 class="mb-0">
+            <button class="btn btn-link" data-toggle="collapse" data-target="#statusCollapse" aria-expanded="false" aria-controls="lengthsCollapse">
+              Status
+            </button>
+          </h5>
+        </div>
+  
+        <div id="statusCollapse" class="collapse" aria-labelledby="statusHeading" data-parent="#lengthsAccordion">
+          <div class="card-body">
+            <h4>Status JSON</h4>
+            <pre style="white-space: pre-wrap;">{{ status }}</pre>
+          </div>
+        </div>
+      </div>
+  </div>
+
+  <div class="spacer m-3"></div>
+
+</div>
+
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

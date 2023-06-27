@@ -106,6 +106,16 @@
           </div>
         </div>
       </div>
+
+
+      <div class="row">
+        <div class="row mt-3">
+      <button onclick="processRegions()">Process Regions</button>
+        </div>
+      </div>
+
+
+
       {% endwith %} {% endfor %}
       {% else %}
       <div>No files found</div>
@@ -541,6 +551,36 @@
       integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4"
       crossorigin="anonymous"
     ></script>
+
+
+    <script>// Get the contents of the <p> element
+      function processRegions() {
+        var regionsText = document.getElementById("regions-text1").textContent;
+        var regions = JSON.parse(regionsText);
+        //var processedRegions = document.getElementById("processed-regions");
+        var processedRegions = document.getElementById("regions-text1");
+      
+        processedRegions.innerHTML = ""; // Clear the previous content
+      
+      // Sort regions by start time in ascending order
+      regions.sort(function(a, b) {
+        return a.start - b.start;
+      });
+
+      regions.forEach(function(region) {
+        var length = region.end - region.start;
+        var listItem = document.createElement("li");
+        listItem.textContent = "Start: " + region.start.toFixed(2) + " | Length: " + length.toFixed(2);
+
+        if (length === 0.5) {
+          listItem.style.color = "red";
+        }
+
+        processedRegions.appendChild(listItem);
+      });
+    }</script>
+
+
   </body>
 {% else %}
 <body>
