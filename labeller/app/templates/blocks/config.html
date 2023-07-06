@@ -10,8 +10,10 @@
       <h1>Configure Model</h1>
     </div>
   </div>
-  <div class="row mb-3 mt-2">
-    <div class="row mb-3 mt-2" id="dataset-row">
+  <div class="row mb-3 mt-2" id="outer-container">
+
+    <!-- Dataset -->
+    <div class="row mb-3 mt-2 configrow" id="dataset-row">
       <div class="col">
         <h2>Dataset</h2>
         <div>
@@ -210,8 +212,8 @@
       </div>
     </div>
     <!-- Preprocessing -->
-    <div class="row mb-3 mt-2">
-      <div class="row mb-3 mt-2" id="preprocessing-row">
+    <div class="row mb-3 mt-2 ">
+      <div class="row mb-3 mt-2 configrow" id="preprocessing-row">
         <div class="col">
           <h2>Pre-Processing</h2>
           <ul class="nav nav-tabs" id="myTab" role="tablist">
@@ -410,7 +412,7 @@
     </div>
 
     <!-- Features  -->
-    <div class="row mb-3 mt-2" id="features-row">
+    <div class="row mb-3 mt-2 configrow" id="features-row">
       <div class="col">
         <h2>Features</h2>
         <ul class="nav nav-tabs" id="featuresTabs" role="tablist">
@@ -484,7 +486,34 @@
               Spectral Features
             </button>
           </li>
-         
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="chroma-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#chroma-stft-tab-pane"
+              type="button"
+              role="tab"
+              aria-controls="chroma-stft-tab-pane"
+              aria-selected="false"
+            >
+              Chroma Features
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="zcr-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#zero-crossing-rate-tab-pane"
+              type="button"
+              role="tab"
+              aria-controls="zero-crossing-rate-tab-pane"
+              aria-selected="false"
+            >
+              Zero Crossing Rate
+            </button>
+          </li>
         </ul>
         <div class="tab-content" id="featureTabContent">
           <div
@@ -974,7 +1003,7 @@
               </div>
             </div>
           </div>
-          
+
           <!--Spectral Sub Tabs-->
           <div
             class="tab-pane fade"
@@ -986,27 +1015,75 @@
             <div class="container mt-2 mb-2">
               <div class="row">
                 <div class="col-3">
-                  <div class="nav flex-column nav-pills" id="v-pills-tab" role="tablist" aria-orientation="vertical">
-                    <button class="nav-link active" id="spec-centroid-tab" data-bs-toggle="pill" data-bs-target="#spec-centroid-tab-pane" type="button" role="tab" aria-controls="spec-centroid-tab-pane" aria-selected="true">
+                  <div
+                    class="nav flex-column nav-pills"
+                    id="v-pills-tab"
+                    role="tablist"
+                    aria-orientation="vertical"
+                  >
+                    <button
+                      class="nav-link active"
+                      id="spec-centroid-tab"
+                      data-bs-toggle="pill"
+                      data-bs-target="#spec-centroid-tab-pane"
+                      type="button"
+                      role="tab"
+                      aria-controls="spec-centroid-tab-pane"
+                      aria-selected="true"
+                    >
                       Spectral Centroid
                     </button>
-                    <button class="nav-link" id="spectral-bandwidth-tab" data-bs-toggle="pill" data-bs-target="#spectral-bandwidth-tab-pane" type="button" role="tab" aria-controls="spectral-bandwidth-tab-pane" aria-selected="false">
+                    <button
+                      class="nav-link"
+                      id="spectral-bandwidth-tab"
+                      data-bs-toggle="pill"
+                      data-bs-target="#spectral-bandwidth-tab-pane"
+                      type="button"
+                      role="tab"
+                      aria-controls="spectral-bandwidth-tab-pane"
+                      aria-selected="false"
+                    >
                       Spectral Bandwidth
                     </button>
-                    <button class="nav-link" id="spectral-contrast-tab" data-bs-toggle="pill" data-bs-target="#spectral-contrast-tab-pane" type="button" role="tab" aria-controls="spectral-contrast-tab-pane" aria-selected="false">
+                    <button
+                      class="nav-link"
+                      id="spectral-contrast-tab"
+                      data-bs-toggle="pill"
+                      data-bs-target="#spectral-contrast-tab-pane"
+                      type="button"
+                      role="tab"
+                      aria-controls="spectral-contrast-tab-pane"
+                      aria-selected="false"
+                    >
                       Spectral Contrast
                     </button>
-                    <button class="nav-link" id="spectral-rolloff-tab" data-bs-toggle="pill" data-bs-target="#spectral-rolloff-tab-pane" type="button" role="tab" aria-controls="spectral-rolloff-tab-pane" aria-selected="false">
+                    <button
+                      class="nav-link"
+                      id="spectral-rolloff-tab"
+                      data-bs-toggle="pill"
+                      data-bs-target="#spectral-rolloff-tab-pane"
+                      type="button"
+                      role="tab"
+                      aria-controls="spectral-rolloff-tab-pane"
+                      aria-selected="false"
+                    >
                       Spectral Rolloff
                     </button>
                   </div>
                 </div>
                 <div class="col-9">
                   <div class="tab-content" id="v-pills-tabContent">
-                    <div class="tab-pane fade show active" id="spec-centroid-tab-pane" role="tabpanel" aria-labelledby="spec-centroid-tab">
+                    <div
+                      class="tab-pane fade show active"
+                      id="spec-centroid-tab-pane"
+                      role="tabpanel"
+                      aria-labelledby="spec-centroid-tab"
+                    >
                       <div class="container mt-2 mb-2">
                         <div class="row">
-                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                          <label
+                            for="colFormLabel"
+                            class="col-sm-3 col-form-label"
                             >Enable Spectral Centroid</label
                           >
                           <div class="col-sm-9">
@@ -1059,10 +1136,17 @@
                         </div>
                       </div>
                     </div>
-                    <div class="tab-pane fade" id="spectral-bandwidth-tab-pane" role="tabpanel" aria-labelledby="spectral-bandwidth-tab">
+                    <div
+                      class="tab-pane fade"
+                      id="spectral-bandwidth-tab-pane"
+                      role="tabpanel"
+                      aria-labelledby="spectral-bandwidth-tab"
+                    >
                       <div class="container mt-2 mb-2">
                         <div class="row">
-                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                          <label
+                            for="colFormLabel"
+                            class="col-sm-3 col-form-label"
                             >Enable Spectral Bandwidth</label
                           >
                           <div class="col-sm-9">
@@ -1076,7 +1160,9 @@
                           </div>
                         </div>
                         <div class="row">
-                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                          <label
+                            for="colFormLabel"
+                            class="col-sm-3 col-form-label"
                             >Number of FFT</label
                           >
                           <div class="col-sm-9">
@@ -1090,7 +1176,9 @@
                           </div>
                         </div>
                         <div class="row">
-                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                          <label
+                            for="colFormLabel"
+                            class="col-sm-3 col-form-label"
                             >Hop Length</label
                           >
                           <div class="col-sm-9">
@@ -1104,7 +1192,9 @@
                           </div>
                         </div>
                         <div class="row">
-                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                          <label
+                            for="colFormLabel"
+                            class="col-sm-3 col-form-label"
                             >Window</label
                           >
                           <div class="col-sm-9">
@@ -1122,7 +1212,9 @@
                           </div>
                         </div>
                         <div class="row">
-                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                          <label
+                            for="colFormLabel"
+                            class="col-sm-3 col-form-label"
                             >Center</label
                           >
                           <div class="col-sm-9">
@@ -1137,7 +1229,9 @@
                           </div>
                         </div>
                         <div class="row">
-                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                          <label
+                            for="colFormLabel"
+                            class="col-sm-3 col-form-label"
                             >Power</label
                           >
                           <div class="col-sm-9">
@@ -1154,10 +1248,17 @@
                         </div>
                       </div>
                     </div>
-                    <div class="tab-pane fade" id="spectral-contrast-tab-pane" role="tabpanel" aria-labelledby="spectral-contrast-tab">
+                    <div
+                      class="tab-pane fade"
+                      id="spectral-contrast-tab-pane"
+                      role="tabpanel"
+                      aria-labelledby="spectral-contrast-tab"
+                    >
                       <div class="container mt-2 mb-2">
                         <div class="row">
-                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                          <label
+                            for="colFormLabel"
+                            class="col-sm-3 col-form-label"
                             >Enable Spectral Contrast</label
                           >
                           <div class="col-sm-9">
@@ -1171,7 +1272,9 @@
                           </div>
                         </div>
                         <div class="row">
-                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                          <label
+                            for="colFormLabel"
+                            class="col-sm-3 col-form-label"
                             >Number of FFT</label
                           >
                           <div class="col-sm-9">
@@ -1185,7 +1288,9 @@
                           </div>
                         </div>
                         <div class="row">
-                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                          <label
+                            for="colFormLabel"
+                            class="col-sm-3 col-form-label"
                             >Hop Length</label
                           >
                           <div class="col-sm-9">
@@ -1199,7 +1304,9 @@
                           </div>
                         </div>
                         <div class="row">
-                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                          <label
+                            for="colFormLabel"
+                            class="col-sm-3 col-form-label"
                             >Window</label
                           >
                           <div class="col-sm-9">
@@ -1217,7 +1324,9 @@
                           </div>
                         </div>
                         <div class="row">
-                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                          <label
+                            for="colFormLabel"
+                            class="col-sm-3 col-form-label"
                             >Center</label
                           >
                           <div class="col-sm-9">
@@ -1232,7 +1341,9 @@
                           </div>
                         </div>
                         <div class="row">
-                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                          <label
+                            for="colFormLabel"
+                            class="col-sm-3 col-form-label"
                             >Number of Bands</label
                           >
                           <div class="col-sm-9">
@@ -1247,10 +1358,18 @@
                         </div>
                       </div>
                     </div>
-                    <div class="tab-pane fade" id="spectral-rolloff-tab-pane" role="tabpanel" aria-labelledby="spectral-rolloff-tab" tabindex="0">
+                    <div
+                      class="tab-pane fade"
+                      id="spectral-rolloff-tab-pane"
+                      role="tabpanel"
+                      aria-labelledby="spectral-rolloff-tab"
+                      tabindex="0"
+                    >
                       <div class="container mt-2 mb-2">
                         <div class="row">
-                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                          <label
+                            for="colFormLabel"
+                            class="col-sm-3 col-form-label"
                             >Enable Spectral Rolloff</label
                           >
                           <div class="col-sm-9">
@@ -1264,7 +1383,9 @@
                           </div>
                         </div>
                         <div class="row">
-                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                          <label
+                            for="colFormLabel"
+                            class="col-sm-3 col-form-label"
                             >Number of FFT</label
                           >
                           <div class="col-sm-9">
@@ -1278,7 +1399,9 @@
                           </div>
                         </div>
                         <div class="row">
-                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                          <label
+                            for="colFormLabel"
+                            class="col-sm-3 col-form-label"
                             >Hop Length</label
                           >
                           <div class="col-sm-9">
@@ -1292,7 +1415,9 @@
                           </div>
                         </div>
                         <div class="row">
-                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                          <label
+                            for="colFormLabel"
+                            class="col-sm-3 col-form-label"
                             >Window</label
                           >
                           <div class="col-sm-9">
@@ -1310,7 +1435,9 @@
                           </div>
                         </div>
                         <div class="row">
-                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                          <label
+                            for="colFormLabel"
+                            class="col-sm-3 col-form-label"
                             >Center</label
                           >
                           <div class="col-sm-9">
@@ -1325,7 +1452,9 @@
                           </div>
                         </div>
                         <div class="row">
-                          <label for="colFormLabel" class="col-sm-3 col-form-label"
+                          <label
+                            for="colFormLabel"
+                            class="col-sm-3 col-form-label"
                             >Percent</label
                           >
                           <div class="col-sm-9">
@@ -1347,21 +1476,177 @@
           </div>
           <!--End Spectral Sub Tab-->
 
+          <div
+            class="tab-pane fade"
+            id="chroma-stft-tab-pane"
+            role="tabpanel"
+            aria-labelledby="chroma-stft-tab"
+            tabindex="0"
+          >
+            <div class="container mt-2 mb-2">
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Enable Chroma STFT</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="chroma_stft_enable"
+                    id="chroma_stft_enable"
+                    aria-describedby="chroma_stft_enable"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Number of Chroma bins</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="chroma_stft_n_chroma"
+                    aria-describedby="chroma_stft_n_chroma"
+                    value="12"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Normalization</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="chroma_stft_norm"
+                    aria-describedby="chroma_stft_norm"
+                    value="None"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Window size</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="chroma_stft_window"
+                    aria-describedby="chroma_stft_window"
+                    value="2048"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Hop length</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="chroma_stft_hop_length"
+                    aria-describedby="chroma_stft_hop_length"
+                    value="512"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >A tuning reference</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="chroma_stft_a_ref"
+                    aria-describedby="chroma_stft_a_ref"
+                    value="440.0"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
 
+          <div
+            class="tab-pane fade"
+            id="zero-crossing-rate-tab-pane"
+            role="tabpanel"
+            aria-labelledby="zero-crossing-rate-tab"
+            tabindex="0"
+          >
+            <div class="container mt-2 mb-2">
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Enable Zero Crossing Rate</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    aria-label="zcr_enable"
+                    id="zcr_enable"
+                    aria-describedby="zcr_enable"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Frame length</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="zcr_frame_length"
+                    aria-describedby="zcr_frame_length"
+                    value="2048"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Hop length</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="zcr_hop_length"
+                    aria-describedby="zcr_hop_length"
+                    value="512"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <label for="colFormLabel" class="col-sm-3 col-form-label"
+                  >Center</label
+                >
+                <div class="col-sm-9">
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="zcr_center"
+                    aria-describedby="zcr_center"
+                    value="True"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
 
+          <div
+            class="tab-pane fade"
+            id="spectral-contrast-tab-pane"
+            role="tabpanel"
+            aria-labelledby="spectral-contrast-tab"
+            tabindex="0"
+          ></div>
 
-        <div
-          class="tab-pane fade"
-          id="spectral-contrast-tab-pane"
-          role="tabpanel"
-          aria-labelledby="spectral-contrast-tab"
-          tabindex="0"
-        >
-
-        </div>
-
-
-        <!---->
+          <!---->
         </div>
 
         <div
@@ -1386,7 +1671,7 @@
     </div>
 
     <!--Feature preprocessing-->
-    <div class="row mb-3 mt-2" id="featurepreprocessing-row">
+    <div class="row mb-3 mt-2 configrow" id="featurepreprocessing-row">
       <div class="col">
         <h2>Feature Preprocessing</h2>
         <!-- Tabs  -->
@@ -1407,7 +1692,7 @@
           </li>
           <li class="nav-item" role="presentation">
             <button
-              class="nav-link active"
+              class="nav-link"
               id="min-max-tab-pane-tab"
               data-bs-toggle="tab"
               data-bs-target="#min-max-tab-pane"
@@ -1419,13 +1704,18 @@
               Min Max Scaling
             </button>
           </li>
-
         </ul>
 
         <!-- Tab content  -->
 
         <div class="tab-content" id="featurepreprocessingTabContent">
-          <div class="tab-pane fade show active" id="pca-tab-pane" role="tabpanel" aria-labelledby="pca-tab" tabindex="0">
+          <div
+            class="tab-pane fade show active"
+            id="pca-tab-pane"
+            role="tabpanel"
+            aria-labelledby="pca-tab"
+            tabindex="0"
+          >
             <div class="container mt-2 mb-2">
               <div class="row">
                 <label for="colFormLabel" class="col-sm-3 col-form-label"
@@ -1461,7 +1751,13 @@
               </div>
             </div>
           </div>
-          <div class="tab-pane fade" id="min-max-tab-pane" role="tabpanel" aria-labelledby="min-max-tab" tabindex="0">
+          <div
+            class="tab-pane fade"
+            id="min-max-tab-pane"
+            role="tabpanel"
+            aria-labelledby="min-max-tab"
+            tabindex="0"
+          >
             <div class="container mt-2 mb-2">
               <div class="row">
                 <label for="colFormLabel" class="col-sm-3 col-form-label"
@@ -1503,7 +1799,7 @@
     <!--End Feat Preprocessing-->
 
     <!-- Classifier -->
-    <div class="row mb-3 mt-2" id="classifier-row">
+    <div class="row mb-3 mt-2 configrow" id="classifier-row">
       <div class="col">
         <h2>Classifier</h2>
         <ul class="nav nav-tabs" id="myTab" role="tablist">
@@ -2678,10 +2974,8 @@
     </div>
     <!-- End Classifier-->
 
-
-    
     <!-- Evaluation -->
-    <div class="row mb-3 mt-2" id="evaluation-row">
+    <div class="row mb-3 mt-2 configrow" id="evaluation-row">
       <div class="col">
         <h2>Evaluation</h2>
         <!-- Tabs  -->
@@ -2694,7 +2988,7 @@
               data-bs-target="#testtrain-tab-pane"
               type="button"
               role="tab"
-              aria-controls="knn-tab-pane"
+              aria-controls="testtrain-tab-pane"
               aria-selected="true"
             >
               Enable Train Test Split
@@ -3057,8 +3351,12 @@
     config.features.spectral_bandwidth = {};
     config.features.spectral_contrast = {};
     config.features.spectral_rolloff = {};
+    config.features.chromaSTFT = {};
+    config.features.zeroCrossingRate = {};
 
+    config.featurepreprocessing = {};
     config.featurepreprocessing.pca = {};
+    config.featurepreprocessing.minmax_scaler = {};
 
     config.classifier = {};
     config.classifier.knn = {};
@@ -3140,8 +3438,9 @@
       document.querySelector("#mel_spec_enable").checked;
     config.features.mel_spec.mel_spec_n_fft =
       document.querySelector("#mel_spec_n_fft").value;
-    config.features.mel_spec.mel_spec_hop_length = 
-      document.querySelector("#mel_spec_hop_length").value;
+    config.features.mel_spec.mel_spec_hop_length = document.querySelector(
+      "#mel_spec_hop_length"
+    ).value;
     config.features.mel_spec.mel_spec_window =
       document.querySelector("#mel_spec_window").value;
     config.features.mel_spec.mel_spec_center =
@@ -3168,65 +3467,113 @@
       document.querySelector("#wav_scat_q").value;
 
     // Spectral Centroid
-    config.features.spectral_centroid.enable = 
-      document.querySelector("#spectral_centroid_enable").checked;
-    config.features.spectral_centroid.n_fft =
-      document.querySelector("#spectral_centroid_n_fft").value;
-    config.features.spectral_centroid.hop_length = 
-      document.querySelector("#spectral_centroid_hop_length").value;
+    config.features.spectral_centroid.enable = document.querySelector(
+      "#spectral_centroid_enable"
+    ).checked;
+    config.features.spectral_centroid.n_fft = document.querySelector(
+      "#spectral_centroid_n_fft"
+    ).value;
+    config.features.spectral_centroid.hop_length = document.querySelector(
+      "#spectral_centroid_hop_length"
+    ).value;
 
     // Spectral Bandwidth tab values
-    config.features.spectral_bandwidth.enable =
-      document.querySelector("#spectral_bandwidth_enable").checked;
-    config.features.spectral_bandwidth.n_fft =
-      document.querySelector("#spectral_bandwidth_n_fft").value;
-    config.features.spectral_bandwidth.hop_length =
-      document.querySelector("#spectral_bandwidth_hop_length").value;
-    config.features.spectral_bandwidth.window =
-      document.querySelector("#spectral_bandwidth_window").value;
-    config.features.spectral_bandwidth.center =
-      document.querySelector("#spectral_bandwidth_center").checked;
-    config.features.spectral_bandwidth.power =
-      document.querySelector("#spectral_bandwidth_power").value;
-
+    config.features.spectral_bandwidth.enable = document.querySelector(
+      "#spectral_bandwidth_enable"
+    ).checked;
+    config.features.spectral_bandwidth.n_fft = document.querySelector(
+      "#spectral_bandwidth_n_fft"
+    ).value;
+    config.features.spectral_bandwidth.hop_length = document.querySelector(
+      "#spectral_bandwidth_hop_length"
+    ).value;
+    config.features.spectral_bandwidth.window = document.querySelector(
+      "#spectral_bandwidth_window"
+    ).value;
+    config.features.spectral_bandwidth.center = document.querySelector(
+      "#spectral_bandwidth_center"
+    ).checked;
+    config.features.spectral_bandwidth.power = document.querySelector(
+      "#spectral_bandwidth_power"
+    ).value;
 
     // Spectral Contrast tab values
-    config.features.spectral_contrast.enable =
-      document.querySelector("#spectral_contrast_enable").checked;
-    config.features.spectral_contrast.n_fft =
-      document.querySelector("#spectral_contrast_n_fft").value;
-    config.features.spectral_contrast.hop_length =
-      document.querySelector("#spectral_contrast_hop_length").value;
-    config.features.spectral_contrast.window =
-      document.querySelector("#spectral_contrast_window").value;
-    config.features.spectral_contrast.center =
-      document.querySelector("#spectral_contrast_center").checked;
-    config.features.spectral_contrast.n_bands =
-      document.querySelector("#spectral_contrast_n_bands").value;
+    config.features.spectral_contrast.enable = document.querySelector(
+      "#spectral_contrast_enable"
+    ).checked;
+    config.features.spectral_contrast.n_fft = document.querySelector(
+      "#spectral_contrast_n_fft"
+    ).value;
+    config.features.spectral_contrast.hop_length = document.querySelector(
+      "#spectral_contrast_hop_length"
+    ).value;
+    config.features.spectral_contrast.window = document.querySelector(
+      "#spectral_contrast_window"
+    ).value;
+    config.features.spectral_contrast.center = document.querySelector(
+      "#spectral_contrast_center"
+    ).checked;
+    config.features.spectral_contrast.n_bands = document.querySelector(
+      "#spectral_contrast_n_bands"
+    ).value;
 
     // Spectral Rolloff tab values
-    config.features.spectral_rolloff.enable =
-      document.querySelector("#spectral_rolloff_enable").checked;
-    config.features.spectral_rolloff.n_fft =
-      document.querySelector("#spectral_rolloff_n_fft").value;
-    config.features.spectral_rolloff.hop_length =
-      document.querySelector("#spectral_rolloff_hop_length").value;
-    config.features.spectral_rolloff.window =
-      document.querySelector("#spectral_rolloff_window").value;
-    config.features.spectral_rolloff.center =
-      document.querySelector("#spectral_rolloff_center").checked;
-    config.features.spectral_rolloff.percent =
-      document.querySelector("#spectral_rolloff_percent").value;
+    config.features.spectral_rolloff.enable = document.querySelector(
+      "#spectral_rolloff_enable"
+    ).checked;
+    config.features.spectral_rolloff.n_fft = document.querySelector(
+      "#spectral_rolloff_n_fft"
+    ).value;
+    config.features.spectral_rolloff.hop_length = document.querySelector(
+      "#spectral_rolloff_hop_length"
+    ).value;
+    config.features.spectral_rolloff.window = document.querySelector(
+      "#spectral_rolloff_window"
+    ).value;
+    config.features.spectral_rolloff.center = document.querySelector(
+      "#spectral_rolloff_center"
+    ).checked;
+    config.features.spectral_rolloff.percent = document.querySelector(
+      "#spectral_rolloff_percent"
+    ).value;
 
+    // Chroma STFT tab values
+    config.features.chromaSTFT.enable = document.querySelector(
+      "#chroma_stft_enable"
+    ).checked;
+    config.features.chromaSTFT.n_chroma = document.querySelector(
+      "#chroma_stft_n_chroma"
+    ).value;
+    config.features.chromaSTFT.norm =
+      document.querySelector("#chroma_stft_norm").value;
+    config.features.chromaSTFT.window = document.querySelector(
+      "#chroma_stft_window"
+    ).value;
+    config.features.chromaSTFT.hop_length = document.querySelector(
+      "#chroma_stft_hop_length"
+    ).value;
+    config.features.chromaSTFT.tuning =
+      document.querySelector("#chroma_stft_a_ref").value;
 
-    
+    // Zero Crossing Rate tab values
+    config.features.zeroCrossingRate.enable =
+      document.querySelector("#zcr_enable").checked;
+    config.features.zeroCrossingRate.frameLength =
+      document.querySelector("#zcr_frame_length").value;
+    config.features.zeroCrossingRate.hopLength =
+      document.querySelector("#zcr_hop_length").value;
+    config.features.zeroCrossingRate.center =
+      document.querySelector("#zcr_center").value;
+
     // Feature Preprocessing
+    // PCA
     config.featurepreprocessing.pca.enable =
       document.querySelector("#pca_enable").checked;
     config.featurepreprocessing.pca.n_components =
       document.querySelector("#pca_n_components").value;
-
-
+    // Min Max Scalers
+    config.featurepreprocessing.minmax_scaler.enable =
+      document.querySelector("#min_max_enable").checked;
 
     //Classifier
 
@@ -3459,6 +3806,86 @@
   $(function () {
     $('[data-toggle="tooltip"]').tooltip();
   });
+</script>
+
+<script>
+  function extractFormData() {
+    const featuresData = {};
+    const rows = document.getElementsByClassName('row mb-3 mt-2 configrow');
+  
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowId = row.id;
+      const name = rowId.split('-')[0];
+  
+      const featureTabs = row.querySelectorAll('.nav-link');
+      const featureData = {};
+  
+      featureTabs.forEach((tab) => {
+        var featureId = tab.getAttribute('aria-controls');
+        const featureLabel = tab.textContent.trim();
+        const isActive = tab.classList.contains('active');
+  
+        const featureParams = {};
+        const featurePane = document.getElementById(featureId);
+        const paramRows = featurePane.querySelectorAll('.row');
+
+        featureId = featureId.replace('-tab-pane', '');
+  
+        paramRows.forEach((paramRow) => {
+          const input = paramRow.querySelector('input, select');
+          if (!input) return;
+  
+          const paramName = input.id;
+          const paramLabel = paramRow.querySelector('label').textContent.trim();
+          let paramType;
+          let defaultValue;
+  
+          if (input.tagName.toLowerCase() === 'select') {
+            paramType = 'select';
+            defaultValue = input.value;
+          } else if (input.type === 'checkbox') {
+            paramType = 'checkbox';
+            defaultValue = input.checked;
+          } else {
+            paramType = 'input';
+            defaultValue = input.value;
+          }
+  
+          const paramData = {
+            label: paramLabel,
+            type: paramType,
+            default: defaultValue,
+          };
+  
+          if (paramType === 'select') {
+            const options = {};
+            const selectOptions = input.querySelectorAll('option');
+            selectOptions.forEach((option) => {
+              options[option.value] = option.textContent.trim();
+            });
+            paramData.options = options;
+          }
+  
+          featureParams[paramName] = paramData;
+        });
+  
+        featureData[featureId] = {
+          label: featureLabel,
+          active: isActive,
+          params: featureParams,
+        };
+      });
+  
+      featuresData[name] = featureData;
+    }
+  
+    return featuresData;
+  }
+  
+  const formData = extractFormData();
+  console.log(JSON.stringify(formData, null, 2));
+  
 </script>
 
 {% endblock %}

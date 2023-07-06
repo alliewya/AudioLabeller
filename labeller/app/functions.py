@@ -9,27 +9,38 @@ from app import factory
 import statistics
 from scipy import stats
 import numpy as np
+import multiprocessing
+from multiprocessing import Pool
+import pickle
 
-def returnPredictions(classifier, filename):
+
+def returnPredictions(classifier, filename, framelen=0.2):
 
     regions = []
     filepath = os.path.join("app", "static", "audiofiles",filename)
+    filepath = os.path.join("app", "static", "examples",filename)
     audio, sr = librosa.load(filepath,sr=22050)
-    framelength = sr // 2
-    hop_lenght = sr // 12
+    #framelength = sr // 5
+    framelength = int(sr * 0.3)
+    framelength = 7350
+    #framelength = int(sr * framelen)
+    hop_length = sr // 25
 
     # Pad up to nearest second
     audioduration = librosa.get_duration(y=audio, sr=sr)
     roundedduration = math.ceil(audioduration)
     paddedaudio = librosa.util.fix_length(audio, size = roundedduration * sr)
 
+    paddedaudio = librosa.util.normalize(S = paddedaudio)
+
     # Create frames
     frames = librosa.util.frame(
-        paddedaudio, frame_length=framelength, hop_length=hop_lenght, axis=0)
+        paddedaudio, frame_length=framelength, hop_length=hop_length, axis=0)
 
     # flag for merging overlapping frames
     prevframedetected = False
 
+    predictions = []
     # Predict each frame label
     for i, frame in enumerate(frames):
 
@@ -48,10 +59,11 @@ def returnPredictions(classifier, filename):
         
         
         prediction = classifier.make_prediction(frame)
-
-        if(prediction[0] == '0'):
+        predictions.append(prediction[0])
+        #predictions.append[prediction]
+        if(prediction[0] == '1'):
             
-            starttime = i * hop_lenght / sr
+            starttime = i * hop_length / sr
             endtime = starttime + (framelength / sr)
             if(prevframedetected == True):
                 regions[-1]["end"] = endtime
@@ -65,6 +77,7 @@ def returnPredictions(classifier, filename):
         # print(frame.shape)
         
     regions2 = []
+    regions2 = regions
 
     #remove silent areas
     # intervals = librosa.effects.split(paddedaudio)
@@ -73,26 +86,28 @@ def returnPredictions(classifier, filename):
     #     print(librosa.samples_to_time(i[0]))
     #     print(librosa.samples_to_time(i[1]))
     
-    try:
-        regions = combine_overlapping_times(regions)
-    except:
-        print(len(regions))
+    ###################
+    # try:
+    #     regions = combine_overlapping_times(regions)
+    # except:
+    #     print(len(regions))
 
-    for r2 in regions:
-        a = librosa.time_to_samples(r2['start'])
-        b = librosa.time_to_samples(r2['end'])
-        intervals = librosa.effects.split(paddedaudio[a:b])
-        #print(intervals)
-        for i in intervals:
-            regions2.append({"start":librosa.samples_to_time(a + i[0]),"end":librosa.samples_to_time(a + i[1])})
+    # for r2 in regions:
+    #     a = librosa.time_to_samples(r2['start'])
+    #     b = librosa.time_to_samples(r2['end'])
+    #     intervals = librosa.effects.split(paddedaudio[a:b])
+    #     #print(intervals)
+    #     for i in intervals:
+    #         regions2.append({"start":librosa.samples_to_time(a + i[0]),"end":librosa.samples_to_time(a + i[1])})
 
-    try:
-        print(type(regions2))
-        print(regions2)
-        regions2 = combine_overlapping_times(regions2)
-    except:
-        print(len(regions2))
-        print("Not r2")
+    # try:
+    #     print(type(regions2))
+    #     print(regions2)
+    #     regions2 = combine_overlapping_times(regions2)
+    # except:
+    #     print(len(regions2))
+    #     print("Not r2")
+    #############################################
     # print(start_index)
     # print(end_index)
     # print(frame.shape)
@@ -110,7 +125,119 @@ def returnPredictions(classifier, filename):
         "filename": filename,
         "regions": regions2
     }
+    #print(predictiondata)
+    #print(predictions)
+    return(predictiondata)
 
+
+def returnPredictionsfromFile(classifier, filepath):
+
+    regions = []
+    #filepath = os.path.join("app", "static", "audiofiles",filename)
+    audio, sr = librosa.load(filepath,sr=22050)
+    #framelength = sr // 5
+    framelength = int(sr * 0.2)
+    hop_length = sr // 100
+
+    # Pad up to nearest second
+    audioduration = librosa.get_duration(y=audio, sr=sr)
+    roundedduration = math.ceil(audioduration)
+    paddedaudio = librosa.util.fix_length(audio, size = roundedduration * sr)
+
+    # Create frames
+    frames = librosa.util.frame(
+        paddedaudio, frame_length=framelength, hop_length=hop_length, axis=0)
+
+    # flag for merging overlapping frames
+    prevframedetected = False
+
+    predictions = []
+    # Predict each frame label
+    for i, frame in enumerate(frames):
+
+        # #old
+        # features = librosa.feature.mfcc(y=frame, sr=sr, n_mfcc=40)
+        # #print(features.shape)
+        # features = features.reshape(-1)
+        # # print(features.shape)
+        # # a = features.reshape(1,-1)
+        # # print(a.shape)
+        # # #print(features.reshape(1,-1))
+        # # print("_------_----_---_-")
+        # prediction = classifier.predict(features.reshape(1, -1))
+        # #print(prediction)
+        
+        
+        
+        prediction = classifier.make_prediction(frame)
+        predictions.append(prediction[0])
+        #predictions.append[prediction]
+        if(prediction[0] == '0'):
+            
+            starttime = i * hop_length / sr
+            endtime = starttime + (framelength / sr)
+            if(prevframedetected == True):
+                regions[-1]["end"] = endtime
+            else:
+                regions.append({"start": starttime, "end": endtime})
+            #regions.append({"start": starttime, "end": endtime})
+            prevframedetected = True
+        else:
+            prevframedetected = False
+        #print(knnmodel.predict(features.reshape(1, -1)))
+        # print(frame.shape)
+        
+    regions2 = []
+    regions2 = regions
+
+    #remove silent areas
+    # intervals = librosa.effects.split(paddedaudio)
+    # print(intervals)
+    # for i in intervals:
+    #     print(librosa.samples_to_time(i[0]))
+    #     print(librosa.samples_to_time(i[1]))
+    
+    ###################
+    # try:
+    #     regions = combine_overlapping_times(regions)
+    # except:
+    #     print(len(regions))
+
+    # for r2 in regions:
+    #     a = librosa.time_to_samples(r2['start'])
+    #     b = librosa.time_to_samples(r2['end'])
+    #     intervals = librosa.effects.split(paddedaudio[a:b])
+    #     #print(intervals)
+    #     for i in intervals:
+    #         regions2.append({"start":librosa.samples_to_time(a + i[0]),"end":librosa.samples_to_time(a + i[1])})
+
+    # try:
+    #     print(type(regions2))
+    #     print(regions2)
+    #     regions2 = combine_overlapping_times(regions2)
+    # except:
+    #     print(len(regions2))
+    #     print("Not r2")
+    #############################################
+    # print(start_index)
+    # print(end_index)
+    # print(frame.shape)
+    #     print(type(start_index))
+    #     for i in intervals:
+    #         print(librosa.samples_to_time(i[0]))
+    #         print(librosa.samples_to_time(i[1]))
+    #         regions2.append(
+    #             {"start":librosa.samples_to_time(i[0]),"end":librosa.samples_to_time(i[1])
+    #             })
+    #print(regions2)
+    #time.sleep(2)
+
+    predictiondata = {
+        "filename": filename,
+        "regions": regions2
+    }
+    #print(predictiondata)
+    #print(predictions)
     return(predictiondata)
 
 
@@ -126,6 +253,7 @@ def generate_dataset_file():
     Returns:
         status (dict): a dictionary containing the number of files and their names
     """
+    dataset_folder = "dataset4"
 
     audio_files = os.listdir(os.path.join("app", "static", "audiofiles"))
     list1 = []
@@ -133,6 +261,8 @@ def generate_dataset_file():
     not_cough = []
     for file in audio_files:
         a = AudioLabels.objects.filter(filename=file, labeluser='1').first()
+        # if( a.unclear == True or a.lowquality == True):
+        #     break
         if a:
             list1.append(file)
             #print(a)
@@ -160,18 +290,18 @@ def generate_dataset_file():
                 
                 #Remove shorter than 0.5 seconds - only for not coughs!
                 #sorted_regions_samples = [region for region in sorted_regions_samples if region["end"] - region["start"] >= 0.5 * sr]
-                sorted_not_cough = [region for region in sorted_not_cough if region["end"] - region["start"] >= 0.5 * sr]
+                sorted_not_cough = [region for region in sorted_not_cough if region["end"] - region["start"] >= 0.2 * sr]
 
                 for i, region in enumerate(sorted_regions_samples):
                     regionaudio = audio[region["start"]:region["end"]]
                     filename = file[:-4]+str(i)+".wav"
-                    path = os.path.join("app", "static", "dataset2", "cough", filename)
+                    path = os.path.join("app", "static", dataset_folder, "cough", filename)
                     sf.write(path, regionaudio, sr, subtype='PCM_16' )
 
                 for i, region in enumerate(sorted_not_cough):
                     regionaudio = audio[region["start"]:region["end"]]
                     filename = file[:-4]+str(i)+".wav"
-                    path = os.path.join("app", "static", "dataset2", "notcough", filename)
+                    path = os.path.join("app", "static", dataset_folder, "notcough", filename)
                     sf.write(path, regionaudio, sr, subtype='PCM_16' )
 
                 cough.append(sorted_regions_samples)
@@ -181,36 +311,41 @@ def generate_dataset_file():
     print(not_cough)
     status = {"Number": len(list1), "Files": list1, }
 
-    cough = factory.Dataset(path1=os.path.join("app", "static", "dataset2", "cough"), load=True, samplerate=22050)
-    cough.set_label("0")
+    cough = factory.Dataset(path1=os.path.join("app", "static", dataset_folder, "cough"), load=True, samplerate=22050)
+    cough.set_label("1")
     print(str(len(cough.samples))+" Cough Samples")
     print(str(len(cough.labels))+" Cough Labels")
-    notcough = factory.Dataset(path1=os.path.join("app", "static", "dataset2", "notcough"),load=True, samplerate=22050)
-    notcough.set_label("1")
+    notcough = factory.Dataset(path1=os.path.join("app", "static",dataset_folder, "notcough"),load=True, samplerate=22050)
+    notcough.set_label("0")
     print(str(len(notcough.samples))+" Not Cough Samples")
     print(str(len(notcough.labels))+" Not Cough Labels")  
 
+    notcoughlength = len(notcough.labels)
+    status["Coughs"] = len(cough.labels)
     combineddataset = cough.combine_dataset(notcough)
-    combineddataset2 = combineddataset
+    #combineddataset2 = combineddataset
 
 
-    # notcoughexternal = factory.Dataset(path1=os.path.join("app", "static", "dataset1", "external"), load=True, samplerate=22050)
-    # notcoughexternal.set_label("1")
-    # print(str(len(notcoughexternal.samples))+"External Not Cough Samples")
-    # print(str(len(notcoughexternal.labels))+"External Not Cough Labels")  
+    notcoughexternal = factory.Dataset(path1=os.path.join("app", "static", dataset_folder, "external"), load=True, samplerate=22050)
+    notcoughexternal.set_label("0")
+    print(str(len(notcoughexternal.samples))+"External Not Cough Samples")
+    print(str(len(notcoughexternal.labels))+"External Not Cough Labels")  
 
+    notcoughlengths = (len(notcoughexternal.labels)) + notcoughlength
+    status["Not Coughs"] = notcoughlengths
 
-
-    # combineddataset2 = combineddataset.combine_dataset(notcoughexternal)
+    combineddataset2 = combineddataset.combine_dataset(notcoughexternal)
     # #combineddataset2 = combineddataset
     combineddataset2.add_labels_to_audiosamps()
 
-    # print(str(len(combineddataset2.samples))+" Combined Samples")
-    # print(str(len(combineddataset2.labels))+" Combined Labels")
+    print(str(len(combineddataset2.samples))+" Combined Samples")
+    print(str(len(combineddataset2.labels))+" Combined Labels")
+
+    combineddataset2.descriptors = status
 
     try:
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        fname = timestamp + "-ds.pickle"
+        fname = timestamp + "expanded-external" + "_C" + str(status["Coughs"]) +"_N" + str(status["Not Coughs"]) + "-ds.pickle"
         with open(os.path.join("app", "static", "datasetpickles", fname ), "wb") as f:
             pickle.dump(combineddataset2, f)
         print("Pickled")
@@ -250,9 +385,10 @@ def cough_length_statistics():
     outliers = []
     a = AudioLabels.objects.filter(labeluser='1')
     #a = a[:100]
+    total_coughs = 0
     for item in a:
         regions = json.loads(item.labelregions)
-
+        total_coughs = total_coughs + len(regions)
         for region in regions:
             length = region['end'] - region['start']
             if(item.lowquality == True or item.unclear == True):
@@ -262,11 +398,14 @@ def cough_length_statistics():
                     unclear_lengths.append(length)
             else:
                 lengths.append(length)
-            if(length == 0.5):
-                print(item.filename)
+        #    if(length % 0.25 == 0):
+                #If length is exactly 0.5 - not human generated label, 0.15s is .5 percentile, 0.9s is 99.5 percentile
+        #    outliers.append(str(item.filename))
+            if(length == 0.5 or length == 0.15 or length > 0.9):
+            #     #If length is exactly 0.5 - not human generated label, 0.15s is .5 percentile, 0.9s is 99.5 percentile
                 outliers.append(str(item.filename))
     
-    quantity = len(a)
+    quantity = total_coughs
     mean = statistics.mean(lengths)
     standard_deviation = statistics.stdev(lengths)
     unclear_quantity = len(unclear_lengths)
@@ -310,8 +449,43 @@ def cough_length_statistics():
         "Low_Quality_Mean": low_quality_mean,
         "Low_Quality_Standard_Deviation": low_quality_standard_deviation
     }
-
     return status
+
+
+def user_label_differences(userid1,userid2):
+    """
+    Calculates the difference in marking between two users
+
+    """
+    
+    a = AudioLabels.objects.filter(labeluser=userid1)
+
+    differenceslist = []
+    matchcount = 0
+
+    for item in a:
+        b = AudioLabels.objects.filter(labeluser=userid2,filename =item.filename).first()
+        if(b):
+            matchcount = matchcount + 1
+            regionsa = json.loads(item.labelregions)
+            coughsa = len(regionsa)
+            regionsb =json.loads(b.labelregions)
+            coughsb = len(regionsb)
+            if(coughsa != coughsb):
+                c = {"fname":item.filename, "UserA": coughsa, "UserB": coughsb, "Differences": (coughsa - coughsb)}
+                differenceslist.append(c)
+        
+    total_differences = len(differenceslist)
+    percent = (total_differences / matchcount) * 100
+
+    
+    status = {
+        "Both_Labelled": matchcount,
+        "Difference": total_differences,
+        "Difference_list": differenceslist,
+    }
+    return status
+
 
 def combine_overlapping_times(entries):
     # Sort the list by the 'start' key
@@ -334,3 +508,16 @@ def combine_overlapping_times(entries):
             combined_entries.append(current_entry)
 
     return combined_entries
+
+
+
+
+def process_audio_files(audio_files, classifier):
+    with open(r"C:\Users\Alliewya\Documents\Cough Monitor\AudioLabeller\labeller\predictor1.pickle", "rb") as f:
+        predictor1 = pickle.load(f)
+    classifier = predictor1
+    print("Reached 3")
+    with multiprocessing.Pool(processes=10) as pool:
+        results = pool.starmap(returnPredictions, [(filename, classifier) for filename in audio_files])
+
+    return results

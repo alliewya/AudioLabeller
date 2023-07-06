@@ -1,0 +1,4046 @@
+{% extends 'base2.html' %} {% block title %}Configurator{% endblock %}
+
+<!---->
+
+{% block content%}
+
+<body>
+  <div id="container" class="container">
+    <div class="row mb-3 mt-2">
+      <div class="col">
+        <h1>
+          <a href="/app/" style="text-decoration: None">Configure Model</a>
+        </h1>
+      </div>
+    </div>
+    <button onclick="logValues()">Capture Values</button>
+    <div class="row mb-3 mt-2 section" id="datasetpickle-row">
+      <div class="col">
+        <h2>Select Dataset</h2>
+
+        <div class="row">
+          <label for="colFormLabel" class="col-sm-3 col-form-label"
+            >Select Dataset Pickle</label
+          >
+          <div class="col-sm-9">
+            <select
+              class="form-select"
+              id="dataset-pickle"
+              aria-label="Default select example"
+            >
+              {% for file in datasetpickleslist %}
+              <option selected value="{{ file }}">{{ file }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="container">
+    <div class="row mt-3 mb-3 p-3">
+      <button id="submit-config" class="btn btn-primary">
+        Submit Configuration
+      </button>
+    </div>
+    <div class="row mt-1 mb-1 invisible" id="runningspinner">
+      <div class="d-flex align-items-center">
+        <strong>Running...</strong>
+        <div
+          class="spinner-border ms-auto"
+          role="status"
+          aria-hidden="true"
+        ></div>
+      </div>
+    </div>
+    <div class="row mt-3 mb-3 p-3" id="resultsrow"></div>
+    <div class="row mt-3 mb-3">
+      <div>
+        <a
+          class="btn btn-primary"
+          data-bs-toggle="collapse"
+          href="#collapseResult"
+          role="button"
+          aria-expanded="false"
+          aria-controls="collapseResult"
+        >
+          Show Response
+        </a>
+        <div class="collapse" id="collapseResult">
+          <ul id="results"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+
+<script>
+  function createFeatureTabs(rowName, featuresData) {
+    const row = document.createElement("div");
+    row.className = "row mb-3 mt-2 section";
+    row.id = `${rowName.toLowerCase()}-row`;
+
+    const col = document.createElement("div");
+    col.className = "col";
+
+    const h2 = document.createElement("h2");
+    h2.textContent = rowName;
+
+    const ul = document.createElement("ul");
+    ul.className = "nav nav-tabs";
+    ul.id = `${rowName.toLowerCase()}Tabs`;
+    ul.setAttribute("role", "tablist");
+
+    let isFirstItem = true;
+    for (const featureName in featuresData) {
+      const featureData = featuresData[featureName];
+
+      const li = document.createElement("li");
+      li.className = "nav-item";
+      li.setAttribute("role", "presentation");
+
+      const button = document.createElement("button");
+      button.className = "nav-link";
+      button.id = `${featureName}-tab`;
+      button.setAttribute("data-bs-toggle", "tab");
+      button.setAttribute("data-bs-target", `#${featureName}-tab-pane`);
+      button.setAttribute("type", "button");
+      button.setAttribute("role", "tab");
+      button.setAttribute("aria-controls", `${featureName}-tab-pane`);
+      if (isFirstItem) {
+        button.setAttribute("aria-selected", "true");
+        button.classList.add("active");
+        isFirstItem = false;
+      }
+      button.textContent = featureData.label;
+
+      li.appendChild(button);
+      ul.appendChild(li);
+    }
+
+    const tabContent = document.createElement("div");
+    tabContent.className = "tab-content";
+    tabContent.id = `${rowName.toLowerCase()}TabContent`;
+
+    isFirstItem = true;
+    for (const featureName in featuresData) {
+      const featureData = featuresData[featureName];
+      const tabPane = document.createElement("div");
+      tabPane.classList.add("tab-pane", "fade");
+      if (isFirstItem) {
+        tabPane.classList.add("show", "active");
+        isFirstItem = false;
+      }
+      tabPane.id = `${featureName}-tab-pane`;
+      tabPane.setAttribute("role", "tabpanel");
+      tabPane.setAttribute("aria-labelledby", `${featureName}-tab`);
+      tabPane.setAttribute("tabindex", "0");
+
+      const container = document.createElement("div");
+      container.className = "container mt-2 mb-2";
+
+      for (const paramName in featureData.params) {
+        const paramData = featureData.params[paramName];
+
+        const row = document.createElement("div");
+        row.className = "row";
+
+        const label = document.createElement("label");
+        label.setAttribute("for", paramName);
+        label.className = "col-sm-3 col-form-label";
+        label.textContent = paramData.label;
+
+        const inputCol = document.createElement("div");
+        inputCol.className = "col-sm-9";
+
+        let inputElement;
+
+        if (paramData.type === "checkbox") {
+          inputElement = document.createElement("input");
+          inputElement.className = "form-check-input";
+          inputElement.type = paramData.type;
+          inputElement.setAttribute("aria-label", paramName);
+          inputElement.id = paramName;
+          inputElement.setAttribute("aria-describedby", paramName);
+          inputElement.checked = paramData.default;
+        } else if (paramData.type === "select") {
+          inputElement = document.createElement("select");
+          inputElement.className = "form-select";
+          inputElement.setAttribute("aria-label", paramData.label);
+          inputElement.id = paramName;
+          inputElement.setAttribute("aria-describedby", paramName);
+
+          for (const optionValue in paramData.options) {
+            const optionLabel = paramData.options[optionValue];
+
+            const option = document.createElement("option");
+            option.value = optionValue;
+            option.textContent = optionLabel;
+
+            if (optionValue === paramData.default) {
+              option.selected = true;
+            }
+
+            inputElement.appendChild(option);
+          }
+        } else {
+          inputElement = document.createElement("input");
+          inputElement.className = "form-control";
+          inputElement.type = paramData.type;
+          inputElement.setAttribute("aria-label", paramName);
+          inputElement.id = paramName;
+          inputElement.setAttribute("aria-describedby", paramName);
+          inputElement.value = paramData.default;
+        }
+
+        inputCol.appendChild(inputElement);
+        row.appendChild(label);
+        row.appendChild(inputCol);
+        container.appendChild(row);
+      }
+
+      tabPane.appendChild(container);
+      tabContent.appendChild(tabPane);
+    }
+
+    col.appendChild(h2);
+    col.appendChild(ul);
+    col.appendChild(tabContent);
+
+    row.appendChild(col);
+
+    const container = document.getElementById("container");
+    container.appendChild(row);
+  }
+
+  // Input config:
+  const featuresData = {
+    mfcc: {
+      label: "MFCC",
+      active: true,
+      params: {
+        mfcc_enable: {
+          label: "Enable MFCC",
+          type: "checkbox",
+          default: false,
+        },
+        mfcc_n_mfcc: {
+          label: "n_mfcc",
+          type: "text",
+          default: "20",
+        },
+        mffc_n_mfcc_trun: {
+          label: "Number of MFCC to use",
+          type: "text",
+          default: "20",
+        },
+        mfcc_center: {
+          label: "center",
+          type: "text",
+          default: "True",
+        },
+        mfcc_dct_type: {
+          label: "dct_type",
+          type: "select",
+          default: "2",
+          options: {
+            1: "1",
+            2: "2",
+            3: "3",
+          },
+        },
+        mfcc_norm: {
+          label: "norm",
+          type: "select",
+          default: "ortho",
+          options: {
+            ortho: "ortho",
+            None: "None",
+          },
+        },
+        mfcc_n_fft: {
+          label: "n_fft",
+          type: "text",
+          default: "2048",
+        },
+        mfcc_hop_length: {
+          label: "hop_length",
+          type: "text",
+          default: "512",
+        },
+        mfcc_delta: {
+          label: "Delta MFCC",
+          type: "checkbox",
+          default: false,
+        },
+        mfcc_delta2: {
+          label: "Delta 2 MFCC",
+          type: "checkbox",
+          default: false,
+        },
+      },
+    },
+    "mel-spec": {
+      label: "Mel Spectrogram",
+      active: false,
+      params: {
+        mel_spec_enable: {
+          label: "Enable Mel Spectrogram",
+          type: "checkbox",
+          default: false,
+        },
+        mel_spec_n_fft: {
+          label: "Number of FFT",
+          type: "text",
+          default: "2048",
+        },
+        mel_spec_hop_length: {
+          label: "Hop Length",
+          type: "text",
+          default: "512",
+        },
+        mel_spec_window: {
+          label: "Window",
+          type: "select",
+          default: "hann",
+          options: {
+            hann: "hann",
+            hamming: "hamming",
+            kaiser: "kaiser",
+            boxcar: "boxcar",
+          },
+        },
+        mel_spec_center: {
+          label: "Center",
+          type: "checkbox",
+          default: true,
+        },
+        mel_spec_power: {
+          label: "Power",
+          type: "select",
+          default: "2",
+          options: {
+            1: "1 - Energy",
+            2: "2 - Power",
+          },
+        },
+      },
+    },
+    "zero-crossing-rate": {
+      label: "Zero Crossing Rate",
+      active: false,
+      params: {
+        zcr_enable: {
+          label: "Enable Zero Crossing Rate",
+          type: "checkbox",
+          default: false,
+        },
+        zcr_frame_length: {
+          label: "Frame length",
+          type: "text",
+          default: "2048",
+        },
+        zcr_hop_length: {
+          label: "Hop length",
+          type: "text",
+          default: "512",
+        },
+        zcr_center: {
+          label: "Center",
+          type: "text",
+          default: "True",
+        },
+      },
+    },
+  };
+
+  var json2 = {
+    "fixed-tab-pane": {
+      label: "Fixed Length",
+      active: true,
+      params: {
+        fixed_enable: {
+          label: "Enable Fixed Length",
+          type: "checkbox",
+          default: false,
+        },
+        fixed_size: {
+          label: "Fixed Length In Seconds",
+          type: "input",
+          default: "1",
+        },
+      },
+    },
+    "framing-tab-pane": {
+      label: "Framing",
+      active: false,
+      params: {
+        framing_enable: {
+          label: "Enable Framing",
+          type: "checkbox",
+          default: false,
+        },
+        frame_size: {
+          label: "Frame Size",
+          type: "input",
+          default: "11250",
+        },
+        frame_hop_length: {
+          label: "Hop Length",
+          type: "input",
+          default: "5625",
+        },
+      },
+    },
+    "wavelet-denoising-tab-pane": {
+      label: "Wavelet Denoising",
+      active: false,
+      params: {
+        wavelet_denoise_enable: {
+          label: "Enable Wavelet Denoising",
+          type: "checkbox",
+          default: false,
+        },
+        wavelet_denoise_wavelet: {
+          label: "Wavelet",
+          type: "select",
+          default: "haar",
+          options: {
+            cmor: "cmor",
+            coif1: "coif1",
+            coif2: "coif2",
+            coif3: "coif3",
+            coif4: "coif4",
+            coif5: "coif5",
+            coif6: "coif6",
+            coif7: "coif7",
+            coif8: "coif8",
+            coif9: "coif9",
+            coif10: "coif10",
+            coif11: "coif11",
+            coif12: "coif12",
+            coif13: "coif13",
+            coif14: "coif14",
+            coif15: "coif15",
+            coif16: "coif16",
+            coif17: "coif17",
+            db1: "db1",
+            db2: "db2",
+            db3: "db3",
+            db4: "db4",
+            db5: "db5",
+            db6: "db6",
+            db7: "db7",
+            db8: "db8",
+            db9: "db9",
+            db10: "db10",
+            db11: "db11",
+            db12: "db12",
+            db20: "db20",
+            db36: "db36",
+            db37: "db37",
+            db38: "db38",
+            dmey: "dmey",
+            fbsp: "fbsp",
+            gaus1: "gaus1",
+            gaus2: "gaus2",
+            gaus3: "gaus3",
+            gaus4: "gaus4",
+            gaus5: "gaus5",
+            gaus6: "gaus6",
+            gaus7: "gaus7",
+            gaus8: "gaus8",
+            haar: "haar",
+            mexh: "mexh",
+            morl: "morl",
+            shan: "shan",
+            sym2: "sym2",
+            sym3: "sym3",
+            sym4: "sym4",
+            sym5: "sym5",
+            sym6: "sym6",
+            sym7: "sym7",
+            sym8: "sym8",
+            sym9: "sym9",
+            sym10: "sym10",
+            sym15: "sym15",
+            sym20: "sym20",
+          },
+        },
+        wavelet_denoise_level: {
+          label: "Level",
+          type: "input",
+          default: "3",
+        },
+        wavelet_denoise_include_level: {
+          label: "Level to include",
+          type: "input",
+          default: "4",
+        },
+        wavelet_threshold_enable: {
+          label: "Enable Thresholding",
+          type: "checkbox",
+          default: false,
+        },
+        wavelet_denoise_magnitude: {
+          label: "Magnitude",
+          type: "input",
+          default: "1",
+        },
+      },
+    },
+    "mfcc-tab-pane": {
+      label: "MFCC",
+      active: false,
+      params: {
+        mfcc_enable: {
+          label: "Enable MFCC",
+          type: "checkbox",
+          default: false,
+        },
+        mfcc_n_mfcc: {
+          label: "n_mfcc",
+          type: "input",
+          default: "20",
+        },
+        mffc_n_mfcc_trun: {
+          label: "Number of MFCC to use",
+          type: "input",
+          default: "20",
+        },
+        mfcc_center: {
+          label: "center",
+          type: "input",
+          default: "True",
+        },
+        mfcc_dct_type: {
+          label: "dct_type",
+          type: "select",
+          default: "2",
+          options: {
+            1: "1",
+            2: "2",
+            3: "3",
+          },
+        },
+        mfcc_norm: {
+          label: "norm",
+          type: "select",
+          default: "ortho",
+          options: {
+            ortho: "ortho",
+            None: "None",
+          },
+        },
+        mfcc_n_fft: {
+          label: "n_fft",
+          type: "input",
+          default: "2048",
+        },
+        mfcc_hop_length: {
+          label: "hop_length",
+          type: "input",
+          default: "512",
+        },
+        mfcc_delta: {
+          label: "Delta MFCC",
+          type: "checkbox",
+          default: false,
+        },
+        mfcc_delta2: {
+          label: "Delta 2 MFCC",
+          type: "checkbox",
+          default: false,
+        },
+      },
+    },
+    "mel-spec-tab-pane": {
+      label: "Mel Spectrogram",
+      active: false,
+      params: {
+        mel_spec_enable: {
+          label: "Enable Mel Spectrogram",
+          type: "checkbox",
+          default: false,
+        },
+        mel_spec_n_fft: {
+          label: "Number of FFT",
+          type: "input",
+          default: "2048",
+        },
+        mel_spec_hop_length: {
+          label: "Hop Length",
+          type: "input",
+          default: "512",
+        },
+        mel_spec_window: {
+          label: "Window",
+          type: "select",
+          default: "hann",
+          options: {
+            hann: "hann",
+            hamming: "hamming",
+            kaiser: "kaiser",
+            boxcar: "boxcar",
+          },
+        },
+        mel_spec_center: {
+          label: "Center",
+          type: "checkbox",
+          default: true,
+        },
+        mel_spec_power: {
+          label: "Power",
+          type: "select",
+          default: "2",
+          options: {
+            1: "1 - Energy",
+            2: "2 - Power",
+          },
+        },
+      },
+    },
+    "wavedec-tab-pane": {
+      label: "Discrete Wavelet",
+      active: false,
+      params: {
+        wavedec_enable: {
+          label: "Enable Wavelet",
+          type: "checkbox",
+          default: false,
+        },
+        wavedec_wavelet: {
+          label: "Wavelet",
+          type: "select",
+          default: "cmor",
+          options: {
+            cmor: "cmor",
+            coif1: "coif1",
+            coif2: "coif2",
+            coif3: "coif3",
+            coif4: "coif4",
+            coif5: "coif5",
+            coif6: "coif6",
+            coif7: "coif7",
+            coif8: "coif8",
+            coif9: "coif9",
+            coif10: "coif10",
+            coif11: "coif11",
+            coif12: "coif12",
+            coif13: "coif13",
+            coif14: "coif14",
+            coif15: "coif15",
+            coif16: "coif16",
+            coif17: "coif17",
+            db1: "db1",
+            db2: "db2",
+            db3: "db3",
+            db4: "db4",
+            db5: "db5",
+            db6: "db6",
+            db7: "db7",
+            db8: "db8",
+            db9: "db9",
+            db10: "db10",
+            db11: "db11",
+            db12: "db12",
+            db20: "db20",
+            db36: "db36",
+            db37: "db37",
+            db38: "db38",
+            dmey: "dmey",
+            fbsp: "fbsp",
+            gaus1: "gaus1",
+            gaus2: "gaus2",
+            gaus3: "gaus3",
+            gaus4: "gaus4",
+            gaus5: "gaus5",
+            gaus6: "gaus6",
+            gaus7: "gaus7",
+            gaus8: "gaus8",
+            haar: "haar",
+            mexh: "mexh",
+            morl: "morl",
+            shan: "shan",
+            sym2: "sym2",
+            sym3: "sym3",
+            sym4: "sym4",
+            sym5: "sym5",
+            sym6: "sym6",
+            sym7: "sym7",
+            sym8: "sym8",
+            sym9: "sym9",
+            sym10: "sym10",
+            sym15: "sym15",
+            sym20: "sym20",
+          },
+        },
+        wavedec_level: {
+          label: "Level",
+          type: "input",
+          default: "3",
+        },
+        wavedec_mode: {
+          label: "Mode",
+          type: "select",
+          default: "sym",
+          options: {
+            sym: "symmetric",
+            ppd: "Periodic Padding",
+            cpd: "Constant Padding",
+            zpd: "Zero Padding",
+            sp1: "Smooth Padding",
+          },
+        },
+      },
+    },
+    "wav-scat-tab-pane": {
+      label: "Wavelet Scattering",
+      active: false,
+      params: {
+        wav_scat_enable: {
+          label: "Enable Wavelet Scattering",
+          type: "checkbox",
+          default: false,
+        },
+        wav_scat_j: {
+          label: "Max Scale of Transform",
+          type: "input",
+          default: "6",
+        },
+        wav_scat_q: {
+          label: "Wavelets per Octave",
+          type: "input",
+          default: "1",
+        },
+      },
+    },
+    "spectral-tab-pane": {
+      label: "Spectral Features",
+      active: false,
+      params: {
+        spectral_centroid_enable: {
+          label: "Enable Spectral Centroid",
+          type: "checkbox",
+          default: false,
+        },
+        spectral_centroid_n_fft: {
+          label: "FFT Length",
+          type: "input",
+          default: "2048",
+        },
+        spectral_centroid_hop_length: {
+          label: "Hop Length",
+          type: "input",
+          default: "512",
+        },
+        spectral_bandwidth_enable: {
+          label: "Enable Spectral Bandwidth",
+          type: "checkbox",
+          default: false,
+        },
+        spectral_bandwidth_n_fft: {
+          label: "Number of FFT",
+          type: "input",
+          default: "2048",
+        },
+        spectral_bandwidth_hop_length: {
+          label: "Hop Length",
+          type: "input",
+          default: "512",
+        },
+        spectral_bandwidth_window: {
+          label: "Window",
+          type: "select",
+          default: "hann",
+          options: {
+            hann: "hann",
+            hamming: "hamming",
+            kaiser: "kaiser",
+            boxcar: "boxcar",
+          },
+        },
+        spectral_bandwidth_center: {
+          label: "Center",
+          type: "checkbox",
+          default: true,
+        },
+        spectral_bandwidth_power: {
+          label: "Power",
+          type: "select",
+          default: "2",
+          options: {
+            1: "1 - Energy",
+            2: "2 - Power",
+          },
+        },
+        spectral_contrast_enable: {
+          label: "Enable Spectral Contrast",
+          type: "checkbox",
+          default: false,
+        },
+        spectral_contrast_n_fft: {
+          label: "Number of FFT",
+          type: "input",
+          default: "2048",
+        },
+        spectral_contrast_hop_length: {
+          label: "Hop Length",
+          type: "input",
+          default: "512",
+        },
+        spectral_contrast_window: {
+          label: "Window",
+          type: "select",
+          default: "hann",
+          options: {
+            hann: "hann",
+            hamming: "hamming",
+            kaiser: "kaiser",
+            boxcar: "boxcar",
+          },
+        },
+        spectral_contrast_center: {
+          label: "Center",
+          type: "checkbox",
+          default: true,
+        },
+        spectral_contrast_n_bands: {
+          label: "Number of Bands",
+          type: "input",
+          default: "6",
+        },
+        spectral_rolloff_enable: {
+          label: "Enable Spectral Rolloff",
+          type: "checkbox",
+          default: false,
+        },
+        spectral_rolloff_n_fft: {
+          label: "Number of FFT",
+          type: "input",
+          default: "2048",
+        },
+        spectral_rolloff_hop_length: {
+          label: "Hop Length",
+          type: "input",
+          default: "512",
+        },
+        spectral_rolloff_window: {
+          label: "Window",
+          type: "select",
+          default: "hann",
+          options: {
+            hann: "hann",
+            hamming: "hamming",
+            kaiser: "kaiser",
+            boxcar: "boxcar",
+          },
+        },
+        spectral_rolloff_center: {
+          label: "Center",
+          type: "checkbox",
+          default: true,
+        },
+        spectral_rolloff_percent: {
+          label: "Percent",
+          type: "input",
+          default: "85",
+        },
+      },
+    },
+    "chroma-stft-tab-pane": {
+      label: "Chroma Features",
+      active: false,
+      params: {
+        chroma_stft_enable: {
+          label: "Enable Chroma STFT",
+          type: "checkbox",
+          default: false,
+        },
+        chroma_stft_n_chroma: {
+          label: "Number of Chroma bins",
+          type: "input",
+          default: "12",
+        },
+        chroma_stft_norm: {
+          label: "Normalization",
+          type: "input",
+          default: "None",
+        },
+        chroma_stft_window: {
+          label: "Window size",
+          type: "input",
+          default: "2048",
+        },
+        chroma_stft_hop_length: {
+          label: "Hop length",
+          type: "input",
+          default: "512",
+        },
+        chroma_stft_a_ref: {
+          label: "A tuning reference",
+          type: "input",
+          default: "440.0",
+        },
+      },
+    },
+    "zero-crossing-rate-tab-pane": {
+      label: "Zero Crossing Rate",
+      active: false,
+      params: {
+        zcr_enable: {
+          label: "Enable Zero Crossing Rate",
+          type: "checkbox",
+          default: false,
+        },
+        zcr_frame_length: {
+          label: "Frame length",
+          type: "input",
+          default: "2048",
+        },
+        zcr_hop_length: {
+          label: "Hop length",
+          type: "input",
+          default: "512",
+        },
+        zcr_center: {
+          label: "Center",
+          type: "input",
+          default: "True",
+        },
+      },
+    },
+    "spec-centroid-tab-pane": {
+      label: "Spectral Centroid",
+      active: false,
+      params: {
+        spectral_centroid_enable: {
+          label: "Enable Spectral Centroid",
+          type: "checkbox",
+          default: false,
+        },
+        spectral_centroid_n_fft: {
+          label: "FFT Length",
+          type: "input",
+          default: "2048",
+        },
+        spectral_centroid_hop_length: {
+          label: "Hop Length",
+          type: "input",
+          default: "512",
+        },
+      },
+    },
+    "spectral-bandwidth-tab-pane": {
+      label: "Spectral Bandwidth",
+      active: false,
+      params: {
+        spectral_bandwidth_enable: {
+          label: "Enable Spectral Bandwidth",
+          type: "checkbox",
+          default: false,
+        },
+        spectral_bandwidth_n_fft: {
+          label: "Number of FFT",
+          type: "input",
+          default: "2048",
+        },
+        spectral_bandwidth_hop_length: {
+          label: "Hop Length",
+          type: "input",
+          default: "512",
+        },
+        spectral_bandwidth_window: {
+          label: "Window",
+          type: "select",
+          default: "hann",
+          options: {
+            hann: "hann",
+            hamming: "hamming",
+            kaiser: "kaiser",
+            boxcar: "boxcar",
+          },
+        },
+        spectral_bandwidth_center: {
+          label: "Center",
+          type: "checkbox",
+          default: true,
+        },
+        spectral_bandwidth_power: {
+          label: "Power",
+          type: "select",
+          default: "2",
+          options: {
+            1: "1 - Energy",
+            2: "2 - Power",
+          },
+        },
+      },
+    },
+    "spectral-contrast-tab-pane": {
+      label: "Spectral Contrast",
+      active: false,
+      params: {
+        spectral_contrast_enable: {
+          label: "Enable Spectral Contrast",
+          type: "checkbox",
+          default: false,
+        },
+        spectral_contrast_n_fft: {
+          label: "Number of FFT",
+          type: "input",
+          default: "2048",
+        },
+        spectral_contrast_hop_length: {
+          label: "Hop Length",
+          type: "input",
+          default: "512",
+        },
+        spectral_contrast_window: {
+          label: "Window",
+          type: "select",
+          default: "hann",
+          options: {
+            hann: "hann",
+            hamming: "hamming",
+            kaiser: "kaiser",
+            boxcar: "boxcar",
+          },
+        },
+        spectral_contrast_center: {
+          label: "Center",
+          type: "checkbox",
+          default: true,
+        },
+        spectral_contrast_n_bands: {
+          label: "Number of Bands",
+          type: "input",
+          default: "6",
+        },
+      },
+    },
+    "spectral-rolloff-tab-pane": {
+      label: "Spectral Rolloff",
+      active: false,
+      params: {
+        spectral_rolloff_enable: {
+          label: "Enable Spectral Rolloff",
+          type: "checkbox",
+          default: false,
+        },
+        spectral_rolloff_n_fft: {
+          label: "Number of FFT",
+          type: "input",
+          default: "2048",
+        },
+        spectral_rolloff_hop_length: {
+          label: "Hop Length",
+          type: "input",
+          default: "512",
+        },
+        spectral_rolloff_window: {
+          label: "Window",
+          type: "select",
+          default: "hann",
+          options: {
+            hann: "hann",
+            hamming: "hamming",
+            kaiser: "kaiser",
+            boxcar: "boxcar",
+          },
+        },
+        spectral_rolloff_center: {
+          label: "Center",
+          type: "checkbox",
+          default: true,
+        },
+        spectral_rolloff_percent: {
+          label: "Percent",
+          type: "input",
+          default: "85",
+        },
+      },
+    },
+    "pca-tab-pane": {
+      label: "PCA",
+      active: false,
+      params: {
+        pca_enable: {
+          label: "Enable PCA",
+          type: "checkbox",
+          default: false,
+        },
+        pca_n_components: {
+          label: "Number of Components",
+          type: "input",
+          default: "150",
+        },
+      },
+    },
+    "min-max-tab-pane": {
+      label: "Min Max Scaling",
+      active: false,
+      params: {
+        min_max_enable: {
+          label: "Enable Min Max Scaling",
+          type: "checkbox",
+          default: false,
+        },
+        min_max_n_components: {
+          label: "Number of Components",
+          type: "input",
+          default: "150",
+        },
+      },
+    },
+    "knn-tab-pane": {
+      label: "Enable Train Test Split",
+      active: false,
+      params: {
+        knn_enable: {
+          label: "Enable KNN",
+          type: "checkbox",
+          default: false,
+        },
+        knn_k: {
+          label: "Number of K",
+          type: "input",
+          default: "5",
+        },
+        knn_algorithm: {
+          label: "Algorithm",
+          type: "select",
+          default: "auto",
+          options: {
+            auto: "Auto",
+            ball_tree: "Ball Tree",
+            kd_tree: "KD Tree",
+            brute: "Brute Force",
+          },
+        },
+        knn_leaf_size: {
+          label: "Leaf Size",
+          type: "input",
+          default: "30",
+        },
+        knn_metric: {
+          label: "Metric",
+          type: "select",
+          default: "minkowski",
+          options: {
+            minkowski: "Minkowski",
+            manhattan: "Manhattan",
+            euclidean: "Euclidean",
+            chebyshev: "Chebyshev",
+          },
+        },
+        knn_metric_power: {
+          label: "Metric Power",
+          type: "input",
+          default: "2",
+        },
+        knn_weights: {
+          label: "Weights",
+          type: "select",
+          default: "uniform",
+          options: {
+            uniform: "Uniform",
+            distance: "Distance",
+          },
+        },
+        knn_tune_hyperparameters: {
+          label: "Tune Hyperparameters",
+          type: "checkbox",
+          default: false,
+        },
+      },
+    },
+    "svm-tab-pane": {
+      label: "SVM",
+      active: false,
+      params: {
+        svm_enable: {
+          label: "Enable SVM",
+          type: "checkbox",
+          default: false,
+        },
+        svm_c: {
+          label: "C (Penalty Parameter of the Error Term)",
+          type: "input",
+          default: "1.0",
+        },
+        svm_kernel: {
+          label: "Kernel",
+          type: "select",
+          default: "rbf",
+          options: {
+            rbf: "rbf",
+            linear: "linear",
+            poly: "poly",
+            sigmoid: "sigmoid",
+          },
+        },
+        svm_degree: {
+          label: "Degree",
+          type: "input",
+          default: "3",
+        },
+        svm_gamma: {
+          label: "Gamma",
+          type: "input",
+          default: "scale",
+        },
+        svm_shrinking: {
+          label: "Shrinking",
+          type: "checkbox",
+          default: false,
+        },
+        svm_probability: {
+          label: "Probability",
+          type: "checkbox",
+          default: true,
+        },
+        svm_tol: {
+          label: "Tol",
+          type: "input",
+          default: "0.001",
+        },
+        svm_max_iter: {
+          label: "Max Iter",
+          type: "input",
+          default: "-1",
+        },
+        svm_tune_hyperparameters: {
+          label: "Tune Hyperparameters",
+          type: "checkbox",
+          default: false,
+        },
+      },
+    },
+    "adaboost-tab-pane": {
+      label: "AdaBoost",
+      active: false,
+      params: {
+        adaboost_enable: {
+          label: "Enable AdaBoost",
+          type: "checkbox",
+          default: false,
+        },
+        adaboost_estimator: {
+          label: "Estimator",
+          type: "select",
+          default: "None",
+          options: {
+            None: "None",
+            DecisionTreeClassifier: "Decision Tree Classifier",
+            SVC: "SVC",
+          },
+        },
+        ada_dt_max_depth: {
+          label: "Max Depth",
+          type: "input",
+          default: "None",
+        },
+        ada_dt_min_samples_split: {
+          label: "Min Samples Split",
+          type: "input",
+          default: "2",
+        },
+        ada_dt_min_samples_leaf: {
+          label: "Min Samples Leaf",
+          type: "input",
+          default: "1",
+        },
+        ada_dt_criterion: {
+          label: "Criterion",
+          type: "select",
+          default: "gini",
+          options: {
+            gini: "Gini",
+            entropy: "Entropy",
+          },
+        },
+        ada_decisiontree_max_leaf_nodes: {
+          label: "Max Leaf Nodes",
+          type: "input",
+          default: "None",
+        },
+        ada_decision_tree_splitter: {
+          label: "Splitter",
+          type: "select",
+          default: "best",
+          options: {
+            best: "best",
+            random: "random",
+          },
+        },
+        ada_svm_c: {
+          label: "C (Penalty Parameter of the Error Term)",
+          type: "input",
+          default: "1.0",
+        },
+        ada_svm_kernel: {
+          label: "Kernel",
+          type: "select",
+          default: "rbf",
+          options: {
+            rbf: "rbf",
+            linear: "linear",
+            poly: "poly",
+            sigmoid: "sigmoid",
+          },
+        },
+        ada_svm_degree: {
+          label: "Degree",
+          type: "input",
+          default: "3",
+        },
+        ada_svm_gamma: {
+          label: "Gamma",
+          type: "input",
+          default: "scale",
+        },
+        ada_svm_shrinking: {
+          label: "Shrinking",
+          type: "checkbox",
+          default: false,
+        },
+        ada_svm_tol: {
+          label: "Tol",
+          type: "input",
+          default: "0.001",
+        },
+        ada_svm_max_iter: {
+          label: "Max Iter",
+          type: "input",
+          default: "-1",
+        },
+        ada_n_estimators: {
+          label: "Number of Estimators",
+          type: "input",
+          default: "50",
+        },
+        ada_learning_rate: {
+          label: "Learning Rate",
+          type: "input",
+          default: "1",
+        },
+        ada_algorithm: {
+          label: "Algorithm",
+          type: "select",
+          default: "SAMME.R",
+          options: {
+            "SAMME.R": "SAMME.R",
+            SAMME: "SAMME",
+          },
+        },
+        ada_random_state: {
+          label: "Random State",
+          type: "input",
+          default: "None",
+        },
+      },
+    },
+    "logistic_regression-tab-pane": {
+      label: "Logistic Regression",
+      active: false,
+      params: {
+        logistic_regression_enable: {
+          label: "Enable Logistic Regression",
+          type: "checkbox",
+          default: false,
+        },
+        logreg_C: {
+          label: "C",
+          type: "input",
+          default: "1.0",
+        },
+        logreg_solver: {
+          label: "Solver",
+          type: "select",
+          default: "lbfgs",
+          options: {
+            lbfgs: "LBFGS",
+            "newton-cg": "Newton-CG",
+            liblinear: "Liblinear",
+            sag: "Stochastic Average Gradient",
+            saga: "Stochastic Average Gradient Descent",
+          },
+        },
+        logreg_fit_intercept: {
+          label: "Fit Intercept",
+          type: "checkbox",
+          default: false,
+        },
+        logistic_regression_max_iter: {
+          label: "Max Iter",
+          type: "input",
+          default: "100",
+        },
+        logistic_regression_tol: {
+          label: "Tol",
+          type: "input",
+          default: "0.0001",
+        },
+        logistic_regression_fit_intercept: {
+          label: "Fit Intercept",
+          type: "checkbox",
+          default: true,
+        },
+        logistic_regression_intercept_scaling: {
+          label: "Intercept Scaling",
+          type: "input",
+          default: "1",
+        },
+      },
+    },
+    "decision-tree-tab-pane": {
+      label: "Decision Tree",
+      active: false,
+      params: {
+        decision_tree_enable: {
+          label: "Enable Decision Tree",
+          type: "checkbox",
+          default: false,
+        },
+        dt_max_depth: {
+          label: "Max Depth",
+          type: "input",
+          default: "None",
+        },
+        dt_min_samples_split: {
+          label: "Min Samples Split",
+          type: "input",
+          default: "2",
+        },
+        dt_min_samples_leaf: {
+          label: "Min Samples Leaf",
+          type: "input",
+          default: "1",
+        },
+        dt_criterion: {
+          label: "Criterion",
+          type: "select",
+          default: "gini",
+          options: {
+            gini: "Gini",
+            entropy: "Entropy",
+          },
+        },
+        decisiontree_max_leaf_nodes: {
+          label: "Max Leaf Nodes",
+          type: "input",
+          default: "None",
+        },
+        decision_tree_splitter: {
+          label: "Splitter",
+          type: "select",
+          default: "best",
+          options: {
+            best: "best",
+            random: "random",
+          },
+        },
+      },
+    },
+    "GMMHMM-tab-pane": {
+      label: "GMMHMM",
+      active: false,
+      params: {
+        GMMHMM_enable: {
+          label: "Enable GMMHMM",
+          type: "checkbox",
+          default: false,
+        },
+      },
+    },
+    "kfold-tab-pane": {
+      label: "K Fold Cross Validation",
+      active: false,
+      params: {
+        kfold_enable: {
+          label: "Enable K Fold",
+          type: "checkbox",
+          default: false,
+        },
+        kfold_n_splits: {
+          label: "Number of Folds",
+          type: "input",
+          default: "5",
+        },
+        kfold_shuffle: {
+          label: "Shuffle",
+          type: "checkbox",
+          default: false,
+        },
+        kfold_random_state: {
+          label: "Random Seed",
+          type: "input",
+          default: "None",
+        },
+      },
+    },
+    "stratifiedkfold-tab-pane": {
+      label: "Stratified K Fold",
+      active: false,
+      params: {
+        stratifiedkfold_enable: {
+          label: "Enable Stratified K Fold",
+          type: "checkbox",
+          default: false,
+        },
+        stratifiedkfold_n_splits: {
+          label: "Number of Folds",
+          type: "input",
+          default: "5",
+        },
+        stratifiedkfold_shuffle: {
+          label: "Shuffle",
+          type: "checkbox",
+          default: false,
+        },
+        stratifiedkfold_random_state: {
+          label: "Random State",
+          type: "input",
+          default: "None",
+        },
+      },
+    },
+  };
+
+  var json3 =
+  {
+    "dataset": {
+      "fixed": {
+        "label": "Fixed Length",
+        "active": true,
+        "params": {
+          "fixed_enable": {
+            "label": "Enable Fixed Length",
+            "type": "checkbox",
+            "default": false
+          },
+          "fixed_length": {
+            "label": "Fixed Length In Seconds",
+            "type": "input",
+            "default": "1"
+          }
+        }
+      },
+      "frame": {
+        "label": "Framing",
+        "active": false,
+        "params": {
+          "frame_enable": {
+            "label": "Enable Framing",
+            "type": "checkbox",
+            "default": false
+          },
+          "frame_length": {
+            "label": "Frame Length",
+            "type": "input",
+            "default": "11250"
+          },
+          "frame_hop_length": {
+            "label": "Hop Length",
+            "type": "input",
+            "default": "5625"
+          }
+        }
+      },
+      "processing":{
+        "label": "Processing",
+        "params" : {
+            "enable_normalize": {
+                "label" : "Enable Normalization",
+                "type" : "checkbox",
+                "default": false
+            },
+            "enable_segment": {
+                "label" : "Enable Segmentation",
+                "type" : "checkbox",
+                "default" : false
+            },
+            "enable_trim" : {
+            "label":"Enable Trim Silence",
+            "type" : "checkbox",
+            "default" : false
+            }
+        }
+      }
+    },
+    "preprocessing": {
+      "wavelet-denoise": {
+        "label": "Wavelet Denoising",
+        "active": true,
+        "params": {
+          "wavelet_denoise_enable": {
+            "label": "Enable Wavelet Denoising",
+            "type": "checkbox",
+            "default": false
+          },
+          "wavelet_denoise_wavelet": {
+            "label": "Wavelet",
+            "type": "select",
+            "default": "haar",
+            "options": {
+              "cmor": "cmor",
+              "coif1": "coif1",
+              "coif2": "coif2",
+              "coif3": "coif3",
+              "coif4": "coif4",
+              "coif5": "coif5",
+              "coif6": "coif6",
+              "coif7": "coif7",
+              "coif8": "coif8",
+              "coif9": "coif9",
+              "coif10": "coif10",
+              "coif11": "coif11",
+              "coif12": "coif12",
+              "coif13": "coif13",
+              "coif14": "coif14",
+              "coif15": "coif15",
+              "coif16": "coif16",
+              "coif17": "coif17",
+              "db1": "db1",
+              "db2": "db2",
+              "db3": "db3",
+              "db4": "db4",
+              "db5": "db5",
+              "db6": "db6",
+              "db7": "db7",
+              "db8": "db8",
+              "db9": "db9",
+              "db10": "db10",
+              "db11": "db11",
+              "db12": "db12",
+              "db20": "db20",
+              "db36": "db36",
+              "db37": "db37",
+              "db38": "db38",
+              "dmey": "dmey",
+              "fbsp": "fbsp",
+              "gaus1": "gaus1",
+              "gaus2": "gaus2",
+              "gaus3": "gaus3",
+              "gaus4": "gaus4",
+              "gaus5": "gaus5",
+              "gaus6": "gaus6",
+              "gaus7": "gaus7",
+              "gaus8": "gaus8",
+              "haar": "haar",
+              "mexh": "mexh",
+              "morl": "morl",
+              "shan": "shan",
+              "sym2": "sym2",
+              "sym3": "sym3",
+              "sym4": "sym4",
+              "sym5": "sym5",
+              "sym6": "sym6",
+              "sym7": "sym7",
+              "sym8": "sym8",
+              "sym9": "sym9",
+              "sym10": "sym10",
+              "sym15": "sym15",
+              "sym20": "sym20"
+            }
+          },
+          "wavelet_denoise_level": {
+            "label": "Level",
+            "type": "input",
+            "default": "3"
+          },
+          "wavelet_denoise_include_level": {
+            "label": "Level to include",
+            "type": "input",
+            "default": "4"
+          },
+          "wavelet_threshold_enable": {
+            "label": "Enable Thresholding",
+            "type": "checkbox",
+            "default": false
+          },
+          "wavelet_denoise_magnitude": {
+            "label": "Magnitude",
+            "type": "input",
+            "default": "1"
+          }
+        }
+      }
+    },
+    "features": {
+      "mfcc": {
+        "label": "MFCC",
+        "active": true,
+        "params": {
+          "mfcc_enable": {
+            "label": "Enable MFCC",
+            "type": "checkbox",
+            "default": false
+          },
+          "mfcc_n_mfcc": {
+            "label": "n_mfcc",
+            "type": "input",
+            "default": "20"
+          },
+          "mffc_n_mfcc_trun": {
+            "label": "Number of MFCC to use",
+            "type": "input",
+            "default": "20"
+          },
+          "mfcc_center": {
+            "label": "center",
+            "type": "input",
+            "default": "True"
+          },
+          "mfcc_dct_type": {
+            "label": "dct_type",
+            "type": "select",
+            "default": "2",
+            "options": {
+              "1": "1",
+              "2": "2",
+              "3": "3"
+            }
+          },
+          "mfcc_norm": {
+            "label": "norm",
+            "type": "select",
+            "default": "ortho",
+            "options": {
+              "ortho": "ortho",
+              "None": "None"
+            }
+          },
+          "mfcc_n_fft": {
+            "label": "n_fft",
+            "type": "input",
+            "default": "2048"
+          },
+          "mfcc_hop_length": {
+            "label": "hop_length",
+            "type": "input",
+            "default": "512"
+          },
+          "mfcc_delta": {
+            "label": "Delta MFCC",
+            "type": "checkbox",
+            "default": false
+          },
+          "mfcc_delta2": {
+            "label": "Delta 2 MFCC",
+            "type": "checkbox",
+            "default": false
+          }
+        }
+      },
+      "mel-spec": {
+        "label": "Mel Spectrogram",
+        "active": false,
+        "params": {
+          "mel_spec_enable": {
+            "label": "Enable Mel Spectrogram",
+            "type": "checkbox",
+            "default": false
+          },
+          "mel_spec_n_fft": {
+            "label": "Number of FFT",
+            "type": "input",
+            "default": "2048"
+          },
+          "mel_spec_hop_length": {
+            "label": "Hop Length",
+            "type": "input",
+            "default": "512"
+          },
+          "mel_spec_window": {
+            "label": "Window",
+            "type": "select",
+            "default": "hann",
+            "options": {
+              "hann": "hann",
+              "hamming": "hamming",
+              "kaiser": "kaiser",
+              "boxcar": "boxcar"
+            }
+          },
+          "mel_spec_center": {
+            "label": "Center",
+            "type": "checkbox",
+            "default": true
+          },
+          "mel_spec_power": {
+            "label": "Power",
+            "type": "select",
+            "default": "2",
+            "options": {
+              "1": "1 - Energy",
+              "2": "2 - Power"
+            }
+          }
+        }
+      },
+      "wavedec": {
+        "label": "Discrete Wavelet",
+        "active": false,
+        "params": {
+          "wavedec_enable": {
+            "label": "Enable Wavelet",
+            "type": "checkbox",
+            "default": false
+          },
+          "wavedec_wavelet": {
+            "label": "Wavelet",
+            "type": "select",
+            "default": "cmor",
+            "options": {
+              "cmor": "cmor",
+              "coif1": "coif1",
+              "coif2": "coif2",
+              "coif3": "coif3",
+              "coif4": "coif4",
+              "coif5": "coif5",
+              "coif6": "coif6",
+              "coif7": "coif7",
+              "coif8": "coif8",
+              "coif9": "coif9",
+              "coif10": "coif10",
+              "coif11": "coif11",
+              "coif12": "coif12",
+              "coif13": "coif13",
+              "coif14": "coif14",
+              "coif15": "coif15",
+              "coif16": "coif16",
+              "coif17": "coif17",
+              "db1": "db1",
+              "db2": "db2",
+              "db3": "db3",
+              "db4": "db4",
+              "db5": "db5",
+              "db6": "db6",
+              "db7": "db7",
+              "db8": "db8",
+              "db9": "db9",
+              "db10": "db10",
+              "db11": "db11",
+              "db12": "db12",
+              "db20": "db20",
+              "db36": "db36",
+              "db37": "db37",
+              "db38": "db38",
+              "dmey": "dmey",
+              "fbsp": "fbsp",
+              "gaus1": "gaus1",
+              "gaus2": "gaus2",
+              "gaus3": "gaus3",
+              "gaus4": "gaus4",
+              "gaus5": "gaus5",
+              "gaus6": "gaus6",
+              "gaus7": "gaus7",
+              "gaus8": "gaus8",
+              "haar": "haar",
+              "mexh": "mexh",
+              "morl": "morl",
+              "shan": "shan",
+              "sym2": "sym2",
+              "sym3": "sym3",
+              "sym4": "sym4",
+              "sym5": "sym5",
+              "sym6": "sym6",
+              "sym7": "sym7",
+              "sym8": "sym8",
+              "sym9": "sym9",
+              "sym10": "sym10",
+              "sym15": "sym15",
+              "sym20": "sym20"
+            }
+          },
+          "wavedec_level": {
+            "label": "Level",
+            "type": "input",
+            "default": "3"
+          },
+          "wavedec_mode": {
+            "label": "Mode",
+            "type": "select",
+            "default": "sym",
+            "options": {
+              "sym": "symmetric",
+              "ppd": "Periodic Padding",
+              "cpd": "Constant Padding",
+              "zpd": "Zero Padding",
+              "sp1": "Smooth Padding"
+            }
+          }
+        }
+      },
+      "wav-scat": {
+        "label": "Wavelet Scattering",
+        "active": false,
+        "params": {
+          "wav_scat_enable": {
+            "label": "Enable Wavelet Scattering",
+            "type": "checkbox",
+            "default": false
+          },
+          "wav_scat_j": {
+            "label": "Max Scale of Transform",
+            "type": "input",
+            "default": "6"
+          },
+          "wav_scat_q": {
+            "label": "Wavelets per Octave",
+            "type": "input",
+            "default": "1"
+          }
+        }
+      },
+      "chroma-stft": {
+        "label": "Chroma Features",
+        "active": false,
+        "params": {
+          "chroma_stft_enable": {
+            "label": "Enable Chroma STFT",
+            "type": "checkbox",
+            "default": false
+          },
+          "chroma_stft_n_chroma": {
+            "label": "Number of Chroma bins",
+            "type": "input",
+            "default": "12"
+          },
+          "chroma_stft_norm": {
+            "label": "Normalization",
+            "type": "input",
+            "default": "None"
+          },
+          "chroma_stft_window": {
+            "label": "Window size",
+            "type": "input",
+            "default": "2048"
+          },
+          "chroma_stft_hop_length": {
+            "label": "Hop length",
+            "type": "input",
+            "default": "512"
+          },
+          "chroma_stft_a_ref": {
+            "label": "A tuning reference",
+            "type": "input",
+            "default": "440.0"
+          }
+        }
+      },
+      "zcr": {
+        "label": "Zero Crossing Rate",
+        "active": false,
+        "params": {
+          "zcr_enable": {
+            "label": "Enable Zero Crossing Rate",
+            "type": "checkbox",
+            "default": false
+          },
+          "zcr_frame_length": {
+            "label": "Frame length",
+            "type": "input",
+            "default": "2048"
+          },
+          "zcr_hop_length": {
+            "label": "Hop length",
+            "type": "input",
+            "default": "512"
+          },
+          "zcr_center": {
+            "label": "Center",
+            "type": "input",
+            "default": "True"
+          }
+        }
+      },
+      "spectral-centroid": {
+        "label": "Spectral Centroid",
+        "active": true,
+        "params": {
+          "spectral_centroid_enable": {
+            "label": "Enable Spectral Centroid",
+            "type": "checkbox",
+            "default": false
+          },
+          "spectral_centroid_n_fft": {
+            "label": "FFT Length",
+            "type": "input",
+            "default": "2048"
+          },
+          "spectral_centroid_hop_length": {
+            "label": "Hop Length",
+            "type": "input",
+            "default": "512"
+          }
+        }
+      },
+      "spectral-bandwidth": {
+        "label": "Spectral Bandwidth",
+        "active": false,
+        "params": {
+          "spectral_bandwidth_enable": {
+            "label": "Enable Spectral Bandwidth",
+            "type": "checkbox",
+            "default": false
+          },
+          "spectral_bandwidth_n_fft": {
+            "label": "Number of FFT",
+            "type": "input",
+            "default": "2048"
+          },
+          "spectral_bandwidth_hop_length": {
+            "label": "Hop Length",
+            "type": "input",
+            "default": "512"
+          },
+          "spectral_bandwidth_window": {
+            "label": "Window",
+            "type": "select",
+            "default": "hann",
+            "options": {
+              "hann": "hann",
+              "hamming": "hamming",
+              "kaiser": "kaiser",
+              "boxcar": "boxcar"
+            }
+          },
+          "spectral_bandwidth_center": {
+            "label": "Center",
+            "type": "checkbox",
+            "default": true
+          },
+          "spectral_bandwidth_power": {
+            "label": "Power",
+            "type": "select",
+            "default": "2",
+            "options": {
+              "1": "1 - Energy",
+              "2": "2 - Power"
+            }
+          }
+        }
+      },
+      "spectral-contrast": {
+        "label": "Spectral Contrast",
+        "active": false,
+        "params": {
+          "spectral_contrast_enable": {
+            "label": "Enable Spectral Contrast",
+            "type": "checkbox",
+            "default": false
+          },
+          "spectral_contrast_n_fft": {
+            "label": "Number of FFT",
+            "type": "input",
+            "default": "2048"
+          },
+          "spectral_contrast_hop_length": {
+            "label": "Hop Length",
+            "type": "input",
+            "default": "512"
+          },
+          "spectral_contrast_window": {
+            "label": "Window",
+            "type": "select",
+            "default": "hann",
+            "options": {
+              "hann": "hann",
+              "hamming": "hamming",
+              "kaiser": "kaiser",
+              "boxcar": "boxcar"
+            }
+          },
+          "spectral_contrast_center": {
+            "label": "Center",
+            "type": "checkbox",
+            "default": true
+          },
+          "spectral_contrast_n_bands": {
+            "label": "Number of Bands",
+            "type": "input",
+            "default": "6"
+          }
+        }
+      },
+      "spectral-rolloff": {
+        "label": "Spectral Rolloff",
+        "active": false,
+        "params": {
+          "spectral_rolloff_enable": {
+            "label": "Enable Spectral Rolloff",
+            "type": "checkbox",
+            "default": false
+          },
+          "spectral_rolloff_n_fft": {
+            "label": "Number of FFT",
+            "type": "input",
+            "default": "2048"
+          },
+          "spectral_rolloff_hop_length": {
+            "label": "Hop Length",
+            "type": "input",
+            "default": "512"
+          },
+          "spectral_rolloff_window": {
+            "label": "Window",
+            "type": "select",
+            "default": "hann",
+            "options": {
+              "hann": "hann",
+              "hamming": "hamming",
+              "kaiser": "kaiser",
+              "boxcar": "boxcar"
+            }
+          },
+          "spectral_rolloff_center": {
+            "label": "Center",
+            "type": "checkbox",
+            "default": true
+          },
+          "spectral_rolloff_percent": {
+            "label": "Percent",
+            "type": "input",
+            "default": "85"
+          }
+        }
+      },
+      "wavelet_cepstral": {
+        "label": "Wavelet Cepstral Coefficients",
+        "active": false,
+        "params": {
+          "wavelet_cepstral_enable": {
+            "label": "Enable Wavelet Cepstral Coefficients",
+            "type": "checkbox",
+            "default": false
+          },
+        }
+      },
+    },
+    "featurepreprocessing": {
+      "pca": {
+        "label": "PCA",
+        "active": true,
+        "params": {
+          "pca_enable": {
+            "label": "Enable PCA",
+            "type": "checkbox",
+            "default": false
+          },
+          "pca_n_components": {
+            "label": "Number of Components",
+            "type": "input",
+            "default": "150"
+          }
+        }
+      },
+      "min-max": {
+        "label": "Min Max Scaling",
+        "active": false,
+        "params": {
+          "min_max_enable": {
+            "label": "Enable Min Max Scaling",
+            "type": "checkbox",
+            "default": false
+          },
+          "min_max_n_components": {
+            "label": "Number of Components",
+            "type": "input",
+            "default": "150"
+          }
+        }
+      }
+    },
+    "classifier": {
+      "knn": {
+        "label": "KNN",
+        "active": true,
+        "params": {
+          "knn_enable": {
+            "label": "Enable KNN",
+            "type": "checkbox",
+            "default": false
+          },
+          "knn_k": {
+            "label": "Number of K",
+            "type": "input",
+            "default": "5"
+          },
+          "knn_algorithm": {
+            "label": "Algorithm",
+            "type": "select",
+            "default": "auto",
+            "options": {
+              "auto": "Auto",
+              "ball_tree": "Ball Tree",
+              "kd_tree": "KD Tree",
+              "brute": "Brute Force"
+            }
+          },
+          "knn_leaf_size": {
+            "label": "Leaf Size",
+            "type": "input",
+            "default": "30"
+          },
+          "knn_metric": {
+            "label": "Metric",
+            "type": "select",
+            "default": "minkowski",
+            "options": {
+              "minkowski": "Minkowski",
+              "manhattan": "Manhattan",
+              "euclidean": "Euclidean",
+              "chebyshev": "Chebyshev"
+            }
+          },
+          "knn_metric_power": {
+            "label": "Metric Power",
+            "type": "input",
+            "default": "2"
+          },
+          "knn_weights": {
+            "label": "Weights",
+            "type": "select",
+            "default": "uniform",
+            "options": {
+              "uniform": "Uniform",
+              "distance": "Distance"
+            }
+          },
+          "knn_tune_hyperparameters": {
+            "label": "Tune Hyperparameters",
+            "type": "checkbox",
+            "default": false
+          }
+        }
+      },
+      "svm": {
+        "label": "SVM",
+        "active": false,
+        "params": {
+          "svm_enable": {
+            "label": "Enable SVM",
+            "type": "checkbox",
+            "default": false
+          },
+          "svm_c": {
+            "label": "C (Penalty Parameter of the Error Term)",
+            "type": "input",
+            "default": "1.0"
+          },
+          "svm_kernel": {
+            "label": "Kernel",
+            "type": "select",
+            "default": "rbf",
+            "options": {
+              "rbf": "rbf",
+              "linear": "linear",
+              "poly": "poly",
+              "sigmoid": "sigmoid"
+            }
+          },
+          "svm_degree": {
+            "label": "Degree",
+            "type": "input",
+            "default": "3"
+          },
+          "svm_gamma": {
+            "label": "Gamma",
+            "type": "input",
+            "default": "scale"
+          },
+          "svm_shrinking": {
+            "label": "Shrinking",
+            "type": "checkbox",
+            "default": false
+          },
+          "svm_probability": {
+            "label": "Probability",
+            "type": "checkbox",
+            "default": true
+          },
+          "svm_tol": {
+            "label": "Tol",
+            "type": "input",
+            "default": "0.001"
+          },
+          "svm_max_iter": {
+            "label": "Max Iter",
+            "type": "input",
+            "default": "-1"
+          },
+          "svm_tune_hyperparameters": {
+            "label": "Tune Hyperparameters",
+            "type": "checkbox",
+            "default": false
+          }
+        }
+      },
+      "adaboost": {
+        "label": "AdaBoost",
+        "active": false,
+        "params": {
+          "adaboost_enable": {
+            "label": "Enable AdaBoost",
+            "type": "checkbox",
+            "default": false
+          },
+          "adaboost_estimator": {
+            "label": "Estimator",
+            "type": "select",
+            "default": "None",
+            "options": {
+              "None": "None",
+              "DecisionTreeClassifier": "Decision Tree Classifier",
+              "SVC": "SVC"
+            }
+          },
+          "ada_dt_max_depth": {
+            "label": "Max Depth",
+            "type": "input",
+            "default": "None"
+          },
+          "ada_dt_min_samples_split": {
+            "label": "Min Samples Split",
+            "type": "input",
+            "default": "2"
+          },
+          "ada_dt_min_samples_leaf": {
+            "label": "Min Samples Leaf",
+            "type": "input",
+            "default": "1"
+          },
+          "ada_dt_criterion": {
+            "label": "Criterion",
+            "type": "select",
+            "default": "gini",
+            "options": {
+              "gini": "Gini",
+              "entropy": "Entropy"
+            }
+          },
+          "ada_decisiontree_max_leaf_nodes": {
+            "label": "Max Leaf Nodes",
+            "type": "input",
+            "default": "None"
+          },
+          "ada_decision_tree_splitter": {
+            "label": "Splitter",
+            "type": "select",
+            "default": "best",
+            "options": {
+              "best": "best",
+              "random": "random"
+            }
+          },
+          "ada_svm_c": {
+            "label": "C (Penalty Parameter of the Error Term)",
+            "type": "input",
+            "default": "1.0"
+          },
+          "ada_svm_kernel": {
+            "label": "Kernel",
+            "type": "select",
+            "default": "rbf",
+            "options": {
+              "rbf": "rbf",
+              "linear": "linear",
+              "poly": "poly",
+              "sigmoid": "sigmoid"
+            }
+          },
+          "ada_svm_degree": {
+            "label": "Degree",
+            "type": "input",
+            "default": "3"
+          },
+          "ada_svm_gamma": {
+            "label": "Gamma",
+            "type": "input",
+            "default": "scale"
+          },
+          "ada_svm_shrinking": {
+            "label": "Shrinking",
+            "type": "checkbox",
+            "default": false
+          },
+          "ada_svm_tol": {
+            "label": "Tol",
+            "type": "input",
+            "default": "0.001"
+          },
+          "ada_svm_max_iter": {
+            "label": "Max Iter",
+            "type": "input",
+            "default": "-1"
+          },
+          "ada_n_estimators": {
+            "label": "Number of Estimators",
+            "type": "input",
+            "default": "50"
+          },
+          "ada_learning_rate": {
+            "label": "Learning Rate",
+            "type": "input",
+            "default": "1"
+          },
+          "ada_algorithm": {
+            "label": "Algorithm",
+            "type": "select",
+            "default": "SAMME.R",
+            "options": {
+              "SAMME.R": "SAMME.R",
+              "SAMME": "SAMME"
+            }
+          },
+          "ada_random_state": {
+            "label": "Random State",
+            "type": "input",
+            "default": "None"
+          }
+        }
+      },
+      "logistic_regression": {
+        "label": "Logistic Regression",
+        "active": false,
+        "params": {
+          "logistic_regression_enable": {
+            "label": "Enable Logistic Regression",
+            "type": "checkbox",
+            "default": false
+          },
+          "logistic_regression_penalty":{
+            "label": "Penalty",
+            "type" : "select",
+            "default" : "l2",
+            "options" : {
+                "l2" : "L2",
+                "l1" : "L1",
+                "elasticnet" : "Elastic Net",
+                "none" : "None"
+            }
+          },
+          "logistic_regression_C": {
+            "label": "C",
+            "type": "input",
+            "default": "1.0"
+          },
+          "logistic_regression_solver": {
+            "label": "Solver",
+            "type": "select",
+            "default": "lbfgs",
+            "options": {
+              "lbfgs": "LBFGS",
+              "newton-cg": "Newton-CG",
+              "liblinear": "Liblinear",
+              "sag": "Stochastic Average Gradient",
+              "saga": "Stochastic Average Gradient Descent"
+            }
+          },
+          "logistic_regression_fit_intercept": {
+            "label": "Fit Intercept",
+            "type": "checkbox",
+            "default": false
+          },
+          "logistic_regression_max_iter": {
+            "label": "Max Iter",
+            "type": "input",
+            "default": "100"
+          },
+          "logistic_regression_tol": {
+            "label": "Tol",
+            "type": "input",
+            "default": "0.0001"
+          },
+          "logistic_regression_fit_intercept": {
+            "label": "Fit Intercept",
+            "type": "checkbox",
+            "default": true
+          },
+          "logistic_regression_intercept_scaling": {
+            "label": "Intercept Scaling",
+            "type": "input",
+            "default": "1"
+          }
+        }
+      },
+      "decision-tree": {
+        "label": "Decision Tree",
+        "active": false,
+        "params": {
+          "decision_tree_enable": {
+            "label": "Enable Decision Tree",
+            "type": "checkbox",
+            "default": false
+          },
+          "decision_tree_max_depth": {
+            "label": "Max Depth",
+            "type": "input",
+            "default": "None"
+          },
+          "decision_tree_min_samples_split": {
+            "label": "Min Samples Split",
+            "type": "input",
+            "default": "2"
+          },
+          "decision_tree_min_samples_leaf": {
+            "label": "Min Samples Leaf",
+            "type": "input",
+            "default": "1"
+          },
+          "decision_tree_criterion": {
+            "label": "Criterion",
+            "type": "select",
+            "default": "gini",
+            "options": {
+              "gini": "Gini",
+              "entropy": "Entropy"
+            }
+          },
+          "decision_tree_max_leaf_nodes": {
+            "label": "Max Leaf Nodes",
+            "type": "input",
+            "default": "None"
+          },
+          "decision_tree_splitter": {
+            "label": "Splitter",
+            "type": "select",
+            "default": "best",
+            "options": {
+              "best": "best",
+              "random": "random"
+            }
+          }
+        }
+      },
+      "GMMHMM": {
+        "label": "GMMHMM",
+        "active": false,
+        "params": {
+          "GMMHMM_enable": {
+            "label": "Enable GMMHMM",
+            "type": "checkbox",
+            "default": false
+          }
+        }
+      }
+    },
+    "evaluation": {
+      "train_test_split": {
+        "label": "Enable Train Test Split",
+        "active": true,
+        "params": {
+          "train_test_split_enable": {
+            "label": "Enable Train Test Split",
+            "type": "checkbox",
+            "default": false
+          },
+          "train_test_split_test_size": {
+            "label": "Test Size",
+            "type": "input",
+            "default": "0.25"
+          },
+          "train_test_split_shuffle": {
+            "label": "Shuffle",
+            "type": "select",
+            "default": "True",
+            "options": {
+              "True": "True",
+              "False": "False"
+            }
+          },
+          "train_test_split_random_state": {
+            "label": "Random State",
+            "type": "input",
+            "default": "None"
+          }
+        }
+      },
+      "kfold": {
+        "label": "K Fold Cross Validation",
+        "active": false,
+        "params": {
+          "kfold_enable": {
+            "label": "Enable K Fold",
+            "type": "checkbox",
+            "default": false
+          },
+          "kfold_n_splits": {
+            "label": "Number of Folds",
+            "type": "input",
+            "default": "5"
+          },
+          "kfold_shuffle": {
+            "label": "Shuffle",
+            "type": "checkbox",
+            "default": false
+          },
+          "kfold_random_state": {
+            "label": "Random Seed",
+            "type": "input",
+            "default": "None"
+          }
+        }
+      },
+      "stratifiedkfold": {
+        "label": "Stratified K Fold",
+        "active": false,
+        "params": {
+          "stratifiedkfold_enable": {
+            "label": "Enable Stratified K Fold",
+            "type": "checkbox",
+            "default": false
+          },
+          "stratifiedkfold_n_splits": {
+            "label": "Number of Folds",
+            "type": "input",
+            "default": "5"
+          },
+          "stratifiedkfold_shuffle": {
+            "label": "Shuffle",
+            "type": "checkbox",
+            "default": false
+          },
+          "stratifiedkfold_random_state": {
+            "label": "Random State",
+            "type": "input",
+            "default": "None"
+          }
+        }
+      }
+    }
+  };
+
+  var json4 =
+  {
+    "dataset": {
+      "fixed": {
+        "label": "Fixed Length",
+        "active": true,
+        "params": {
+          "fixed_enable": {
+            "label": "Enable Fixed Length",
+            "type": "checkbox",
+            "default": false
+          },
+          "fixed_size": {
+            "label": "Fixed Length In Seconds",
+            "type": "input",
+            "default": "1"
+          }
+        }
+      },
+      "framing": {
+        "label": "Framing",
+        "active": false,
+        "params": {
+          "framing_enable": {
+            "label": "Enable Framing",
+            "type": "checkbox",
+            "default": false
+          },
+          "frame_size": {
+            "label": "Frame Size",
+            "type": "input",
+            "default": "11250"
+          },
+          "frame_hop_length": {
+            "label": "Hop Length",
+            "type": "input",
+            "default": "5625"
+          }
+        }
+      },
+      "processing":{
+        "label": "Processing",
+        "params" : {
+            "enable_normalize": {
+                "label" : "Enable Normalization",
+                "type" : "checkbox",
+                "default": false
+            },
+            "enable_segment": {
+                "label" : "Enable Segmentation",
+                "type" : "checkbox",
+                "default" : false
+            },
+            "enable_trim" : {
+            "label":"Enable Trim Silence",
+            "type" : "checkbox",
+            "default" : false
+            }
+        }
+      }
+    },
+    "preprocessing": {
+      "wavelet-denoising": {
+        "label": "Wavelet Denoising",
+        "active": true,
+        "params": {
+          "wavelet_denoise_enable": {
+            "label": "Enable Wavelet Denoising",
+            "type": "checkbox",
+            "default": false
+          },
+          "wavelet_denoise_wavelet": {
+            "label": "Wavelet",
+            "type": "select",
+            "default": "haar",
+            "options": {
+              "cmor": "cmor",
+              "coif1": "coif1",
+              "coif2": "coif2",
+              "coif3": "coif3",
+              "coif4": "coif4",
+              "coif5": "coif5",
+              "coif6": "coif6",
+              "coif7": "coif7",
+              "coif8": "coif8",
+              "coif9": "coif9",
+              "coif10": "coif10",
+              "coif11": "coif11",
+              "coif12": "coif12",
+              "coif13": "coif13",
+              "coif14": "coif14",
+              "coif15": "coif15",
+              "coif16": "coif16",
+              "coif17": "coif17",
+              "db1": "db1",
+              "db2": "db2",
+              "db3": "db3",
+              "db4": "db4",
+              "db5": "db5",
+              "db6": "db6",
+              "db7": "db7",
+              "db8": "db8",
+              "db9": "db9",
+              "db10": "db10",
+              "db11": "db11",
+              "db12": "db12",
+              "db20": "db20",
+              "db36": "db36",
+              "db37": "db37",
+              "db38": "db38",
+              "dmey": "dmey",
+              "fbsp": "fbsp",
+              "gaus1": "gaus1",
+              "gaus2": "gaus2",
+              "gaus3": "gaus3",
+              "gaus4": "gaus4",
+              "gaus5": "gaus5",
+              "gaus6": "gaus6",
+              "gaus7": "gaus7",
+              "gaus8": "gaus8",
+              "haar": "haar",
+              "mexh": "mexh",
+              "morl": "morl",
+              "shan": "shan",
+              "sym2": "sym2",
+              "sym3": "sym3",
+              "sym4": "sym4",
+              "sym5": "sym5",
+              "sym6": "sym6",
+              "sym7": "sym7",
+              "sym8": "sym8",
+              "sym9": "sym9",
+              "sym10": "sym10",
+              "sym15": "sym15",
+              "sym20": "sym20"
+            }
+          },
+          "wavelet_denoise_level": {
+            "label": "Level",
+            "type": "input",
+            "default": "3"
+          },
+          "wavelet_denoise_include_level": {
+            "label": "Level to include",
+            "type": "input",
+            "default": "4"
+          },
+          "wavelet_threshold_enable": {
+            "label": "Enable Thresholding",
+            "type": "checkbox",
+            "default": false
+          },
+          "wavelet_denoise_magnitude": {
+            "label": "Magnitude",
+            "type": "input",
+            "default": "1"
+          }
+        }
+      }
+    },
+    "features": {
+      "mfcc": {
+        "label": "MFCC",
+        "active": true,
+        "params": {
+          "mfcc_enable": {
+            "label": "Enable MFCC",
+            "type": "checkbox",
+            "default": false
+          },
+          "mfcc_n_mfcc": {
+            "label": "n_mfcc",
+            "type": "input",
+            "default": "20"
+          },
+          "mffc_n_mfcc_trun": {
+            "label": "Number of MFCC to use",
+            "type": "input",
+            "default": "20"
+          },
+          "mfcc_center": {
+            "label": "center",
+            "type": "input",
+            "default": "True"
+          },
+          "mfcc_dct_type": {
+            "label": "dct_type",
+            "type": "select",
+            "default": "2",
+            "options": {
+              "1": "1",
+              "2": "2",
+              "3": "3"
+            }
+          },
+          "mfcc_norm": {
+            "label": "norm",
+            "type": "select",
+            "default": "ortho",
+            "options": {
+              "ortho": "ortho",
+              "None": "None"
+            }
+          },
+          "mfcc_n_fft": {
+            "label": "n_fft",
+            "type": "input",
+            "default": "2048"
+          },
+          "mfcc_hop_length": {
+            "label": "hop_length",
+            "type": "input",
+            "default": "512"
+          },
+          "mfcc_delta": {
+            "label": "Delta MFCC",
+            "type": "checkbox",
+            "default": false
+          },
+          "mfcc_delta2": {
+            "label": "Delta 2 MFCC",
+            "type": "checkbox",
+            "default": false
+          }
+        }
+      },
+      "mel-spec": {
+        "label": "Mel Spectrogram",
+        "active": false,
+        "params": {
+          "mel_spec_enable": {
+            "label": "Enable Mel Spectrogram",
+            "type": "checkbox",
+            "default": false
+          },
+          "mel_spec_n_fft": {
+            "label": "Number of FFT",
+            "type": "input",
+            "default": "2048"
+          },
+          "mel_spec_hop_length": {
+            "label": "Hop Length",
+            "type": "input",
+            "default": "512"
+          },
+          "mel_spec_window": {
+            "label": "Window",
+            "type": "select",
+            "default": "hann",
+            "options": {
+              "hann": "hann",
+              "hamming": "hamming",
+              "kaiser": "kaiser",
+              "boxcar": "boxcar"
+            }
+          },
+          "mel_spec_center": {
+            "label": "Center",
+            "type": "checkbox",
+            "default": true
+          },
+          "mel_spec_power": {
+            "label": "Power",
+            "type": "select",
+            "default": "2",
+            "options": {
+              "1": "1 - Energy",
+              "2": "2 - Power"
+            }
+          }
+        }
+      },
+      "wavedec": {
+        "label": "Discrete Wavelet",
+        "active": false,
+        "params": {
+          "wavedec_enable": {
+            "label": "Enable Wavelet",
+            "type": "checkbox",
+            "default": false
+          },
+          "wavedec_wavelet": {
+            "label": "Wavelet",
+            "type": "select",
+            "default": "cmor",
+            "options": {
+              "cmor": "cmor",
+              "coif1": "coif1",
+              "coif2": "coif2",
+              "coif3": "coif3",
+              "coif4": "coif4",
+              "coif5": "coif5",
+              "coif6": "coif6",
+              "coif7": "coif7",
+              "coif8": "coif8",
+              "coif9": "coif9",
+              "coif10": "coif10",
+              "coif11": "coif11",
+              "coif12": "coif12",
+              "coif13": "coif13",
+              "coif14": "coif14",
+              "coif15": "coif15",
+              "coif16": "coif16",
+              "coif17": "coif17",
+              "db1": "db1",
+              "db2": "db2",
+              "db3": "db3",
+              "db4": "db4",
+              "db5": "db5",
+              "db6": "db6",
+              "db7": "db7",
+              "db8": "db8",
+              "db9": "db9",
+              "db10": "db10",
+              "db11": "db11",
+              "db12": "db12",
+              "db20": "db20",
+              "db36": "db36",
+              "db37": "db37",
+              "db38": "db38",
+              "dmey": "dmey",
+              "fbsp": "fbsp",
+              "gaus1": "gaus1",
+              "gaus2": "gaus2",
+              "gaus3": "gaus3",
+              "gaus4": "gaus4",
+              "gaus5": "gaus5",
+              "gaus6": "gaus6",
+              "gaus7": "gaus7",
+              "gaus8": "gaus8",
+              "haar": "haar",
+              "mexh": "mexh",
+              "morl": "morl",
+              "shan": "shan",
+              "sym2": "sym2",
+              "sym3": "sym3",
+              "sym4": "sym4",
+              "sym5": "sym5",
+              "sym6": "sym6",
+              "sym7": "sym7",
+              "sym8": "sym8",
+              "sym9": "sym9",
+              "sym10": "sym10",
+              "sym15": "sym15",
+              "sym20": "sym20"
+            }
+          },
+          "wavedec_level": {
+            "label": "Level",
+            "type": "input",
+            "default": "3"
+          },
+          "wavedec_mode": {
+            "label": "Mode",
+            "type": "select",
+            "default": "sym",
+            "options": {
+              "sym": "symmetric",
+              "ppd": "Periodic Padding",
+              "cpd": "Constant Padding",
+              "zpd": "Zero Padding",
+              "sp1": "Smooth Padding"
+            }
+          }
+        }
+      },
+      "wav-scat": {
+        "label": "Wavelet Scattering",
+        "active": false,
+        "params": {
+          "wav_scat_enable": {
+            "label": "Enable Wavelet Scattering",
+            "type": "checkbox",
+            "default": false
+          },
+          "wav_scat_j": {
+            "label": "Max Scale of Transform",
+            "type": "input",
+            "default": "6"
+          },
+          "wav_scat_q": {
+            "label": "Wavelets per Octave",
+            "type": "input",
+            "default": "1"
+          }
+        }
+      },
+      "spectral": {
+        "label": "Spectral Features",
+        "active": false,
+        "params": {
+          "spectral_centroid_enable": {
+            "label": "Enable Spectral Centroid",
+            "type": "checkbox",
+            "default": false
+          },
+          "spectral_centroid_n_fft": {
+            "label": "FFT Length",
+            "type": "input",
+            "default": "2048"
+          },
+          "spectral_centroid_hop_length": {
+            "label": "Hop Length",
+            "type": "input",
+            "default": "512"
+          },
+          "spectral_bandwidth_enable": {
+            "label": "Enable Spectral Bandwidth",
+            "type": "checkbox",
+            "default": false
+          },
+          "spectral_bandwidth_n_fft": {
+            "label": "Number of FFT",
+            "type": "input",
+            "default": "2048"
+          },
+          "spectral_bandwidth_hop_length": {
+            "label": "Hop Length",
+            "type": "input",
+            "default": "512"
+          },
+          "spectral_bandwidth_window": {
+            "label": "Window",
+            "type": "select",
+            "default": "hann",
+            "options": {
+              "hann": "hann",
+              "hamming": "hamming",
+              "kaiser": "kaiser",
+              "boxcar": "boxcar"
+            }
+          },
+          "spectral_bandwidth_center": {
+            "label": "Center",
+            "type": "checkbox",
+            "default": true
+          },
+          "spectral_bandwidth_power": {
+            "label": "Power",
+            "type": "select",
+            "default": "2",
+            "options": {
+              "1": "1 - Energy",
+              "2": "2 - Power"
+            }
+          },
+          "spectral_contrast_enable": {
+            "label": "Enable Spectral Contrast",
+            "type": "checkbox",
+            "default": false
+          },
+          "spectral_contrast_n_fft": {
+            "label": "Number of FFT",
+            "type": "input",
+            "default": "2048"
+          },
+          "spectral_contrast_hop_length": {
+            "label": "Hop Length",
+            "type": "input",
+            "default": "512"
+          },
+          "spectral_contrast_window": {
+            "label": "Window",
+            "type": "select",
+            "default": "hann",
+            "options": {
+              "hann": "hann",
+              "hamming": "hamming",
+              "kaiser": "kaiser",
+              "boxcar": "boxcar"
+            }
+          },
+          "spectral_contrast_center": {
+            "label": "Center",
+            "type": "checkbox",
+            "default": true
+          },
+          "spectral_contrast_n_bands": {
+            "label": "Number of Bands",
+            "type": "input",
+            "default": "6"
+          },
+          "spectral_rolloff_enable": {
+            "label": "Enable Spectral Rolloff",
+            "type": "checkbox",
+            "default": false
+          },
+          "spectral_rolloff_n_fft": {
+            "label": "Number of FFT",
+            "type": "input",
+            "default": "2048"
+          },
+          "spectral_rolloff_hop_length": {
+            "label": "Hop Length",
+            "type": "input",
+            "default": "512"
+          },
+          "spectral_rolloff_window": {
+            "label": "Window",
+            "type": "select",
+            "default": "hann",
+            "options": {
+              "hann": "hann",
+              "hamming": "hamming",
+              "kaiser": "kaiser",
+              "boxcar": "boxcar"
+            }
+          },
+          "spectral_rolloff_center": {
+            "label": "Center",
+            "type": "checkbox",
+            "default": true
+          },
+          "spectral_rolloff_percent": {
+            "label": "Percent",
+            "type": "input",
+            "default": "85"
+          }
+        }
+      },
+      "chroma-stft": {
+        "label": "Chroma Features",
+        "active": false,
+        "params": {
+          "chroma_stft_enable": {
+            "label": "Enable Chroma STFT",
+            "type": "checkbox",
+            "default": false
+          },
+          "chroma_stft_n_chroma": {
+            "label": "Number of Chroma bins",
+            "type": "input",
+            "default": "12"
+          },
+          "chroma_stft_norm": {
+            "label": "Normalization",
+            "type": "input",
+            "default": "None"
+          },
+          "chroma_stft_window": {
+            "label": "Window size",
+            "type": "input",
+            "default": "2048"
+          },
+          "chroma_stft_hop_length": {
+            "label": "Hop length",
+            "type": "input",
+            "default": "512"
+          },
+          "chroma_stft_a_ref": {
+            "label": "A tuning reference",
+            "type": "input",
+            "default": "440.0"
+          }
+        }
+      },
+      "zero-crossing-rate": {
+        "label": "Zero Crossing Rate",
+        "active": false,
+        "params": {
+          "zcr_enable": {
+            "label": "Enable Zero Crossing Rate",
+            "type": "checkbox",
+            "default": false
+          },
+          "zcr_frame_length": {
+            "label": "Frame length",
+            "type": "input",
+            "default": "2048"
+          },
+          "zcr_hop_length": {
+            "label": "Hop length",
+            "type": "input",
+            "default": "512"
+          },
+          "zcr_center": {
+            "label": "Center",
+            "type": "input",
+            "default": "True"
+          }
+        }
+      },
+      "spec-centroid": {
+        "label": "Spectral Centroid",
+        "active": true,
+        "params": {
+          "spectral_centroid_enable": {
+            "label": "Enable Spectral Centroid",
+            "type": "checkbox",
+            "default": false
+          },
+          "spectral_centroid_n_fft": {
+            "label": "FFT Length",
+            "type": "input",
+            "default": "2048"
+          },
+          "spectral_centroid_hop_length": {
+            "label": "Hop Length",
+            "type": "input",
+            "default": "512"
+          }
+        }
+      },
+      "spectral-bandwidth": {
+        "label": "Spectral Bandwidth",
+        "active": false,
+        "params": {
+          "spectral_bandwidth_enable": {
+            "label": "Enable Spectral Bandwidth",
+            "type": "checkbox",
+            "default": false
+          },
+          "spectral_bandwidth_n_fft": {
+            "label": "Number of FFT",
+            "type": "input",
+            "default": "2048"
+          },
+          "spectral_bandwidth_hop_length": {
+            "label": "Hop Length",
+            "type": "input",
+            "default": "512"
+          },
+          "spectral_bandwidth_window": {
+            "label": "Window",
+            "type": "select",
+            "default": "hann",
+            "options": {
+              "hann": "hann",
+              "hamming": "hamming",
+              "kaiser": "kaiser",
+              "boxcar": "boxcar"
+            }
+          },
+          "spectral_bandwidth_center": {
+            "label": "Center",
+            "type": "checkbox",
+            "default": true
+          },
+          "spectral_bandwidth_power": {
+            "label": "Power",
+            "type": "select",
+            "default": "2",
+            "options": {
+              "1": "1 - Energy",
+              "2": "2 - Power"
+            }
+          }
+        }
+      },
+      "spectral-contrast": {
+        "label": "Spectral Contrast",
+        "active": false,
+        "params": {
+          "spectral_contrast_enable": {
+            "label": "Enable Spectral Contrast",
+            "type": "checkbox",
+            "default": false
+          },
+          "spectral_contrast_n_fft": {
+            "label": "Number of FFT",
+            "type": "input",
+            "default": "2048"
+          },
+          "spectral_contrast_hop_length": {
+            "label": "Hop Length",
+            "type": "input",
+            "default": "512"
+          },
+          "spectral_contrast_window": {
+            "label": "Window",
+            "type": "select",
+            "default": "hann",
+            "options": {
+              "hann": "hann",
+              "hamming": "hamming",
+              "kaiser": "kaiser",
+              "boxcar": "boxcar"
+            }
+          },
+          "spectral_contrast_center": {
+            "label": "Center",
+            "type": "checkbox",
+            "default": true
+          },
+          "spectral_contrast_n_bands": {
+            "label": "Number of Bands",
+            "type": "input",
+            "default": "6"
+          }
+        }
+      },
+      "spectral-rolloff": {
+        "label": "Spectral Rolloff",
+        "active": false,
+        "params": {
+          "spectral_rolloff_enable": {
+            "label": "Enable Spectral Rolloff",
+            "type": "checkbox",
+            "default": false
+          },
+          "spectral_rolloff_n_fft": {
+            "label": "Number of FFT",
+            "type": "input",
+            "default": "2048"
+          },
+          "spectral_rolloff_hop_length": {
+            "label": "Hop Length",
+            "type": "input",
+            "default": "512"
+          },
+          "spectral_rolloff_window": {
+            "label": "Window",
+            "type": "select",
+            "default": "hann",
+            "options": {
+              "hann": "hann",
+              "hamming": "hamming",
+              "kaiser": "kaiser",
+              "boxcar": "boxcar"
+            }
+          },
+          "spectral_rolloff_center": {
+            "label": "Center",
+            "type": "checkbox",
+            "default": true
+          },
+          "spectral_rolloff_percent": {
+            "label": "Percent",
+            "type": "input",
+            "default": "85"
+          }
+        }
+      }
+    },
+    "featurepreprocessing": {
+      "pca": {
+        "label": "PCA",
+        "active": true,
+        "params": {
+          "pca_enable": {
+            "label": "Enable PCA",
+            "type": "checkbox",
+            "default": false
+          },
+          "pca_n_components": {
+            "label": "Number of Components",
+            "type": "input",
+            "default": "150"
+          }
+        }
+      },
+      "min-max": {
+        "label": "Min Max Scaling",
+        "active": false,
+        "params": {
+          "min_max_enable": {
+            "label": "Enable Min Max Scaling",
+            "type": "checkbox",
+            "default": false
+          },
+          "min_max_n_components": {
+            "label": "Number of Components",
+            "type": "input",
+            "default": "150"
+          }
+        }
+      }
+    },
+    "classifier": {
+      "knn": {
+        "label": "KNN",
+        "active": true,
+        "params": {
+          "knn_enable": {
+            "label": "Enable KNN",
+            "type": "checkbox",
+            "default": false
+          },
+          "knn_k": {
+            "label": "Number of K",
+            "type": "input",
+            "default": "5"
+          },
+          "knn_algorithm": {
+            "label": "Algorithm",
+            "type": "select",
+            "default": "auto",
+            "options": {
+              "auto": "Auto",
+              "ball_tree": "Ball Tree",
+              "kd_tree": "KD Tree",
+              "brute": "Brute Force"
+            }
+          },
+          "knn_leaf_size": {
+            "label": "Leaf Size",
+            "type": "input",
+            "default": "30"
+          },
+          "knn_metric": {
+            "label": "Metric",
+            "type": "select",
+            "default": "minkowski",
+            "options": {
+              "minkowski": "Minkowski",
+              "manhattan": "Manhattan",
+              "euclidean": "Euclidean",
+              "chebyshev": "Chebyshev"
+            }
+          },
+          "knn_metric_power": {
+            "label": "Metric Power",
+            "type": "input",
+            "default": "2"
+          },
+          "knn_weights": {
+            "label": "Weights",
+            "type": "select",
+            "default": "uniform",
+            "options": {
+              "uniform": "Uniform",
+              "distance": "Distance"
+            }
+          },
+          "knn_tune_hyperparameters": {
+            "label": "Tune Hyperparameters",
+            "type": "checkbox",
+            "default": false
+          }
+        }
+      },
+      "svm": {
+        "label": "SVM",
+        "active": false,
+        "params": {
+          "svm_enable": {
+            "label": "Enable SVM",
+            "type": "checkbox",
+            "default": false
+          },
+          "svm_c": {
+            "label": "C (Penalty Parameter of the Error Term)",
+            "type": "input",
+            "default": "1.0"
+          },
+          "svm_kernel": {
+            "label": "Kernel",
+            "type": "select",
+            "default": "rbf",
+            "options": {
+              "rbf": "rbf",
+              "linear": "linear",
+              "poly": "poly",
+              "sigmoid": "sigmoid"
+            }
+          },
+          "svm_degree": {
+            "label": "Degree",
+            "type": "input",
+            "default": "3"
+          },
+          "svm_gamma": {
+            "label": "Gamma",
+            "type": "input",
+            "default": "scale"
+          },
+          "svm_shrinking": {
+            "label": "Shrinking",
+            "type": "checkbox",
+            "default": false
+          },
+          "svm_probability": {
+            "label": "Probability",
+            "type": "checkbox",
+            "default": true
+          },
+          "svm_tol": {
+            "label": "Tol",
+            "type": "input",
+            "default": "0.001"
+          },
+          "svm_max_iter": {
+            "label": "Max Iter",
+            "type": "input",
+            "default": "-1"
+          },
+          "svm_tune_hyperparameters": {
+            "label": "Tune Hyperparameters",
+            "type": "checkbox",
+            "default": false
+          }
+        }
+      },
+      "adaboost": {
+        "label": "AdaBoost",
+        "active": false,
+        "params": {
+          "adaboost_enable": {
+            "label": "Enable AdaBoost",
+            "type": "checkbox",
+            "default": false
+          },
+          "adaboost_estimator": {
+            "label": "Estimator",
+            "type": "select",
+            "default": "None",
+            "options": {
+              "None": "None",
+              "DecisionTreeClassifier": "Decision Tree Classifier",
+              "SVC": "SVC"
+            }
+          },
+          "ada_dt_max_depth": {
+            "label": "Max Depth",
+            "type": "input",
+            "default": "None"
+          },
+          "ada_dt_min_samples_split": {
+            "label": "Min Samples Split",
+            "type": "input",
+            "default": "2"
+          },
+          "ada_dt_min_samples_leaf": {
+            "label": "Min Samples Leaf",
+            "type": "input",
+            "default": "1"
+          },
+          "ada_dt_criterion": {
+            "label": "Criterion",
+            "type": "select",
+            "default": "gini",
+            "options": {
+              "gini": "Gini",
+              "entropy": "Entropy"
+            }
+          },
+          "ada_decisiontree_max_leaf_nodes": {
+            "label": "Max Leaf Nodes",
+            "type": "input",
+            "default": "None"
+          },
+          "ada_decision_tree_splitter": {
+            "label": "Splitter",
+            "type": "select",
+            "default": "best",
+            "options": {
+              "best": "best",
+              "random": "random"
+            }
+          },
+          "ada_svm_c": {
+            "label": "C (Penalty Parameter of the Error Term)",
+            "type": "input",
+            "default": "1.0"
+          },
+          "ada_svm_kernel": {
+            "label": "Kernel",
+            "type": "select",
+            "default": "rbf",
+            "options": {
+              "rbf": "rbf",
+              "linear": "linear",
+              "poly": "poly",
+              "sigmoid": "sigmoid"
+            }
+          },
+          "ada_svm_degree": {
+            "label": "Degree",
+            "type": "input",
+            "default": "3"
+          },
+          "ada_svm_gamma": {
+            "label": "Gamma",
+            "type": "input",
+            "default": "scale"
+          },
+          "ada_svm_shrinking": {
+            "label": "Shrinking",
+            "type": "checkbox",
+            "default": false
+          },
+          "ada_svm_tol": {
+            "label": "Tol",
+            "type": "input",
+            "default": "0.001"
+          },
+          "ada_svm_max_iter": {
+            "label": "Max Iter",
+            "type": "input",
+            "default": "-1"
+          },
+          "ada_n_estimators": {
+            "label": "Number of Estimators",
+            "type": "input",
+            "default": "50"
+          },
+          "ada_learning_rate": {
+            "label": "Learning Rate",
+            "type": "input",
+            "default": "1"
+          },
+          "ada_algorithm": {
+            "label": "Algorithm",
+            "type": "select",
+            "default": "SAMME.R",
+            "options": {
+              "SAMME.R": "SAMME.R",
+              "SAMME": "SAMME"
+            }
+          },
+          "ada_random_state": {
+            "label": "Random State",
+            "type": "input",
+            "default": "None"
+          }
+        }
+      },
+      "logistic_regression": {
+        "label": "Logistic Regression",
+        "active": false,
+        "params": {
+          "logistic_regression_enable": {
+            "label": "Enable Logistic Regression",
+            "type": "checkbox",
+            "default": false
+          },
+          "logreg_C": {
+            "label": "C",
+            "type": "input",
+            "default": "1.0"
+          },
+          "logreg_solver": {
+            "label": "Solver",
+            "type": "select",
+            "default": "lbfgs",
+            "options": {
+              "lbfgs": "LBFGS",
+              "newton-cg": "Newton-CG",
+              "liblinear": "Liblinear",
+              "sag": "Stochastic Average Gradient",
+              "saga": "Stochastic Average Gradient Descent"
+            }
+          },
+          "logreg_fit_intercept": {
+            "label": "Fit Intercept",
+            "type": "checkbox",
+            "default": false
+          },
+          "logistic_regression_max_iter": {
+            "label": "Max Iter",
+            "type": "input",
+            "default": "100"
+          },
+          "logistic_regression_tol": {
+            "label": "Tol",
+            "type": "input",
+            "default": "0.0001"
+          },
+          "logistic_regression_fit_intercept": {
+            "label": "Fit Intercept",
+            "type": "checkbox",
+            "default": true
+          },
+          "logistic_regression_intercept_scaling": {
+            "label": "Intercept Scaling",
+            "type": "input",
+            "default": "1"
+          }
+        }
+      },
+      "decision-tree": {
+        "label": "Decision Tree",
+        "active": false,
+        "params": {
+          "decision_tree_enable": {
+            "label": "Enable Decision Tree",
+            "type": "checkbox",
+            "default": false
+          },
+          "dt_max_depth": {
+            "label": "Max Depth",
+            "type": "input",
+            "default": "None"
+          },
+          "dt_min_samples_split": {
+            "label": "Min Samples Split",
+            "type": "input",
+            "default": "2"
+          },
+          "dt_min_samples_leaf": {
+            "label": "Min Samples Leaf",
+            "type": "input",
+            "default": "1"
+          },
+          "dt_criterion": {
+            "label": "Criterion",
+            "type": "select",
+            "default": "gini",
+            "options": {
+              "gini": "Gini",
+              "entropy": "Entropy"
+            }
+          },
+          "decision_tree_max_leaf_nodes": {
+            "label": "Max Leaf Nodes",
+            "type": "input",
+            "default": "None"
+          },
+          "decision_tree_splitter": {
+            "label": "Splitter",
+            "type": "select",
+            "default": "best",
+            "options": {
+              "best": "best",
+              "random": "random"
+            }
+          }
+        }
+      },
+      "GMMHMM": {
+        "label": "GMMHMM",
+        "active": false,
+        "params": {
+          "GMMHMM_enable": {
+            "label": "Enable GMMHMM",
+            "type": "checkbox",
+            "default": false
+          }
+        }
+      }
+    },
+    "evaluation": {
+      "testtrain": {
+        "label": "Enable Train Test Split",
+        "active": true,
+        "params": {
+          "train_test_split_enable": {
+            "label": "Enable Train Test Split",
+            "type": "checkbox",
+            "default": false
+          },
+          "train_test_split_test_size": {
+            "label": "Test Size",
+            "type": "input",
+            "default": "0.25"
+          },
+          "train_test_split_shuffle": {
+            "label": "Shuffle",
+            "type": "select",
+            "default": "True",
+            "options": {
+              "True": "True",
+              "False": "False"
+            }
+          },
+          "train_test_split_random_state": {
+            "label": "Random State",
+            "type": "input",
+            "default": "None"
+          }
+        }
+      },
+      "kfold": {
+        "label": "K Fold Cross Validation",
+        "active": false,
+        "params": {
+          "kfold_enable": {
+            "label": "Enable K Fold",
+            "type": "checkbox",
+            "default": false
+          },
+          "kfold_n_splits": {
+            "label": "Number of Folds",
+            "type": "input",
+            "default": "5"
+          },
+          "kfold_shuffle": {
+            "label": "Shuffle",
+            "type": "checkbox",
+            "default": false
+          },
+          "kfold_random_state": {
+            "label": "Random Seed",
+            "type": "input",
+            "default": "None"
+          }
+        }
+      },
+      "stratifiedkfold": {
+        "label": "Stratified K Fold",
+        "active": false,
+        "params": {
+          "stratifiedkfold_enable": {
+            "label": "Enable Stratified K Fold",
+            "type": "checkbox",
+            "default": false
+          },
+          "stratifiedkfold_n_splits": {
+            "label": "Number of Folds",
+            "type": "input",
+            "default": "5"
+          },
+          "stratifiedkfold_shuffle": {
+            "label": "Shuffle",
+            "type": "checkbox",
+            "default": false
+          },
+          "stratifiedkfold_random_state": {
+            "label": "Random State",
+            "type": "input",
+            "default": "None"
+          }
+        }
+      }
+    }
+  };
+  {% comment %} createFeatureTabs("Features", json2); {% endcomment %}
+
+  Object.keys(json3).forEach((category) => {
+    createFeatureTabs(category, json3[category]);
+  });
+</script>
+
+<script>
+  function getValues() {
+    var config = {};
+
+    // Get the sections
+    var sections = document.querySelectorAll(".section");
+    sections.forEach(function (section) {
+      var sectionName = section.getAttribute("id");
+      sectionName = sectionName.replace("-row", "");
+      config[sectionName] = {};
+
+      // Get the tabs within the section
+      var tabs = section.querySelectorAll(".nav-link");
+      tabs.forEach(function (tab) {
+        var tabName = tab.getAttribute("id");
+        tn = tabName.replace("-tab", "");
+        tn = tn.replace("-", "_");
+        config[sectionName][tn] = {};
+
+        // Get the input values within the tab
+        var inputs = section.querySelectorAll(
+          `[aria-labelledby="${tabName}"] input`
+        );
+        inputs.forEach(function (input) {
+          var inputName = input.getAttribute("id");
+          inputName = inputName.replace(tn + "_", "");
+          var inputValue = getInputValue(input);
+          config[sectionName][tn][inputName] = inputValue;
+        });
+
+        // Get the checkbox values within the tab
+        var checkboxes = section.querySelectorAll(
+          `[aria-labelledby="${tabName}"] input[type="checkbox"]`
+        );
+        checkboxes.forEach(function (checkbox) {
+          var checkboxName = checkbox.getAttribute("id");
+          checkboxName = checkboxName.replace(tn + "_", "");
+          var checkboxValue = checkbox.checked;
+          config[sectionName][tn][checkboxName] = checkboxValue;
+        });
+
+        // Get the select values within the tab
+        var selects = section.querySelectorAll(
+          `[aria-labelledby="${tabName}"] select`
+        );
+        selects.forEach(function (select) {
+          var selectName = select.getAttribute("id");
+          selectName = selectName.replace(`${tn}_`, "");
+          var selectValue = select.value;
+          config[sectionName][tn][selectName] = selectValue;
+        });
+      });
+    });
+    config.datasetpickle = document.getElementById("dataset-pickle").value;
+    console.log(config);
+    return config;
+  }
+
+  function getInputValue(input) {
+    var inputType = input.getAttribute("type");
+    var inputValue;
+
+    if (inputType === "checkbox") {
+      inputValue = input.checked;
+    } else {
+      inputValue = input.value;
+    }
+
+    return inputValue;
+  }
+
+  function logValues() {
+    var values = getValues();
+    console.log(values);
+  }
+
+  //Post Functions
+
+  async function postConfig(config) {
+    const response = await fetch("/app/api/config", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(config),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to post config: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    return result;
+  }
+
+  async function postData(url = "", data = {}) {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+
+    return response.text();
+  }
+
+  // Submit Handling
+  document
+    .getElementById("submit-config")
+    .addEventListener("click", function () {
+      document.getElementById("runningspinner").classList.add("visible");
+      document.getElementById("runningspinner").classList.remove("invisible");
+      postConfig(getValues())
+        .then((result) => {
+          console.log(result);
+          console.log(result["Status"]);
+          newtx = "<li>" + JSON.stringify(result) + "</li>";
+          document.getElementById("results").innerHTML += newtx;
+          document.getElementById("runningspinner").classList.remove("visible");
+          document.getElementById("runningspinner").classList.add("invisible");
+          postData("api/resultscard", result)
+            .then((data) => {
+              let div = document.createElement("div");
+              div.innerHTML = data;
+              div.classList.add("mt1");
+              document.getElementById("resultsrow").appendChild(div);
+            })
+            .catch((error) => console.error(error));
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+        });
+    });
+</script>
+
+<script>
+  // Adaboost Estimator Options
+  function adaboostDisplay() {
+    var estimatorSelect = document.getElementById("adaboost_estimator");
+    var selectedEstimator = estimatorSelect.value;
+
+    var decisionTreeIds = [
+      "ada_decisiontree_max_leaf_nodes",
+      "ada_dt_max_depth",
+      "ada_dt_min_samples_split",
+      "ada_dt_min_samples_leaf",
+      "ada_dt_criterion",
+      "ada_decisiontree_max_leaf_nodes",
+      "ada_decision_tree_splitter",
+    ];
+
+    var svmIds = [
+      "ada_svm_c",
+      "ada_svm_kernel",
+      "ada_svm_degree",
+      "ada_svm_gamma",
+      "ada_svm_shrinking",
+      "ada_svm_tol",
+      "ada_svm_max_iter",
+    ];
+
+    var allIds = decisionTreeIds.concat(svmIds);
+
+    allIds.forEach(function (id) {
+      var element = document.getElementById(id);
+      element.style.display = "none"; // Hide all elements initially
+
+      // Hide parent div with class 'row' two levels above the element
+      var parentRow = element.closest(".row");
+      parentRow.style.display = "none";
+    });
+
+    if (selectedEstimator === "DecisionTreeClassifier") {
+      decisionTreeIds.forEach(function (id) {
+        var element = document.getElementById(id);
+        element.style.display = "block"; // Show decision tree elements
+
+        // Show parent div with class 'row' two levels above the element
+        var parentRow = element.closest(".row");
+        parentRow.style.display = "block";
+      });
+    } else if (selectedEstimator === "SVC") {
+      svmIds.forEach(function (id) {
+        var element = document.getElementById(id);
+        element.style.display = "block"; // Show SVM elements
+
+        // Show parent div with class 'row' two levels above the element
+        var parentRow = element.closest(".row");
+        parentRow.style.display = "block";
+      });
+    }
+  }
+
+  // Run the function once on page load
+  window.addEventListener("DOMContentLoaded", function () {
+    adaboostDisplay();
+  });
+
+  // Listen for changes in adaboost-estimator
+  var estimatorSelect = document.getElementById("adaboost_estimator");
+  estimatorSelect.addEventListener("change", function () {
+    adaboostDisplay();
+  });
+</script>
+
+{% endblock %}

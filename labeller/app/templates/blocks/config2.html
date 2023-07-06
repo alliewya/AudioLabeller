@@ -8,7 +8,7 @@
 <div id="myTabContent" class="tab-content"></div>
 <div id="jsonin"></div>
 <button id="submitBtn" type="button" class="btn btn-primary">Submit</button>
-
+<h1>AAAAAAAAAAAAAAAAAAAAAAAAAAAA</h1>
 <script>
   const inputJSON = {
     KNeighborsClassifier: {
@@ -104,7 +104,7 @@
       inputCol.className = "col-sm-9";
 
       let inputElement;
-
+      console.log(paramData.type);
       if (paramData.type.startsWith("int")) {
         inputElement = document.createElement("input");
         inputElement.type = "number";
@@ -188,4 +188,32 @@
   });
 </script>
 
+
+<!--Modifiers-->
+<script>
+    // Adaboost Estimator Options
+    document
+    .getElementById("adaboost_estimator")
+    .addEventListener("change", function () {
+      var selectedOption = this.options[this.selectedIndex].value;
+      if (selectedOption !== "None") {
+        document.getElementById("adaclassifierconfig").style.display = "block";
+        document.getElementById("ada_estimator_decisiontree").style.display =
+          "none";
+        document.getElementById("ada_estimator_svm").style.display = "none";
+        if (selectedOption === "DecisionTreeClassifier") {
+          document.getElementById("ada_estimator_decisiontree").style.display =
+            "block";
+        } else if (selectedOption === "SVC") {
+          document.getElementById("ada_estimator_svm").style.display = "block";
+        }
+      } else {
+        document.getElementById("adaclassifierconfig").style.display = "none";
+      }
+    });
+</script>
+
+
+
 {% endblock %}
+

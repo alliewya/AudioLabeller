@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Label Differences</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  {% load static %}
+  <link rel="shortcut icon" href="{% static 'favicon.ico' %}">
+</head>
+<body>
+  <div class="container mt-4">
+    <h1>Cough Length Statistics</h1>
+    <hr>
+
+
+    <h2>Statistics</h2>
+    <table class="table table-bordered">
+      <tbody>
+        <tr>
+          <th>Number of files both labelled</th>
+          <td>{{ status.Both_Labelled }}</td>
+        </tr>
+        <tr>
+          <th>Total Differences</th>
+          <td>{{ status.Difference }}</td>
+        </tr>
+      </tbody>
+    </table>
+  
+
+  <h2>Mismatched Label Counts</h2>
+  <table class="table table-bordered">
+    <tbody>
+      <tr>
+        <th>
+          File Name
+        </th>
+        <th>User - {{ user1 }}</th>
+        <th>User - {{ user2 }}</th>
+        <th>Difference</th>
+      </tr>
+      {% for record in status.Difference_list %}
+
+      <tr>
+        <td>
+          <a href="/app/{{ user1 }}/audiolabelled/{{ record.fname|slice:"-4" }}/compare/{{ user2 }}">{{ record.fname }}</a>
+        </td>
+        <td>
+            {{record.UserA}}
+          </td>
+          <td>
+            {{record.UserB}}
+          </td>
+          <td>
+            {{record.Differences}}
+          </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  
+
+  <div class="spacer m-3"></div>
+
+</div>
+
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

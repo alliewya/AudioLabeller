@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+
+        <title>Generated Examples</title>
+
+
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65"
+      crossorigin="anonymous"
+    />
+    
+    {% load static %}
+    <link rel="shortcut icon" href="{% static 'favicon.ico' %}">
+    <!-- <link rel="stylesheet" href="style.css"> -->
+
+    <!--Waveform JS-->
+    <script src="https://unpkg.com/wavesurfer.js@6.4.0/dist/wavesurfer.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.minimap.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.regions.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.spectrogram.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.regions.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.timeline.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.cursor.js"></script>
+  </head>
+
+  {% if user.is_authenticated %}
+  <body>
+    <div class="container">
+      <div class="row mb-2">
+        <div class="col-6">
+          <h1><a href="/app/" class="text-decoration-none">Audio</a></h1>
+        </div>
+        <div class="col-6 d-flex align-items-center justify-content-end" >
+          
+          <div class="text-right"> {% if user.is_authenticated %}
+          <Small>Logged in as: </small>{{ user.username }}
+            {% else %}
+            <a href="/accounts/login">You are not logged in</a>
+          {% endif %}
+        </div></div>
+      </div>
+      {% if audiolist %}
+      {% for audiofile in audiolist %} {% with forloop.counter as count %}
+      <div class="row">
+        <div class="col-12 mt-3 mb-4">
+          <h2 class="float-start">{{ audiofile.filename }}</h2>
+            <span class="float-end badge rounded-pill text-bg-info" id="username_badge_{{ count }}">{{ audiofile.labelusername }}</span>
+          <div id="wave-timeline{{count}}"></div>
+          <div id="waveform{{count}}"></div>
+          <div id="wave-spectrogram{{count}}" class="spectrogram"></div>
+          <div id="wave-minimap{{count}}"></div>
+          <div class="controls">
+            <div class="row mt-2 mb-3">
+              <div class="col-sm-2">
+                <button
+                  id="button{{count}}"
+                  class="btn btn-primary"
+                  data-action="play"
+                >
+                  <i class="glyphicon glyphicon-play"></i>
+                  Play /
+                  <i class="glyphicon glyphicon-pause"></i>
+                  Pause
+                </button>
+              </div>
+              <div class="col-sm-5">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" value="" id="LowQCheck{{count}}" >
+                  <label class="form-check-label" for="LowQCheck{{count}}">
+                    Low Quality
+                  </label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" value="" id="UnclearCheck{{count}}" >
+                  <label class="form-check-label" for="UnclearCheck{{count}}">
+                    Unclear
+                  </label>
+                </div>
+              </div>
+              <div class="col-sm-1">
+                <i class="glyphicon glyphicon-zoom-in"></i>
+              </div>
+
+              <div class="col-sm-3">
+                <input
+                  id="slider{{count}}"
+                  data-action="zoom"
+                  type="range"
+                  min="20"
+                  max="1000"
+                  value="0"
+                  style="width: 100%"
+                />
+              </div>
+
+              <div class="col-sm-1">
+                <i class="glyphicon glyphicon-zoom-out"></i>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <p class="col-10" id="regions-text{{count}}"></p>
+            <p class="col-2" style="float:right"><button onclick="processRegions({{count}})"><small>Regions Length</small></button></p>
+          </div>
+        </div>
+      </div>
+
+
+      <div class="row">
+        <div class="row mt-3">
+      
+        </div>
+      </div>
+
+
+
+      {% endwith %} {% endfor %}
+      {% else %}
+      <div>No files found</div>
+      {% endif %}
+      <div class="row">
+        <div class="row mt-3">
+          <hr>
+          <h3>JSON</h3>
+          <div class="col-6 mb-2">
+            <button class="btn btn-secondary m-1" type="button" data-bs-toggle="collapse" data-bs-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample">
+              Show / Hide JSON
+            </button><span> </span
+            ><span id="savestatus"></span>
+          </div>
+          <div class="col-6"><div class="d-grid" style="grid-template-columns: 1fr 1fr">
+            <label for="playbackspeedslider" class="form-label">Playback Speed  <span><small id="playbackspeedlabel"></small><small>x</small></span></label>
+            <button id="resetspeed">Reset</button>
+            <input type="range" class="form-range" min="0.1" max="3" step="0.1" id="playbackspeedslider" style="grid-column:span 2;">
+          </div></div>
+          <div class="collapse" id="collapseExample">
+          <div id="json-master" class="card card-body mb-3"></div>
+          </div>
+          <hr>
+        </div>
+      </div>
+      <div class="row mb-5 mt-5">
+        <nav aria-label="Page navigation example">
+            <ul class="pagination justify-content-center">
+              {% if page_obj.has_previous %}
+              <li class="page-item"><a class="page-link" href="?page=1">&laquo; first</a></li>
+                  <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">previous</a></li>
+            
+              {% if page_obj.number > 3 %}
+              <li class="page-item">
+                <a  class="page-link" href="?page=1">1</a>
+              </li>
+                {% if page_obj.number > 4 %}
+                <li class="page-item">
+                  <span>...</span>
+                </li>
+                {% endif %}
+              {% endif %}
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+              {% if page_obj.number == num %}
+              <li class="page-item active">
+                <a class="page-link" href="#">{{ num }}</a>
+              </li>
+              {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+              </li>
+              {% endif %}
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+              {% if page_obj.number < page_obj.paginator.num_pages|add:'-3' %}
+              <li class="page-item">
+              <span>...</span>
+            </li>
+                <li class="page-item">
+                <a  class="page-link" href="?page={{ page_obj.paginator.num_pages }}">{{ page_obj.paginator.num_pages }}</a>
+                </li>
+                {% elif page_obj.number < page_obj.paginator.num_pages|add:'-2' %}
+                <li class="page-item">
+                <a href="?page={{ page_obj.paginator.num_pages }}">{{ page_obj.paginator.num_pages }}</a>
+                </li>
+                {% endif %}
+              <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">next</a></li>
+              <liclass="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">last &raquo;</a></li>
+            {% endif %}
+            </div>
+          </nav>
+      </div>
+    </div>
+
+    <style>
+      .spectrogram{
+        {% comment %} opacity: 0.8; {% endcomment %}
+        {% comment %} filter: saturate(0.5) hue-rotate(312deg); {% endcomment %}
+        filter: hue-rotate(312deg);
+        opacity: 0.85;
+      }
+
+    </style>
+
+    <script>
+
+
+      /**
+       * Random RGBA color.
+       */
+      function randomColor(alpha) {
+          return (
+              'rgba(' +
+              [
+                  ~~(Math.random() * 255),
+                  ~~(Math.random() * 255),
+                  ~~(Math.random() * 255),
+                  alpha || 1
+              ] +
+              ')'
+          );
+      }
+
+      {% load static %}
+
+
+      //var MinimapPlugin = window.WaveSurfer.minimap;
+      var activewaveform;
+      var regions_master = [];
+      var wavesurferobjects = [];
+
+
+      var reddy = [[0,0,0,1],[0.011764705882352941,0,0,1],[0.023529411764705882,0,0,1],[0.03529411764705882,0,0,1],[0.047058823529411764,0,0,1],[0.058823529411764705,0,0,1],[0.07058823529411765,0,0,1],[0.08235294117647059,0,0,1],[0.09411764705882353,0,0,1],[0.10588235294117647,0,0,1],[0.11764705882352941,0,0,1],[0.12941176470588237,0,0,1],[0.1411764705882353,0,0,1],[0.15294117647058825,0,0,1],[0.16470588235294117,0,0,1],[0.17647058823529413,0,0,1],[0.18823529411764706,0,0,1],[0.2,0,0,1],[0.21176470588235294,0,0,1],[0.2235294117647059,0,0,1],[0.23529411764705882,0,0,1],[0.24705882352941178,0,0,1],[0.25882352941176473,0,0,1],[0.27058823529411763,0,0,1],[0.2823529411764706,0,0,1],[0.29411764705882354,0,0,1],[0.3058823529411765,0,0,1],[0.3176470588235294,0,0,1],[0.32941176470588235,0,0,1],[0.3411764705882353,0,0,1],[0.35294117647058826,0,0,1],[0.36470588235294116,0,0,1],[0.3764705882352941,0,0,1],[0.38823529411764707,0,0,1],[0.4,0,0,1],[0.4117647058823529,0,0,1],[0.4235294117647059,0,0,1],[0.43529411764705883,0,0,1],[0.4470588235294118,0,0,1],[0.4549019607843137,0,0,1],[0.4666666666666667,0,0,1],[0.47843137254901963,0,0,1],[0.49019607843137253,0,0,1],[0.5019607843137255,0,0,1],[0.5137254901960784,0,0,1],[0.5254901960784314,0,0,1],[0.5372549019607843,0,0,1],[0.5490196078431373,0,0,1],[0.5607843137254902,0,0,1],[0.5725490196078431,0,0,1],[0.5843137254901961,0,0,1],[0.596078431372549,0,0,1],[0.6078431372549019,0,0,1],[0.6196078431372549,0,0,1],[0.6313725490196078,0,0,1],[0.6431372549019608,0,0,1],[0.6549019607843137,0,0,1],[0.6666666666666666,0,0,1],[0.6784313725490196,0,0,1],[0.6901960784313725,0,0,1],[0.7019607843137254,0,0,1],[0.7137254901960784,0,0,1],[0.7254901960784313,0,0,1],[0.7372549019607844,0,0,1],[0.7490196078431373,0,0,1],[0.7607843137254902,0,0,1],[0.7725490196078432,0,0,1],[0.7843137254901961,0,0,1],[0.796078431372549,0,0,1],[0.807843137254902,0,0,1],[0.8196078431372549,0,0,1],[0.8313725490196079,0,0,1],[0.8431372549019608,0,0,1],[0.8549019607843137,0,0,1],[0.8666666666666667,0,0,1],[0.8784313725490196,0,0,1],[0.8901960784313725,0,0,1],[0.9019607843137255,0,0,1],[0.9019607843137255,0.011764705882352941,0,1],[0.9058823529411765,0.023529411764705882,0,1],[0.9058823529411765,0.03137254901960784,0,1],[0.9058823529411765,0.043137254901960784,0,1],[0.9098039215686274,0.054901960784313725,0,1],[0.9098039215686274,0.06666666666666667,0,1],[0.9098039215686274,0.07450980392156863,0,1],[0.9137254901960784,0.08627450980392157,0,1],[0.9137254901960784,0.09803921568627451,0,1],[0.9137254901960784,0.10980392156862745,0,1],[0.9176470588235294,0.11764705882352941,0,1],[0.9176470588235294,0.12941176470588237,0,1],[0.9176470588235294,0.1411764705882353,0,1],[0.9215686274509803,0.15294117647058825,0,1],[0.9215686274509803,0.1607843137254902,0,1],[0.9215686274509803,0.17254901960784313,0,1],[0.9254901960784314,0.1843137254901961,0,1],[0.9254901960784314,0.19607843137254902,0,1],[0.9254901960784314,0.20784313725490197,0,1],[0.9294117647058824,0.21568627450980393,0,1],[0.9294117647058824,0.22745098039215686,0,1],[0.9294117647058824,0.23921568627450981,0,1],[0.9333333333333333,0.25098039215686274,0,1],[0.9333333333333333,0.25882352941176473,0,1],[0.9333333333333333,0.27058823529411763,0,1],[0.9372549019607843,0.2823529411764706,0,1],[0.9372549019607843,0.29411764705882354,0,1],[0.9372549019607843,0.30196078431372547,0,1],[0.9411764705882353,0.3137254901960784,0,1],[0.9411764705882353,0.3254901960784314,0,1],[0.9411764705882353,0.33725490196078434,0,1],[0.9450980392156862,0.34509803921568627,0,1],[0.9450980392156862,0.3568627450980392,0,1],[0.9450980392156862,0.3686274509803922,0,1],[0.9490196078431372,0.3803921568627451,0,1],[0.9490196078431372,0.38823529411764707,0,1],[0.9490196078431372,0.4,0,1],[0.9529411764705882,0.4117647058823529,0,1],[0.9529411764705882,0.4235294117647059,0,1],[0.9529411764705882,0.43529411764705883,0,1],[0.9529411764705882,0.44313725490196076,0,1],[0.9568627450980393,0.4549019607843137,0,1],[0.9568627450980393,0.4666666666666667,0,1],[0.9568627450980393,0.47843137254901963,0,1],[0.9607843137254902,0.48627450980392156,0,1],[0.9607843137254902,0.4980392156862745,0,1],[0.9607843137254902,0.5098039215686274,0,1],[0.9647058823529412,0.5215686274509804,0,1],[0.9647058823529412,0.5294117647058824,0,1],[0.9647058823529412,0.5411764705882353,0,1],[0.9686274509803922,0.5529411764705883,0,1],[0.9686274509803922,0.5647058823529412,0,1],[0.9686274509803922,0.5725490196078431,0,1],[0.9725490196078431,0.5843137254901961,0,1],[0.9725490196078431,0.596078431372549,0,1],[0.9725490196078431,0.6078431372549019,0,1],[0.9764705882352941,0.6196078431372549,0,1],[0.9764705882352941,0.6274509803921569,0,1],[0.9764705882352941,0.6392156862745098,0,1],[0.9803921568627451,0.6509803921568628,0,1],[0.9803921568627451,0.6627450980392157,0,1],[0.9803921568627451,0.6705882352941176,0,1],[0.984313725490196,0.6823529411764706,0,1],[0.984313725490196,0.6941176470588235,0,1],[0.984313725490196,0.7058823529411765,0,1],[0.9882352941176471,0.7137254901960784,0,1],[0.9882352941176471,0.7254901960784313,0,1],[0.9882352941176471,0.7372549019607844,0,1],[0.9921568627450981,0.7490196078431373,0,1],[0.9921568627450981,0.7568627450980392,0,1],[0.9921568627450981,0.7686274509803922,0,1],[0.996078431372549,0.7803921568627451,0,1],[0.996078431372549,0.792156862745098,0,1],[0.996078431372549,0.8,0,1],[1,0.8117647058823529,0,1],[1,0.8235294117647058,0,1],[1,0.8235294117647058,0.011764705882352941,1],[1,0.8274509803921568,0.0196078431372549,1],[1,0.8274509803921568,0.03137254901960784,1],[1,0.8313725490196079,0.0392156862745098,1],[1,0.8313725490196079,0.050980392156862744,1],[1,0.8352941176470589,0.058823529411764705,1],[1,0.8352941176470589,0.07058823529411765,1],[1,0.8392156862745098,0.0784313725490196,1],[1,0.8392156862745098,0.09019607843137255,1],[1,0.8392156862745098,0.09803921568627451,1],[1,0.8431372549019608,0.10980392156862745,1],[1,0.8431372549019608,0.11764705882352941,1],[1,0.8470588235294118,0.12941176470588237,1],[1,0.8470588235294118,0.13725490196078433,1],[1,0.8509803921568627,0.14901960784313725,1],[1,0.8509803921568627,0.1568627450980392,1],[1,0.8549019607843137,0.16862745098039217,1],[1,0.8549019607843137,0.17647058823529413,1],[1,0.8549019607843137,0.18823529411764706,1],[1,0.8588235294117647,0.19607843137254902,1],[1,0.8588235294117647,0.20784313725490197,1],[1,0.8627450980392157,0.21568627450980393,1],[1,0.8627450980392157,0.22745098039215686,1],[1,0.8666666666666667,0.23529411764705882,1],[1,0.8666666666666667,0.24705882352941178,1],[1,0.8666666666666667,0.2549019607843137,1],[1,0.8705882352941177,0.26666666666666666,1],[1,0.8705882352941177,0.27450980392156865,1],[1,0.8745098039215686,0.28627450980392155,1],[1,0.8745098039215686,0.29411764705882354,1],[1,0.8784313725490196,0.3058823529411765,1],[1,0.8784313725490196,0.3137254901960784,1],[1,0.8823529411764706,0.3254901960784314,1],[1,0.8823529411764706,0.3333333333333333,1],[1,0.8823529411764706,0.34509803921568627,1],[1,0.8862745098039215,0.35294117647058826,1],[1,0.8862745098039215,0.36470588235294116,1],[1,0.8901960784313725,0.37254901960784315,1],[1,0.8901960784313725,0.3843137254901961,1],[1,0.8941176470588236,0.39215686274509803,1],[1,0.8941176470588236,0.403921568627451,1],[1,0.8980392156862745,0.4117647058823529,1],[1,0.8980392156862745,0.4235294117647059,1],[1,0.8980392156862745,0.43137254901960786,1],[1,0.9019607843137255,0.44313725490196076,1],[1,0.9019607843137255,0.45098039215686275,1],[1,0.9058823529411765,0.4627450980392157,1],[1,0.9058823529411765,0.47058823529411764,1],[1,0.9098039215686274,0.4823529411764706,1],[1,0.9098039215686274,0.49019607843137253,1],[1,0.9137254901960784,0.5019607843137255,1],[1,0.9137254901960784,0.5098039215686274,1],[1,0.9137254901960784,0.5215686274509804,1],[1,0.9176470588235294,0.5294117647058824,1],[1,0.9176470588235294,0.5411764705882353,1],[1,0.9215686274509803,0.5490196078431373,1],[1,0.9215686274509803,0.5607843137254902,1],[1,0.9254901960784314,0.5686274509803921,1],[1,0.9254901960784314,0.5803921568627451,1],[1,0.9254901960784314,0.5882352941176471,1],[1,0.9294117647058824,0.6,1],[1,0.9294117647058824,0.6078431372549019,1],[1,0.9333333333333333,0.6196078431372549,1],[1,0.9333333333333333,0.6274509803921569,1],[1,0.9372549019607843,0.6392156862745098,1],[1,0.9372549019607843,0.6470588235294118,1],[1,0.9411764705882353,0.6588235294117647,1],[1,0.9411764705882353,0.6666666666666666,1],[1,0.9411764705882353,0.6784313725490196,1],[1,0.9450980392156862,0.6862745098039216,1],[1,0.9450980392156862,0.6980392156862745,1],[1,0.9490196078431372,0.7058823529411765,1],[1,0.9490196078431372,0.7176470588235294,1],[1,0.9529411764705882,0.7254901960784313,1],[1,0.9529411764705882,0.7372549019607844,1],[1,0.9568627450980393,0.7450980392156863,1],[1,0.9568627450980393,0.7568627450980392,1],[1,0.9568627450980393,0.7647058823529411,1],[1,0.9607843137254902,0.7764705882352941,1],[1,0.9607843137254902,0.7843137254901961,1],[1,0.9647058823529412,0.796078431372549,1],[1,0.9647058823529412,0.803921568627451,1],[1,0.9686274509803922,0.8156862745098039,1],[1,0.9686274509803922,0.8235294117647058,1],[1,0.9725490196078431,0.8352941176470589,1],[1,0.9725490196078431,0.8431372549019608,1],[1,0.9725490196078431,0.8549019607843137,1],[1,0.9764705882352941,0.8627450980392157,1],[1,0.9764705882352941,0.8745098039215686,1],[1,0.9803921568627451,0.8823529411764706,1],[1,0.9803921568627451,0.8941176470588236,1],[1,0.984313725490196,0.9019607843137255,1],[1,0.984313725490196,0.9137254901960784,1],[1,0.984313725490196,0.9215686274509803,1],[1,0.9882352941176471,0.9333333333333333,1],[1,0.9882352941176471,0.9411764705882353,1],[1,0.9921568627450981,0.9529411764705882,1],[1,0.9921568627450981,0.9607843137254902,1],[1,0.996078431372549,0.9725490196078431,1],[1,0.996078431372549,0.9803921568627451,1],[1,1,0.9921568627450981,1],[1,1,1,1]]
+
+
+      {% for audiofile in audiolist  %}
+      {% with forloop.counter as count %}
+      //mediaControls: false,
+      //normalize:true,
+      //backend: 'MediaElement',
+
+      var wavesurfer{{ count }} = WaveSurfer.create({
+          container: '#waveform{{count}}',
+          waveColor: 'violet',
+          progressColor: 'purple',
+          height: 200,
+          plugins: [
+              WaveSurfer.regions.create(),
+              WaveSurfer.minimap.create({
+                  container: '#wave-minimap{{count}}',
+                  waveColor: '#777',
+                  progressColor: '#222',
+                  height: 50
+              }),
+              WaveSurfer.spectrogram.create({
+                  wavesurfer: wavesurfer{{ count }},
+          container: "#wave-spectrogram{{count}}",
+          labels: true,
+          height: 85,
+          frequencyMax: 10000,
+          colorMap : reddy,
+              }),
+           WaveSurfer.timeline.create({
+              container: '#wave-timeline{{count}}',
+          }),
+          WaveSurfer.cursor.create({
+              showTime: false,
+              opacity: 1,
+              customShowTimeStyle: {
+                  'background-color': '#000',
+                  'opacity': '0.5',
+                  color: '#fff',
+                  padding: '2px',
+                  'font-size': '10px'
+              }
+          }) 
+          ]
+      });
+      g = function(){
+        console.log("joj");
+      wavesurfer{{ count }}.spectrogram.colorMap = jet;
+    console.log("jjjjjjjj")}
+    //g();
+      // Add to list of wavesurefers
+      wavesurferobjects.push(wavesurfer{{ count }})
+
+      // wavesurfer.load('{% static 'sample.wav' %}');
+      wavesurfer{{ count }}.load('{% static "/examples/" %}{{ audiofile.filename }} ');
+      wavesurfer{{ count }}.on('ready', function () {
+          wavesurfer{{ count }}.enableDragSelection({});
+              //wavesurfer.play();
+              {% for region in audiofile.regions %}
+          wavesurfer{{ count }}.addRegion({ start: {{ region.start }}, end: {{ region.end }}, color: randomColor(0.1) });
+      {% endfor %}
+          saveRegions{{ count }} ();
+      });
+
+      // listen for doubleclick on region, for region delete
+      wavesurfer{{ count }}.on('region-dblclick', function (region) {
+
+          region.remove();
+
+      });
+
+
+      document.querySelector('#slider{{count}}').oninput = function () {
+          wavesurfer{{ count }}.zoom(Number(this.value));
+      };
+
+      // Zoom slider
+      let slider{{ count }} = document.querySelector('#slider{{count}}');
+
+      wavesurfer{{ count }}.zslider = slider{{ count }};
+
+      slider{{ count }}.value = wavesurfer{{ count }}.params.minPxPerSec;
+      slider{{ count }}.min = wavesurfer{{ count }}.params.minPxPerSec;
+      // Allow extreme zoom-in, to see individual samples
+      slider{{ count }}.max = 1000;
+
+      // slider.addEventListener('input', function () {
+      //     wavesurfer{{count}}.zoom(Number(this.value));
+      // });
+      slider{{ count }}.addEventListener('change', function () {
+          wavesurfer{{ count }}.zoom(Number(this.value));
+          //console.log(slider{{count}}.value);
+      });
+
+      // set initial zoom to match slider value
+      wavesurfer{{ count }}.zoom(slider{{ count }}.value);
+
+      // Zoom to location on minimap using scroll wheel
+      document.querySelector('#wave-minimap{{count}}').onwheel = function (event) {
+          event.preventDefault();
+          wavesurfer{{ count }}.pause();
+          slider{{ count }}.value = parseInt(slider{{ count }}.value) + parseInt(event.deltaY);
+          wavesurfer{{ count }}.zoom(Number(slider{{ count }}.value));
+          wavesurfer{{ count }}.seekAndCenter((event.offsetX / document.getElementById('waveform{{count}}').offsetWidth))
+      }
+
+
+      // Play button
+      let button{{ count }} = document.querySelector('#button{{count}}');
+      button{{ count }}.addEventListener('click', wavesurfer{{ count }}.playPause.bind(wavesurfer{{ count }}));
+
+      //Checkboxes
+      lowqualitycheck{{count}} = document.getElementById('LowQCheck{{ count }}');
+      lowqualitycheck{{count}}.checked = {% if audiofile.lowquality %}true{% else %}false{% endif %};
+      lowqualitycheck{{count}}.addEventListener('click',saveRegions{{ count }});
+      unclearcheck{{count}} = document.getElementById('UnclearCheck{{ count }}');
+      unclearcheck{{count}}.checked = {% if audiofile.unclear %}true{% else %}false{% endif %};
+      unclearcheck{{count}}.addEventListener('click',saveRegions{{ count }});
+
+
+      // Region Functions / Events
+
+      //Play on region click
+
+      wavesurfer{{ count }}.on('region-click', function (region, e) {
+          e.stopPropagation();
+          // Play on click, loop on shift click
+          e.shiftKey ? region.playLoop() : console.log("");
+          if(e.ctrlKey){
+            region.remove() ;
+            saveRegions{{ count }}();
+          }
+      });
+
+
+      // Random colour on region creation
+      wavesurfer{{ count }}.on('region-created', function (region, e) {
+          region.color = randomColor(0.1);
+      })
+
+      //unclear: document.getElementById('UnclearCheck').checked,
+      wavesurfer{{ count }}.on('region-updated', saveRegions{{ count }});
+      wavesurfer{{ count }}.on('region-removed', saveRegions{{ count }});
+      function saveRegions{{ count }} () {
+          regions_master[{{ forloop.counter0 }}] =
+      {
+          filename: '{{audiofile.filename}}',
+          lowquality: lowqualitycheck{{count}}.checked,
+          unclear:  unclearcheck{{count}}.checked,
+              regions: Object.keys(wavesurfer{{ count }}.regions.list).map(function (id) {
+                  let region = wavesurfer{{ count }}.regions.list[id];
+      return {
+          start: region.start,
+          end: region.end,
+          //attributes: region.attributes,
+          //data: region.data
+      };
+              })
+          }
+      document.getElementById('json-master').innerHTML = JSON.stringify(regions_master);
+      document.querySelector('#regions-text{{count}}').innerHTML = JSON.stringify(
+          Object.keys(wavesurfer{{ count }}.regions.list).map(function (id) {
+              let region = wavesurfer{{ count }}.regions.list[id];
+      return {
+          start: region.start,
+          end: region.end,
+          //attributes: region.attributes,
+          //data: region.data
+      };
+              })
+          );
+      }
+
+      wavesurfer{{ count }}.on('interaction', function () {
+          activewaveform = wavesurfer{{ count }};
+      })
+
+      // Button for Username list 
+      document.getElementById("username_badge_{{ count }}").addEventListener('click', function () {
+        console.log("{{audiofile.filename}}".slice(0, -4));
+        fname = ("{{audiofile.filename}}".slice(0,-4));
+        url = "/app/api/labeluserslist/" + fname;
+        fetch(url, {
+          method: "GET",
+          {% comment %} headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(regions_master) {% endcomment %}
+      })
+      {% comment %} .then(res => {
+          console.log("Request complete! response:", res);
+          if (res.status == 200) {
+              var today = new Date();
+              var date = today.getFullYear() + '-' + (today.getMonth() + 1) + '-' + today.getDate();
+              var time = today.getHours() + ":" + today.getMinutes() + ":" + today.getSeconds();
+              var dateTime = date + ' ' + time;
+              document.getElementById('regions-text{{count}}').innerHTML = res.text;
+          }
+      }) {% endcomment %}
+      .then(res => res.json())
+      .then(data => {document.getElementById('regions-text{{count}}').innerHTML = data;})
+      ;
+        //wavesurfer{{ count }}.zoom(Number(this.value));
+        //console.log(slider{{count}}.value);
+      });
+
+      {% endwith %}
+      {% endfor %}
+
+      //set playback speed from local storage or set to 1 if not present
+      var playbackspeed;
+      if(localStorage.getItem("playbackspeed")){
+          playbackspeed = parseFloat(localStorage.getItem("playbackspeed")) ;
+          if(isNaN(playbackspeed)){
+            playbackspeed = 1;
+          }}
+      else{
+        localStorage.setItem("playbackspeed","1");
+        playbackspeed = 1;
+      }
+
+      playbackspeedslider = document.getElementById('playbackspeedslider')
+      playbackspeedslider.value = playbackspeed;
+      document.getElementById('playbackspeedlabel').innerText = playbackspeed;
+
+      playbackspeedslider.addEventListener('change', updatePlaybackSpeeds)
+
+      resetspeed = document.getElementById('resetspeed');
+      resetspeed.addEventListener('click', function(){
+        playbackspeedslider.value = 1;
+        updatePlaybackSpeeds();
+      })
+
+      function updatePlaybackSpeeds(){
+      playbackspeed = playbackspeedslider.value;
+      document.getElementById('playbackspeedlabel').innerText = playbackspeed;
+      wavesurferobjects.forEach(surfer => surfer.setPlaybackRate(playbackspeed));
+      localStorage.setItem("playbackspeed",playbackspeed);
+    };
+
+      //playpause with spacebar
+
+      activewaveform = wavesurfer1;
+
+      //playpause with spacebar
+      document.addEventListener('keydown', e => {
+          if (e.code == "Space") {
+              event.preventDefault();
+              activewaveform.playPause()
+          }
+
+          if (e.code == "ArrowLeft") {
+              event.preventDefault();
+              activewaveform.skipBackward();
+          }
+          if (e.code == "ArrowRight") {
+              event.preventDefault();
+              activewaveform.skipForward();
+          }
+          if (e.code == "ArrowUp") {
+              activewaveform.zslider.value = parseInt(activewaveform.zslider.value) + parseInt(100);
+              activewaveform.zoom(Number(activewaveform.zslider.value));
+          }
+          if (e.code == "ArrowDown") {
+              activewaveform.zslider.value -= 100;
+              activewaveform.zoom(Number(activewaveform.zslider.value));
+          }
+      })
+
+
+      // function handleSubmit(){
+      //     var xhr = new XMLHttpRequest();
+      //     xhr.open("Post","api/json", true);
+      //     xhr.setRequestHeader('Content-Type','application/json');
+      //     xhr.send(JSON.stringify(regions_master));
+      // }
+      function handleSubmit() {
+          fetch("/app/api/json", {
+              method: "POST",
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(regions_master)
+          }).then(res => {
+              console.log("Request complete! response:", res);
+              if (res.status == 200) {
+                  var today = new Date();
+                  var date = today.getFullYear() + '-' + (today.getMonth() + 1) + '-' + today.getDate();
+                  var time = today.getHours() + ":" + today.getMinutes() + ":" + today.getSeconds();
+                  var dateTime = date + ' ' + time;
+                  document.getElementById('savestatus').innerHTML = "Saved " + dateTime;
+              }
+          });
+      }
+      
+    </script>
+
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4"
+      crossorigin="anonymous"
+    ></script>
+
+
+    <script>// Get the contents of the <p> element
+      function processRegions(id) {
+        name = "regions-text"+id
+        var regionsText = document.getElementById(name).textContent;
+        var regions = JSON.parse(regionsText);
+        //var processedRegions = document.getElementById("processed-regions");
+        var processedRegions = document.getElementById(name);
+      
+        processedRegions.innerHTML = ""; // Clear the previous content
+      
+      // Sort regions by start time in ascending order
+      regions.sort(function(a, b) {
+        return a.start - b.start;
+      });
+
+      regions.forEach(function(region) {
+        var length = region.end - region.start;
+        var listItem = document.createElement("li");
+        listItem.textContent = "Start: " + region.start.toFixed(2) + " | Length: " + length.toFixed(2);
+
+        if (length === 0.5) {
+          listItem.style.color = "red";
+        }
+
+        processedRegions.appendChild(listItem);
+      });
+
+      
+    }</script>
+
+
+  </body>
+{% else %}
+<body>
+  <div class="Row">
+    <div class="col-12">
+      <div class="d-flex justify-content-center align-items-center p-3">
+        <div>
+          <h2><a href="/accounts/login">Login</a></h2>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="d-flex justify-content-center align-items-center p-3">
+          <div>
+            <h2><a href="/app/register">Register</a></h2>
+          </div>
+        </div>
+    </div>
+  </div>
+  </body>
+{% endif %}
+
+  
+</html>

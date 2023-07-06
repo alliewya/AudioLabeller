@@ -17,7 +17,8 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score,confusion_matrix, f1_score, precision_score, recall_score, roc_auc_score
 from sklearn.decomposition import PCA
-import traceback
+from sklearn.preprocessing import MinMaxScaler
+import traceback, math
 
 import multiprocessing
 from hmmlearn import hmm
@@ -28,7 +29,7 @@ from scipy.stats import skew, kurtosis
 #tempforpi
 import scipy.signal as signal
 import scipy.fftpack as fft
-
+from scipy.fft import dct
 
 
 #Discrete wavelet
@@ -146,6 +147,7 @@ class Dataset:
         self.segmented = False
         self.features = []
         self.crossfolds = False
+        self.descriptors = None
         if(load):
             filelist = librosa.util.find_files(self.path, recurse=False)
             print(str(len(filelist))+" Files to load")
@@ -505,7 +507,7 @@ class FeaturesBase():
         with multiprocessing.Pool(processes=12) as pool:
             results = pool.starmap(
                 self.process_sample,
-                [(audio, kwargs) for audio in dataset.samples]
+                [(audio, ) for audio in dataset.samples]
             )
         features = [x['feature'] for x in results]
         labels = [x['label'] for x in results]
@@ -524,7 +526,7 @@ class MFCCFeatures(FeaturesBase):
 
 
     def features_from_dataset2(self,dataset, **kwargs):
-        sr = 22500
+        sr = 22050
         framelength = sr // 2
         hop_lenght = sr // 4
         
@@ -636,7 +638,7 @@ class MFCCFeatures(FeaturesBase):
         features = features.ravel()
         return features
 
-    def process_sample(self, audio, kwargs):
+    def process_sample(self, audio):
         kwargs = self.kwargs
         n_mfcc = int(kwargs.get('n_mfcc', 20))
         center = bool(kwargs.get('center', False))
@@ -709,7 +711,8 @@ class MelSpectrogramFeatures(FeaturesBase):
         return features
 
     def single_features_from_audio(self, audiofilepath, **kwargs):
-        audiosample = AudioSample(path=audiofilepath, samplerate=kwargs.get('samplerate',22500))
+        
+        audiosample = AudioSample(path=audiofilepath, samplerate=kwargs.get('samplerate',22050))
         features = np.empty((0,128))
         melspec = librosa.feature.melspectrogram(
                 y=audiosample.audiodata, sr=audiosample.samplerate, n_fft=self.kwargs.get('n_fft', 2048),hop_length=self.kwargs.get('hop_length',512),
@@ -719,11 +722,12 @@ class MelSpectrogramFeatures(FeaturesBase):
         features = np.concatenate((features, melspec),axis=0)
         return features
 
-    def process_sample(self, audio, kwargs):
+    def process_sample(self, audio):
+        kwargs = self.kwargs
         melspec = librosa.feature.melspectrogram(
-                y=audio.audiodata, sr=audio.samplerate, n_fft=self.kwargs.get('n_fft', 2048),hop_length=self.kwargs.get('hop_length',512),
+                y=audio.audiodata, sr=audio.samplerate, n_fft=int(self.kwargs.get('n_fft', 2048)),hop_length=int(self.kwargs.get('hop_length',512)),
                 window=self.kwargs.get('window','hann'),center=self.kwargs.get('center',True),pad_mode=self.kwargs.get('pad_mode','constant'),
-                power=self.kwargs.get('power',2.0)
+                power=float(self.kwargs.get('power',2.0))
             )
         melspec = melspec.ravel()
         
@@ -737,7 +741,7 @@ class WaveletDecFeatures(FeaturesBase):
         
 
     def features_from_dataset2(self,dataset, **kwargs):
-        sr = 22500
+        sr = 22050
         framelength = sr // 2
         hop_lenght = sr // 4
         
@@ -802,7 +806,7 @@ class WaveletScatterFeatures(FeaturesBase):
         
 
     def features_from_dataset2(self,dataset, **kwargs):
-        sr = 22500
+        sr = 22050
         framelength = sr // 2
         hop_lenght = sr // 4
         
@@ -829,7 +833,7 @@ class WaveletScatterFeatures(FeaturesBase):
         features = features.ravel()
         return features
 
-    def process_sample(self, audio, kwargs):
+    def process_sample(self, audio):
 
         kwargs = self.kwargs
         # mfcc = librosa.feature.mfcc(
@@ -929,7 +933,8 @@ class SpectralCentroidFeatures(FeaturesBase):
         )
         return spectral_centroids
 
-    def process_sample(self, audio, kwargs):
+    def process_sample(self, audio):
+        kwargs = self.kwargs
         n_fft = int(kwargs.get('n_fft', 2048))
         hop_length = int(kwargs.get('hop_length', 512))
         win_length = kwargs.get('win_length', None)
@@ -956,7 +961,8 @@ class SpectralBandwidthFeatures(FeaturesBase):
         )
         return spectral_bandwidths
 
-    def process_sample(self, audio, kwargs):
+    def process_sample(self, audio):
+        kwargs = self.kwargs
         n_fft = int(kwargs.get('n_fft', 2048))
         hop_length = int(kwargs.get('hop_length', 512))
         win_length = kwargs.get('win_length', None)
@@ -986,7 +992,7 @@ class SpectralContrastFeatures(FeaturesBase):
         )
         return spectral_contrasts
 
-    def process_sample(self, audio, kwargs):
+    def process_sample(self, audio):
         kwargs = self.kwargs
         n_bands = int(kwargs.get('n_bands', 6))
         fmin = float(kwargs.get('fmin', 200.0))
@@ -1021,7 +1027,7 @@ class SpectralRolloffFeatures(FeaturesBase):
         )
         return spectral_rolloffs
 
-    def process_sample(self, audio, kwargs):
+    def process_sample(self, audio):
         kwargs = self.kwargs
 
         roll_percent = float(kwargs.get('roll_percent', 0.85))
@@ -1051,10 +1057,17 @@ class ChromaFeatures(FeaturesBase):
         )
         return chroma_features
 
-    def process_sample(self, audio, kwargs):
+    def process_sample(self, audio):
         kwargs = self.kwargs
+
+        if(kwargs.get("tuning",440)):
+            tune= None
+        else:
+            tune = kwargs.get("tuning",400)
+
         chroma_features = librosa.feature.chroma_stft(
-            y=audio.audiodata, sr=audio.samplerate, **kwargs
+            y=audio.audiodata, sr=audio.samplerate, n_chroma=int(kwargs.get('n_chroma', 12)),n_fft = int(kwargs.get('n_fft', 2048)),
+            hop_length = int(kwargs.get('hop_length', 512)), tuning=tune
         )
         chroma_features = chroma_features.ravel()
 
@@ -1069,14 +1082,81 @@ class ZeroCrossingRateFeatures(FeaturesBase):
         )
         return zero_crossing_rates
 
-    def process_sample(self, audio, kwargs):
+    def process_sample(self, audio):
         kwargs = self.kwargs
+
+        
         zero_crossing_rates = librosa.feature.zero_crossing_rate(
-            y=audio.audiodata, **kwargs
+            y=audio.audiodata, frame_length=int(kwargs.get("frameLength", 2048)),hop_length=int(kwargs.get('hop_length', 512)),center=bool(kwargs.get('center', True))
         )
         zero_crossing_rates = zero_crossing_rates.ravel()
 
         return {'feature': zero_crossing_rates, 'label': audio.label}
+
+class WaveletCepstralFeatures(FeaturesBase):
+    """ Wavelet Cepstral Coef"""
+    def calculate_wcc(self, audio):
+        # Pre-emphasis
+        pre_emphasis = 0.97
+        emphasized_audio = np.append(audio[0], audio[1:] - pre_emphasis * audio[:-1])
+
+        # Frame the signal
+        sr = 22050
+        frame_length = int(sr * 0.025)  # 25ms
+        hop_length = int(sr * 0.010)  # 10ms
+        #frame_length = 1024
+        #hop_length = 256
+
+        frames = librosa.util.frame(emphasized_audio, frame_length=frame_length, hop_length=hop_length).T
+
+        # Apply window function
+        window = np.hamming(frame_length)
+        windowed_frames = frames * window
+
+        # Compute wavelet transform
+        wavelet = 'db4'
+        #wavelet = 'haar'
+        wcc = []
+        for frame in windowed_frames:
+            coeffs = pywt.wavedec(frame, wavelet)
+            wcc.append(coeffs[0])
+
+        wcc = np.array(wcc)
+
+        # Apply DCT using scipy.fft.dct
+        n_ceps = 12
+        dct_filters = dct(np.eye(wcc.shape[1]), norm='ortho')
+        wcc = np.dot(wcc, dct_filters.T)
+
+
+        # Keep the desired number of coefficients
+        #wcc = wcc[:, :n_ceps]
+
+        # Optional steps:
+        # Compute delta and delta-delta coefficients
+        #delta = librosa.feature.delta(wcc)
+        #delta_delta = librosa.feature.delta(wcc, order=2)
+
+        # Perform normalization
+        wcc_mean = np.mean(wcc, axis=0)
+        wcc_std = np.std(wcc, axis=0)
+
+        # Check for zero standard deviation to avoid divide by zero
+        wcc_std[wcc_std == 0.0] = 1e-8
+
+        wcc_normalized = (wcc - wcc_mean) / wcc_std
+
+        return wcc_normalized
+
+
+    def process_sample(self, audio):
+        
+        kwargs = self.kwargs
+        
+        wavelet_cc = self.calculate_wcc(audio.audiodata)
+        wavelet_cc = wavelet_cc.ravel()
+
+        return {'feature': wavelet_cc, 'label': audio.label}
 
 
 
@@ -1094,12 +1174,27 @@ class MultiExtractor(FeaturesBase):
             labels.append(sample_features['label'])
         return features, labels
 
-    def single_features(self, audio, **kwargs):
-        features = {}
+        
+    def single_features(self, audiosample=None,audioframe = None, **kwargs):
+        audio_features = []
         for extractor in self.extractors:
-            extractor_features = extractor.single_features(audio, **kwargs)
-            features.update(extractor_features)
-        return features
+            if(audiosample):
+                sample_result = extractor.process_sample(audiosample)
+            else:
+                a = AudioSample()
+                a.audiodata = audioframe
+                a.label = "2"
+                a.samplerate = 22050
+                sample_result = extractor.process_sample(a)
+            features = sample_result['feature']
+            audio_features.append(features)
+            
+        combined_features = np.concatenate(audio_features)
+
+        contains_nan = np.isnan(combined_features).any()
+        if contains_nan:
+            print("NaN values detected in features")
+        return combined_features
 
     def single_features_from_audio(self, audiofilepath, **kwargs):
         features = {}
@@ -1108,11 +1203,11 @@ class MultiExtractor(FeaturesBase):
             features.update(extractor_features)
         return features
 
-    def process_sample(self, audio, kwargs):
+    def process_sample(self, audio):
         audio_features = []
         for extractor in self.extractors:
             #print(type(extractor))
-            sample_result = extractor.process_sample(audio, kwargs)
+            sample_result = extractor.process_sample(audio)
             features = sample_result['feature']
             audio_features.append(features)
 
@@ -1212,18 +1307,29 @@ class FeaturePreprocessorBase(ABC):
 
 
 
+class MinMaxScalerPreprocessor(FeaturePreprocessorBase):
+    def __init__(self, feature_range=(0, 1)):
+        self.feature_range = feature_range
+        self.scaler = MinMaxScaler(feature_range=feature_range)
+
+    def preprocess_features(self, features):
+        print("Min Max Scaler")
+        self.scaler = self.scaler.fit(features)
+        scaled_features = self.scaler.transform(features)
+        return scaled_features
+
 class PCAFeaturePreprocessor(FeaturePreprocessorBase):
     def __init__(self, n_components=128):
         self.n_components = n_components
         self.pca = PCA(n_components=self.n_components)
 
     def preprocess_features(self, features):
-        import sys
+        print("PCA")
+        #print(features[0].shape)
         #flattened_features = np.concatenate(features, axis=0)
-        transformed_features = self.pca.fit_transform(features)
-        np.set_printoptions(threshold=sys.maxsize)
-        print(self.pca.explained_variance_ratio_)
-        print(self.pca.explained_variance_)
+        self.pca = self.pca.fit(features)
+        transformed_features = self.pca.transform(features)
+        print(transformed_features[0].shape)
         return transformed_features
 
 
@@ -1258,12 +1364,12 @@ class KNNModel(ModelBase, KNeighborsClassifier):
     def __init__(self, **kwargs):
         self.kwargs = kwargs
         super().__init__(
-            n_neighbors=int(kwargs["knn_k"]),
-            algorithm=kwargs["knn_algorithm"],
-            leaf_size=int(kwargs["knn_leaf_size"]),
-            metric=kwargs["knn_metric"],
-            metric_params={"p": int(kwargs["knn_metric_power"])},
-            weights=kwargs["knn_weights"],
+            n_neighbors=int(kwargs["k"]),
+            algorithm=kwargs["algorithm"],
+            leaf_size=int(kwargs["leaf_size"]),
+            metric=kwargs["metric"],
+            metric_params={"p": int(kwargs["metric_power"])},
+            weights=kwargs["weights"],
         )
 
 
@@ -1271,16 +1377,19 @@ class KNNModel(ModelBase, KNeighborsClassifier):
 class SVMModel(ModelBase, SVC):
     def __init__(self, **kwargs):
         super().__init__(
-            C=float(kwargs["svm_c"]),
-            kernel=kwargs["svm_kernel"],
-            degree=int(kwargs["svm_degree"]),
-            gamma=kwargs["svm_gamma"],
-            shrinking=kwargs["svm_shrinking"],
-            probability=kwargs["svm_probability"],
-            tol=float(kwargs["svm_tol"]),
-            max_iter=int(kwargs["svm_max_iter"]),
+            C=float(kwargs["c"]),
+            kernel=kwargs["kernel"],
+            degree=int(kwargs["degree"]),
+            gamma=kwargs["gamma"],
+            shrinking=kwargs["shrinking"],
+            probability=kwargs["probability"],
+            tol=float(kwargs["tol"]),
+            max_iter=kwargs["max_iter"]
         )
-
+        if kwargs["max_iter"] == "-1":
+            self.max_iter = -1
+        else:
+            self.max_iter = int(kwargs["max_iter"])
 
 class AdaBoostModel(ModelBase, AdaBoostClassifier):
     def __init__(self, **kwargs):
@@ -1299,41 +1408,41 @@ class AdaBoostModel(ModelBase, AdaBoostClassifier):
 
     @staticmethod
     def create_base_estimator(kwargs):
-        if kwargs["adaboost_estimator"] == "None":
+        if kwargs["estimator"] == "None":
             return None
-        elif kwargs["adaboost_estimator"] == "DecisionTreeClassifier":
-            dt_params = kwargs["dt_config"]
+        elif kwargs["estimator"] == "DecisionTreeClassifier":
+            #dt_params = kwargs["ada_dt_config"]
             return DecisionTreeClassifier(
-                max_depth=None if dt_params["max_depth"] == "None" else int(dt_params["max_depth"]),
-                min_samples_split=int(dt_params["min_samples_split"]),
-                min_samples_leaf=int(dt_params["min_samples_leaf"]),
-                criterion=dt_params["criterion"],
-                max_leaf_nodes=None if dt_params["max_leaf_nodes"] == "None" else int(dt_params["max_leaf_nodes"]),
-                splitter=dt_params["splitter"]
+                max_depth=None if kwargs["ada_dt_max_depth"] == "None" else int(kwargs["ada_dt_max_depth"] ),
+                min_samples_split=int(kwargs["ada_dt_min_samples_split"]),
+                min_samples_leaf=int(kwargs["ada_dt_min_samples_leaf"]),
+                criterion=kwargs["ada_dt_criterion"],
+                max_leaf_nodes=None if kwargs["ada_decisiontree_max_leaf_nodes"] == "None" else int(kwargs["ada_decisiontree_max_leaf_nodes"]),
+                splitter=kwargs["ada_decision_tree_splitter"]
             )
-        elif kwargs["adaboost_estimator"] == "SVC":
-            svm_params = kwargs["svm_config"]
+        elif kwargs["estimator"] == "SVC":
+            #svm_params = kwargs["ada_svm_config"]
             return SVC(
-                C=float(svm_params["svm_c"]),
-                kernel=svm_params["svm_kernel"],
-                degree=int(svm_params["svm_degree"]),
-                gamma=svm_params["svm_gamma"],
-                shrinking=svm_params["svm_shrinking"],
+                C=float(kwargs["ada_svm_c"]),
+                kernel=kwargs["ada_svm_kernel"],
+                degree=int(kwargs["ada_svm_degree"]),
+                gamma=kwargs["ada_svm_gamma"],
+                shrinking=kwargs["ada_svm_shrinking"],
                 probability=True,
-                tol=float(svm_params["svm_tol"]),
-                max_iter=int(svm_params["svm_max_iter"]),
+                tol=float(kwargs["ada_svm_tol"]),
+                max_iter=int(kwargs["ada_svm_max_iter"]),
             )
 
 
 class LogisticRegressionModel(ModelBase, LogisticRegression):
     def __init__(self, **kwargs):
         super().__init__(
-            penalty=kwargs["logreg_penalty"],
-            C=float(kwargs["logreg_C"]),
-            solver=kwargs["logreg_solver"],
-            fit_intercept=kwargs["logreg_fit_intercept"],
-            max_iter=int(kwargs["logistic_regression_max_iter"]),
-            tol=float(kwargs["logistic_regression_tol"]),
+            penalty=kwargs["penalty"],
+            C=float(kwargs["C"]),
+            solver=kwargs["solver"],
+            fit_intercept=kwargs["fit_intercept"],
+            max_iter=int(kwargs["max_iter"]),
+            tol=float(kwargs["tol"]),
         )
 
 
@@ -1445,6 +1554,8 @@ def common_scores(clf, X_test, y_test):
     scores["accuracy"] = clf.score(X_test, y_test)
     start_time = time.time()                        
     y_pred = clf.predict(X_test)
+    #print(y_test)
+    #print(y_pred)
     end_time = time.time()
     scores["timetaken"] = end_time - start_time
     if isinstance(clf, GMMHMMModel):
@@ -1456,7 +1567,7 @@ def common_scores(clf, X_test, y_test):
     print("3")
     #y_score = clf.predict_proba(X_test)
     y_score = clf.predict_proba(X_test)[:,1]
-    scores["roc_auc"] = roc_auc_score(y_test, y_score, multi_class='ovr')
+    scores["roc_auc"] = roc_auc_score(y_test, y_score)
     #print("4")
     #scores["confusion_matrix"] = confusion_matrix(y_test, y_pred, labels=['1', '0']).tolist()
     scores["confusion_matrix"] = confusion_matrix(y_test, y_pred).tolist()
@@ -1554,6 +1665,16 @@ class Predictor():
         features = features.reshape(1, -1)
         prediction = self.classifier.predict(features)
         return prediction
+        
+    def make_prediction_probability(self, audio):
+        features = self.featureextractor.single_features(audioframe=audio)
+        features = features.reshape(1, -1)
+        prediction = self.classifier.predict(features)
+        try:
+            probability = self.classifier.predict_proba(features)
+            return prediction, probability
+        except AttributeError:
+            raise Exception("Classifier doesn't support probability")
 
 
 def tune_hyperparameters( clf, param_grid, X, y, cv=5):
@@ -1589,11 +1710,16 @@ class ConfigProcessor:
         #Dataset Loading
         dataset = dataset_processor.load_dataset(data['datasetpickle'])
         dataset_processor.process_dataset(dataset, data['dataset'])
+        try:
+            print(dataset.descriptor)
+        except:
+            print("Older Dataset without descriptor")
         print("Dataset processed")
     
         #Audio Preprocessing
         dataset = audio_preprocessor.preprocessing_from_config(dataset,data['preprocessing'])
-
+        
+        print("Preprocessing processed")
 
         #Feature Extracting
         # mfc, labels = b.features_from_dataset_multi(dataset)
@@ -1601,33 +1727,39 @@ class ConfigProcessor:
         # scatter, labels2 = feature_extractor.create_wavelet_scatter_features(**data['features']).features_from_dataset_multi(dataset)
         # print("Scatter extracted")
         features, labels = extractor.features_from_dataset_multi(dataset)
+
+        #for i in range(len(features)):
+        #    features[i] = np.array([np.random.random()])
+
+
+
         print("Features Extracted " + str(features[0].shape))
 
 
         # Feature Preprocessing
-        #preprocessed_features = feature_preprocessor.featurepreprocessing_from_config(features,data['featurepreprocessing'])  # Call feature preprocessing method
-        preprocessed_features = feature_preprocessor.featurepreprocessing_from_config(features,data) 
+        preprocessed_features = feature_preprocessor.featurepreprocessing_from_config(features,data['featurepreprocessing'])  # Call feature preprocessing method
+        #preprocessed_features = feature_preprocessor.featurepreprocessing_from_config(features,data) 
 
         #Classifier Create
         mdl = classifier_factory.create_classifier()
         print("Mdl Created")
         
         #Evaluation
-        scores = self.evaluate_model(mdl,data, data['evaluation'], features, labels)
-        #scores = self.evaluate_model(mdl,data, data['evaluation'], preprocessed_features, labels)
+        #scores = self.evaluate_model(mdl,data, data['evaluation'], features, labels)
+        scores = self.evaluate_model(mdl,data, data['evaluation'], preprocessed_features, labels)
 
         #Hyperparamter search enabled
         if bool(data['classifier']['knn']['tune_hyperparameters']) or bool(data['classifier']['svm']['tune_hyperparameters']):
             self.tune_hyperparameters_config( mdl, data, features, labels)
 
-        predictor = predictor_saver.save_predictor(mdl, feature_extractor)
+        predictor = predictor_saver.save_predictor(mdl, extractor)
         return {"Status": "Success", "Scores": scores, "Config": data, "Timestamp": datetime.now().isoformat()}
 
 
     def evaluate_model(self, mdl, data,evaluation_data,features, labels):
         scores = {}
-        if evaluation_data['train_test']['enable']:
-            scores = self.evaluate_train_test(mdl, evaluation_data['train_test'],features, labels)
+        if evaluation_data['train_test_split']['enable']:
+            scores = self.evaluate_train_test(mdl, evaluation_data['train_test_split'],features, labels)
         elif evaluation_data['kfold']['enable']:
             scores = self.evaluate_kfold(mdl,data, evaluation_data, features, labels)
         elif evaluation_data['stratifiedkfold']['enable']:
@@ -1637,16 +1769,17 @@ class ConfigProcessor:
     def evaluate_train_test(self, mdl, train_test_data,features, labels):
         params = train_test_data
         print(train_test_data)
-        if params['tts_random_state'] == "None":
-            X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size=float(params['tts_test_size']),
-                                                                shuffle=params['tts_shuffle'])
+        if params['random_state'] == "None":
+            X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size=float(params['test_size']),
+                                                                shuffle=params['shuffle'])
         else:
-            X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size=float(params['tts_test_size']),
-                                                                shuffle=params['tts_shuffle'],
-                                                                random_state=int(params['tts_random_state']))
+            X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size=float(params['test_size']),
+                                                                shuffle=params['shuffle'],
+                                                                random_state=int(params['random_state']))
 
         # Fit the model and calculate scores
         clf = mdl.fit(X_train, y_train)
+        print(clf.score(X_test,y_test))
         scores = common_scores(clf, X_test=X_test, y_test=y_test)
 
         return scores
@@ -1790,8 +1923,9 @@ class FeatureExtractor:
             'spectral_bandwidth': SpectralBandwidthFeatures,
             'spectral_contrast': SpectralContrastFeatures,
             'spectral_rolloff': SpectralRolloffFeatures,
-            'chroma': ChromaFeatures,
-            'zero_crossing_rate': ZeroCrossingRateFeatures
+            'chroma_stft': ChromaFeatures,
+            'zcr': ZeroCrossingRateFeatures,
+            'wavelet_cepstral': WaveletCepstralFeatures,
         }
 
         enabled_extractors = []
@@ -1851,10 +1985,11 @@ class DatasetProcessor:
         if bool(dataset_config['processing']['enable_trim']):
             dataset.trim_audio()
         if bool(dataset_config['fixed']['enable']):
-            dataset.fix_length(length=dataset_config['fixed']['fixed_length'])
+            dataset.fix_length(length=dataset_config['fixed']['length'])
+            print(dataset.samples[1].audiodata.shape)
         elif bool(dataset_config['frame']['enable']):
-            dataset.create_frames(frame_size=int(dataset_config['frame']['frame_frame_size']),
-                                  hop_length=int(dataset_config['frame']['frame_hop_length']))
+            dataset.create_frames(frame_size=int(dataset_config['frame']['length']),
+                                  hop_length=int(dataset_config['frame']['hop_length']))
 
 
 class PreprocessingProcessor:
@@ -1871,10 +2006,14 @@ class FeaturePreprocessor:
 
     def featurepreprocessing_from_config(self, features, featurepreprocessing_config):
         #featurepreprocessing_config['PCA']['enable'] = True
-        #if bool(featurepreprocessing_config['PCA']['enable']):
         print(featurepreprocessing_config)
-        #features = PCAFeaturePreprocessor().preprocess_features(features, **featurepreprocessing_config['PCA'])
-        features = PCAFeaturePreprocessor().preprocess_features(features)
+        if bool(featurepreprocessing_config['min_max']['enable']):
+            features = MinMaxScalerPreprocessor().preprocess_features(features)
+        if bool(featurepreprocessing_config['pca']['enable']):
+            print(featurepreprocessing_config)
+            ### ADD HERE RETURNING OF FIT PCA FOR REUSE IN PREDICTOR
+            features = PCAFeaturePreprocessor(n_components=int(featurepreprocessing_config['pca']['n_components'])).preprocess_features(features)
+        #features = PCAFeaturePreprocessor().preprocess_features(features)
         return features
 
 # class EvaluationProcessor:
@@ -1904,7 +2043,7 @@ class FeaturePreprocessor:
 class PredictorSaver:
     def save_predictor(self, mdl, feature_extractor):
         predictor = Predictor(featureeex=feature_extractor, clf=mdl)
-        with open("predictor.pickle", "wb") as file:
+        with open("predictor4.pickle", "wb") as file:
             pickle.dump(predictor, file)
         return predictor
     
@@ -2067,3 +2206,262 @@ def plot_mfcc_and_amplitude(audio, fname, folder_path, samplerate):
     fn = os.path.join(folder_path, fname + ".png")
     plt.savefig(fn)
     plt.close()
+
+
+class MultiPredictor():
+
+    # def returnPredictions(self, filename):
+
+    #     regions = []
+    #     filepath = os.path.join("app", "static", "audiofiles",filename)
+    #     audio, sr = librosa.load(filepath,sr=22050)
+    #     #framelength = sr // 5
+    #     framelength = int(sr * 0.2)
+    #     hop_length = sr // 100
+
+    #     # Pad up to nearest second
+    #     audioduration = librosa.get_duration(y=audio, sr=sr)
+    #     roundedduration = math.ceil(audioduration)
+    #     paddedaudio = librosa.util.fix_length(audio, size = roundedduration * sr)
+
+    #     # Create frames
+    #     frames = librosa.util.frame(
+    #         paddedaudio, frame_length=framelength, hop_length=hop_length, axis=0)
+
+    #     # flag for merging overlapping frames
+    #     prevframedetected = False
+
+    #     predictions = []
+    #     # Predict each frame label
+    #     for i, frame in enumerate(frames):
+
+    #         # #old
+    #         # features = librosa.feature.mfcc(y=frame, sr=sr, n_mfcc=40)
+    #         # #print(features.shape)
+    #         # features = features.reshape(-1)
+    #         # # print(features.shape)
+    #         # # a = features.reshape(1,-1)
+    #         # # print(a.shape)
+    #         # # #print(features.reshape(1,-1))
+    #         # # print("_------_----_---_-")
+    #         # prediction = classifier.predict(features.reshape(1, -1))
+    #         # #print(prediction)
+            
+            
+            
+    #         prediction = self.classifier.make_prediction(frame)
+    #         predictions.append(prediction[0])
+    #         #predictions.append[prediction]
+    #         if(prediction[0] == '0'):
+                
+    #             starttime = i * hop_length / sr
+    #             endtime = starttime + (framelength / sr)
+    #             if(prevframedetected == True):
+    #                 regions[-1]["end"] = endtime
+    #             else:
+    #                 regions.append({"start": starttime, "end": endtime})
+    #             #regions.append({"start": starttime, "end": endtime})
+    #             prevframedetected = True
+    #         else:
+    #             prevframedetected = False
+    #         #print(knnmodel.predict(features.reshape(1, -1)))
+    #         # print(frame.shape)
+            
+    #     regions2 = []
+    #     regions2 = regions
+
+    #     #remove silent areas
+    #     # intervals = librosa.effects.split(paddedaudio)
+    #     # print(intervals)
+    #     # for i in intervals:
+    #     #     print(librosa.samples_to_time(i[0]))
+    #     #     print(librosa.samples_to_time(i[1]))
+        
+    #     ###################
+    #     # try:
+    #     #     regions = combine_overlapping_times(regions)
+    #     # except:
+    #     #     print(len(regions))
+
+    #     # for r2 in regions:
+    #     #     a = librosa.time_to_samples(r2['start'])
+    #     #     b = librosa.time_to_samples(r2['end'])
+    #     #     intervals = librosa.effects.split(paddedaudio[a:b])
+    #     #     #print(intervals)
+    #     #     for i in intervals:
+    #     #         regions2.append({"start":librosa.samples_to_time(a + i[0]),"end":librosa.samples_to_time(a + i[1])})
+
+    #     # try:
+    #     #     print(type(regions2))
+    #     #     print(regions2)
+    #     #     regions2 = combine_overlapping_times(regions2)
+    #     # except:
+    #     #     print(len(regions2))
+    #     #     print("Not r2")
+    #     #############################################
+    #     # print(start_index)
+    #     # print(end_index)
+    #     # print(frame.shape)
+    #     #     print(type(start_index))
+    #     #     for i in intervals:
+    #     #         print(librosa.samples_to_time(i[0]))
+    #     #         print(librosa.samples_to_time(i[1]))
+    #     #         regions2.append(
+    #     #             {"start":librosa.samples_to_time(i[0]),"end":librosa.samples_to_time(i[1])
+    #     #             })
+    #     #print(regions2)
+    #     #time.sleep(2)
+
+    #     predictiondata = {
+    #         "filename": filename,
+    #         "regions": regions2
+    #     }
+    #     #print(predictiondata)
+    #     #print(predictions)
+    #     return(predictiondata)
+
+
+
+    def plot_audio_with_predictions(self, audio, sr, predictions, prediction_probabilities, filename):
+        duration = len(audio) / sr
+        time_audio = np.linspace(0, duration, len(audio))
+
+        figsizeX = max(20,(duration*4))
+        fig, ax1 = plt.subplots(figsize=(30, 12))
+        ax1.plot(time_audio, audio, label='Audio waveform')
+        ax1.set_xlabel('Time (s)')
+        ax1.set_ylabel('Amplitude')
+        ax2 = ax1.twinx()  # Create a twin axes sharing the x-axis
+
+        #hop_length = int(sr // 10)  
+        hop_length = int(sr * 0.2) 
+        # Compute the time axis for predictions using librosa.frames_to_time
+        frame_start = librosa.frames_to_time(np.arange(len(predictions)), sr=sr, hop_length=hop_length)
+        #print(frame_start.shape)
+       # frame_start2 =librosa.frames_to_time(frames,sr=sr,hop_length=hop_length)
+        #print(frame_start2.shape)
+
+        # frame_duration = int(sr * 0.4)
+        # frame_duration = librosa.samples_to_time(frame_duration)
+        frame_duration = 0.4
+        
+        line_height = 0  # Initial line height
+        # Plot predicted frames with probabilities
+        for probs in prediction_probabilities:
+            probs[0][0] = round(probs[0][0],3)
+            probs[0][1] = round(probs[0][1],3)
+
+
+        for i, prediction in enumerate(predictions):
+            if i < len(predictions) - 1:
+                if prediction == '1':
+                    plt.axvspan(frame_start[i], frame_start[i]+frame_duration, color='r', alpha=0.2)
+                    plt.text( (frame_start[i] + frame_start[i+1]) / 2,0.25, f"{prediction_probabilities[i]}", ha='center', va='center', rotation=90 )
+                    plt.plot([frame_start[i], frame_start[i]+frame_duration], [line_height, line_height], color='lightgray',alpha=0.8)
+                    line_height += 0.01  # Decrement line height
+                elif prediction == '0':
+                    plt.axvspan(frame_start[i], frame_start[i]+frame_duration, color='b', alpha=0.1)
+                    plt.text( (frame_start[i] + frame_start[i+1]) / 2,0.25, f"{prediction_probabilities[i]}", ha='center', va='center', rotation=90 )
+            else:
+                if prediction == '1':
+                    plt.axvspan(frame_start[i], frame_duration, color='r', alpha=0.2)
+                    plt.text( (frame_start[i] + 0.125) / 2, 0.25, f"Prob{prediction_probabilities[i]}", ha='center', va='center',  rotation=90 )
+                    plt.plot([frame_start[i], frame_duration], [line_height, line_height], color='lightgray',alpha=0.8)
+                    line_height += 0.01  # Decrement line height
+                elif prediction == '0':
+                    plt.axvspan(frame_start[i], frame_duration, color='b', alpha=0.1)
+                    plt.text((frame_start[i] + 0.125) / 2, 0.25,  f"{prediction_probabilities[i]}", ha='center', va='center',  rotation=90)
+
+        # ax2.plot(frame_start, [probability[0][1] for probability in prediction_probabilities], color='green')
+
+        # Plot the horizontal lines for prediction probabilities
+        for i, probability in enumerate(prediction_probabilities):
+            ax2.hlines(probability[0][1], frame_start[i], frame_start[i] + 0.2, color='green')
+        ax2.set_ylabel('Probability')
+        ax2.set_ylim(0, 1) 
+
+        plt.title('Audio with Predicted Frames - ' + filename)
+        #plt.legend()
+
+        # Save the plot with the same filename as the input audio
+        output_folder = r"G://Cough"
+        output_filepath = os.path.join(output_folder, f"{os.path.splitext(filename)[0]}.png")
+        plt.savefig(output_filepath)
+        plt.close()    
+
+
+
+    def returnPredictionProbabilities(self, filename):
+        regions = []
+        filepath = os.path.join("app", "static", "examples", filename)
+        #filepath = os.path.join("app","static","examples")
+        audio, sr = librosa.load(filepath, sr=22050)
+        framelength = int(sr * 0.3)
+        #hop_length = int(sr // 10)
+        hop_length = int(sr * 0.2)
+
+        audioduration = librosa.get_duration(y=audio, sr=sr)
+        roundedduration = math.ceil(audioduration)
+        paddedaudio = librosa.util.fix_length(audio, size=roundedduration * sr)
+
+        #30 second segments
+        #segments = librosa.util.frame(paddedaudio, frame_length=(sr * 30), hop_length=(sr * 30), axis=0)
+        #print(len(segments))
+        #for j,segment in enumerate(segments):
+            #if j == len(segments) - 1:
+            #    break
+        frames = librosa.util.frame(
+            paddedaudio, frame_length=framelength, hop_length=hop_length, axis=0)
+        
+        prevframedetected = False
+
+        predictions = []
+        prediction_probabilities = []  # Added list for prediction probabilities
+
+        for i, frame in enumerate(frames):
+            prediction, probability = self.classifier.make_prediction_probability(frame)  # Obtain prediction and probability
+            predictions.append(prediction)
+            prediction_probabilities.append(probability)  # Append prediction probability to the list
+
+            if prediction == '0':
+                starttime = i * hop_length / sr
+                endtime = starttime + (framelength / sr)
+                if prevframedetected:
+                    regions[-1]["end"] = endtime
+                else:
+                    regions.append({"start": starttime, "end": endtime})
+                prevframedetected = True
+            else:
+                prevframedetected = False
+
+            regions2 = regions
+
+            predictiondata = {
+                "filename": filename,
+                "regions": regions2
+            }
+            #print("Filename:", filename)
+            #print("Prediction Probabilities:", prediction_probabilities)  # Print the prediction probabilities
+            #fn = filename + "-" + str(j)
+        self.plot_audio_with_predictions(paddedaudio, sr, predictions, prediction_probabilities, filename)
+        return predictiondata
+
+    def process_audio_files(self, audio_files, classifier):
+        with open(r"C:\Users\Alliewya\Documents\Cough Monitor\AudioLabeller\labeller\predictor1.pickle", "rb") as f:
+            predictor1 = pickle.load(f)
+        self.classifier = predictor1
+        print("Reached 3")
+        with multiprocessing.Pool(processes=10) as pool:
+            results = pool.starmap(self.returnPredictions, [(filename,) for filename in audio_files])
+
+        return results
+    
+    def process_audio_files_prob(self, audio_files, classifier):
+        with open(r"C:\Users\Alliewya\Documents\Cough Monitor\AudioLabeller\labeller\predictor4.pickle", "rb") as f:
+            predictor1 = pickle.load(f)
+        self.classifier = predictor1
+        print("Reached 3")
+        with multiprocessing.Pool(processes=10) as pool:
+            results = pool.starmap(self.returnPredictionProbabilities, [(filename,) for filename in audio_files])
+
+        return results

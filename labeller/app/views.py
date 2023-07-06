@@ -14,6 +14,7 @@ from django.contrib.auth.models import User
 from django.views.decorators.csrf import csrf_exempt
 from django.core.paginator import Paginator
 from django.utils import timezone
+from django.db.models import Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -26,6 +27,10 @@ from app.apps import AppConfig
 from app.models import AudioLabels, TaskProgress, ClassifierResults
 from app import functions
 from app import factory
+
+import multiprocessing
+from multiprocessing import Manager,Pool
+from functools import partial
 
 
 with open(os.path.join(settings.BASE_DIR,"app","models","coughknn5mfcc40.bark"), "rb") as f:
@@ -45,6 +50,9 @@ with open(os.path.join(settings.BASE_DIR,"app","models","SVMmfcc40CoughvidFrames
 
 with open(os.path.join(settings.BASE_DIR,"app","models","predictor.pickle"), "rb") as f:
     predictor = pickle.load(f)
+
+with open(os.path.join(settings.BASE_DIR,"predictor1.pickle"), "rb") as f:
+    predictor1 = pickle.load(f)
 
 #Retrieve user id's and names for caching
 userlist = User.objects.values_list('id', 'username')
@@ -76,6 +84,23 @@ def model_config(request):
     #     print("Sample Rate: "+str(dataset.samplerate))
     #     dataset = None
     return render(request, 'blocks/config.html', {'datasetpickleslist':datasetpickleslist})
+
+def model_config2(request):
+    datasetpickleslist = os.listdir(os.path.join("app","static","datasetpickles"))
+    # for datasetfname in datasetpickleslist:
+    #     path = os.path.join("app", "static", "datasetpickles", datasetfname)
+    #     with open(path, 'rb') as f:
+    #         dataset = pickle.load(f)
+    #     print("Dataset Name:"+str(datasetfname))
+    #     print("Length: "+str(len(dataset.samples)))
+    #     print("Sample Rate: "+str(dataset.samplerate))
+    #     dataset = None
+    return render(request, 'blocks/config2.html', {'datasetpickleslist':datasetpickleslist})
+
+def config2(request):
+    datasetpickleslist = os.listdir(os.path.join("app","static","datasetpickles"))
+    return render(request, 'blocks/config3.html', {'datasetpickleslist':datasetpickleslist})
+
 
 def jsonbackupdownload(request,backup):
     fpath = os.path.join("app","backups",backup)
@@ -219,20 +244,30 @@ def audiowaves3(request):
 
 def audiowaves4(request):
 
-    audiofiles = os.listdir(os.path.join("app","static","audiofiles"))
-    audiofiles = audiofiles[:5]
+    audiofiles = os.listdir(os.path.join("app","static","examples"))
+    #audiofiles = audiofiles[:5]
     audiopredictions = []
-    for file in audiofiles:
-        if AudioLabels.objects.filter(filename=file, labeluser ='2').exists():
-            labels = AudioLabels.objects.filter(filename=file, labeluser='2').first()
-            
-            audiopredictions.append({'filename':file,'regions':json.loads(labels.labelregions),'labelusername':'Model'})
-        else:
-            pred = functions.returnPredictions(knnmodel, file)
-            audiopredictions.append(pred)
-            AudioLabels.objects.create(filename=file,labeluser="2",labelusername="Model",labelregions=json.dumps(pred['regions']))
+    with open(os.path.join(settings.BASE_DIR,"predictor4.pickle"), "rb") as f:
+        predictorhere = pickle.load(f)
 
-    return render(request, "waves2.html", {'audiofilelist': audiopredictions})
+    #audiofiles = os.listdir(os.path.join("app","static","audiofiles"))
+    paginator = Paginator(audiofiles, 5)
+    paginator.limit_pagination_display = 5
+
+    page_number = request.GET.get('page')
+
+    # get the current page
+    page_obj = paginator.get_page(page_number)
+    print(page_obj)
+        # loop through the items on the current page
+    audiopredictions = []
+    #for file in audiofiles:
+    for file in page_obj:
+        pred = functions.returnPredictions(predictorhere, file, framelen=0.3)
+        #audiopredictions.append(pred)
+        audiopredictions.append({'filename':file,'regions':pred['regions'],'labelusername': "Generated",'lowquality': False,'unclear':False})
+
+    return render(request, 'waves4.html', {'page_obj': page_obj,'audiolist': audiopredictions, 'user': request.user})
 
 
 # def audiowavespaginated(request):
@@ -320,6 +355,26 @@ def audiowavesnewtouserfromtarget(request, userid, targetuser, numberfiles=5):
     print(page_obj)
     return render(request, 'waves3.html', {'page_obj': page_obj, 'audiolist': audiopredictions, 'user': request.user})
 
+
+def audiowaves_not_other_user(request,userid,targetuser,numberfiles=10):
+    audiofiles = AudioLabels.objects.filter(labeluser=userid).exclude(filename__in=AudioLabels.objects.filter(labeluser=targetuser).values('filename'))
+    paginator = Paginator(audiofiles, numberfiles)
+    paginator.limit_pagination_display = numberfiles
+
+    page_number = request.GET.get('page')
+
+    # get the current page
+    page_obj = paginator.get_page(page_number)
+    print(page_obj)
+    # loop through the items on the current page
+    audiopredictions = []
+    for file in page_obj:
+        audiopredictions.append({'filename':file.filename,'regions':json.loads(file.labelregions),'labelusername': file.labelusername,'lowquality':file.lowquality,'unclear':file.unclear})
+        
+    # do something with the processed data
+    print(page_obj)
+    return render(request, 'waves3.html', {'page_obj': page_obj, 'audiolist': audiopredictions, 'user': request.user})
+
 def audiowavesbyuser(request, userid):
     audiofiles = AudioLabels.objects.filter(labeluser = userid).order_by("-updatedate")
     paginator = Paginator(audiofiles, 10)
@@ -383,6 +438,27 @@ def singlefilewaveuser(request, fname, userid):
     
     return render(request, 'waves3.html', {'page_obj': audiopredictions, 'audiolist': audiopredictions, 'user': request.user})
 
+def samepagecomparisonwaves(request,fname, userid, targetuser):
+    audiofiles = AudioLabels.objects.filter(Q(labeluser=userid) | Q(labeluser=targetuser), filename=(str(fname)+".wav"))
+    paginator = Paginator(audiofiles, 10)
+    paginator.limit_pagination_display = 5
+
+    page_number = request.GET.get('page')
+
+    # get the current page
+    page_obj = paginator.get_page(page_number)
+    print(page_obj)
+    # loop through the items on the current page
+    audiolist = []
+    for item in page_obj:
+        print(item)
+        reg = item.labelregions
+        regions = json.loads(item.labelregions)
+        audiolist.append({'filename':item.filename,'regions':json.loads(item.labelregions),'labelusername':item.labelusername,'lowquality':item.lowquality,'unclear':item.unclear})
+    # do something with the processed data
+    print(page_obj)
+    return render(request, 'waves3.html', {'page_obj': page_obj, 'audiolist': audiolist, 'user': request.user})
+
 def unclearwaves(request, userid):
 
     audiofiles = AudioLabels.objects.filter(labeluser = userid,unclear = True).order_by("-updatedate")
@@ -407,6 +483,32 @@ def unclearwaves(request, userid):
     
 def lowqualitywaves(request, userid):
 
+    audiofiles = AudioLabels.objects.filter(labeluser = userid,lowquality = True).order_by("-updatedate")
+    paginator = Paginator(audiofiles, 10)
+    paginator.limit_pagination_display = 5
+
+    page_number = request.GET.get('page')
+
+    # get the current page
+    page_obj = paginator.get_page(page_number)
+    print(page_obj)
+    # loop through the items on the current page
+    audiolist = []
+    for item in page_obj:
+        print(item)
+        reg = item.labelregions
+        regions = json.loads(item.labelregions)
+        audiolist.append({'filename':item.filename,'regions':json.loads(item.labelregions),'labelusername':item.labelusername,'lowquality':item.lowquality,'unclear':item.unclear})
+    # do something with the processed data
+    print(page_obj)
+    return render(request, 'waves3.html', {'page_obj': page_obj, 'audiolist': audiolist, 'user': request.user})
+
+def display_pred_from_file(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+        except:
+            print("Not valid")
     audiofiles = AudioLabels.objects.filter(labeluser = userid,lowquality = True).order_by("-updatedate")
     paginator = Paginator(audiofiles, 10)
     paginator.limit_pagination_display = 5
@@ -470,6 +572,37 @@ def datasetlist(request):
     
     return render(request, 'datasetlist.html',{'tableobjs':tableobjs,'tablejson':tablejson})
 
+def datasetlist2(request):
+    audiofiles = os.listdir(os.path.join("app","static","audiofiles"))
+
+    tableobjs = []
+    for file in audiofiles:
+        tablerow = {'id':'','filename':'','labelledby':[],'modelregions':"",'humanregions':[],'variation':''}
+        tablerow['filename'] = file
+        tablerow['lowquality'] = False
+        tablerow['unclear'] = False
+        labels = AudioLabels.objects.filter(filename=file)
+        
+        for label in labels:
+            tablerow['id'] = label.id
+            tablerow['labelledby'].append(label.labelusername)
+            if(label.labelusername == "Model"):
+                tablerow['modelregions'] = (len(json.loads(label.labelregions)))
+            else:
+                tablerow['humanregions'].append(len(json.loads(label.labelregions)))
+            if(label.lowquality):
+                tablerow['lowquality'] = True
+            if(label.unclear):
+                tablerow['unclear'] = True
+            
+        if (bool(tablerow['humanregions'])):
+            if tablerow['modelregions'] != "":
+                tablerow['variation'] = int(tablerow['modelregions'])- int(max(tablerow['humanregions']))
+        tableobjs.append(tablerow)
+        tablejson = json.dumps(tableobjs)
+        
+    
+    return render(request, 'datasetlist.html',{'tableobjs':tableobjs,'tablejson':tablejson})
 
 @csrf_exempt
 def save_events_json(request, userid = None):
@@ -511,6 +644,9 @@ def generate_all_model_predictions(request):
                     selectedmodel = x["model"]
                     selectedmodelname = x["modelname"]
 
+            selectedmodel = predictor1
+            selecteduserid = 12
+
             print("Reached1")
             audiofiles = os.listdir(os.path.join("app","static","audiofiles"))
             length = len(audiofiles)
@@ -540,6 +676,114 @@ def generate_all_model_predictions(request):
             return JsonResponse({'status': 'error', 'message': 'Invalid JSON'})
     return HttpResponse("OK")
 
+
+@csrf_exempt
+def generate_all_model_predictions2(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            selecteduserid = int(data['userselected'])
+            modelperid = [{"id":"2","model":knnmodel,"modelname":"Default Model"},{"id":"3","model":knnmodel2,"modelname":"KNN Model 2"},{"id":"4","model":knnmodel3,"modelname":"KNN Model 3 - Augmented"},{"id":"5","model":svmmodel1,"modelname":"SVM Model 1"},{"id":"6","model":svmmodel2,"modelname":"SVM Model 2 - Augmented"},{"id":"11","model":predictor,"modelname":"Predictor1"},{"id":"12","model":predictor,"modelname":"Predictor2"}]
+
+            for x in modelperid:
+                if int(x["id"]) == selecteduserid:
+                    selectedmodel = x["model"]
+                    selectedmodelname = x["modelname"]
+
+            with open(os.path.join(settings.BASE_DIR,"predictor2.pickle"), "rb") as f:
+                predictor2 = pickle.load(f)
+            selectedmodel = predictor2
+            selecteduserid = 6
+            progress = TaskProgress.objects.filter(progressname="PredictDataset").first()
+            print("Reached1")
+            audiofiles = os.listdir(os.path.join("app","static","audiofiles"))
+            # length = len(audiofiles)
+            # progress = TaskProgress.objects.filter(progressname="PredictDataset").first()
+            # progress.progress = 0
+            # progress.save()
+            print("Reached2")
+            multipred = factory.MultiPredictor()
+            results = multipred.process_audio_files(audiofiles,selectedmodel)
+            progress.progress = 50
+            progress.save()
+            #results = functions.process_audio_files(audiofiles,selectedmodel)
+            for result in results:
+                if not AudioLabels.objects.filter(filename=result['filename'], labeluser = selecteduserid).exists():
+                    AudioLabels.objects.update_or_create(filename=result['filename'],labeluser= selecteduserid, defaults={'updatedate':timezone.now,'labelregions':json.dumps(result['regions']),'labelusername':selectedmodelname,})   
+                elif(data['overwrite']):
+                    #pred = functions.returnPredictions(selectedmodel, audio)
+                    AudioLabels.objects.update_or_create(filename=result['filename'],labeluser= selecteduserid, defaults={'updatedate':timezone.now,'labelregions':json.dumps(result['regions']),'labelusername':selectedmodelname,})   
+            
+            # for i, audio in enumerate(audiofiles):
+            #     percentage = (i / length) * 100
+
+            #     if not AudioLabels.objects.filter(filename=audio, labeluser = selecteduserid).exists():
+            #         pred = functions.returnPredictions(selectedmodel, audio)
+            #         AudioLabels.objects.update_or_create(filename=audio,labeluser= selecteduserid, defaults={'updatedate':timezone.now,'labelregions':json.dumps(pred['regions']),'labelusername':selectedmodelname,})   
+            #     elif(data['overwrite']):
+            #         pred = functions.returnPredictions(selectedmodel, audio)
+            #         AudioLabels.objects.update_or_create(filename=audio,labeluser= selecteduserid, defaults={'updatedate':timezone.now,'labelregions':json.dumps(pred['regions']),'labelusername':selectedmodelname,})   
+
+
+            #     if(i%5 == 0):
+            #         progress.progress = percentage
+            #         progress.save()
+
+            progress.progress = 100
+            progress.save()
+                
+        except json.JSONDecodeError as e:
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON'})
+    return HttpResponse("OK")
+
+
+@csrf_exempt
+def generate_all_model_predictions3(request):
+    if request.method == 'POST':
+        try:
+            progress = TaskProgress.objects.filter(progressname="PredictDataset").first()
+            progress.progress = 1
+            progress.save()
+            data = json.loads(request.body)
+            selecteduserid = int(data['userselected'])
+            modelperid = [{"id":"2","model":knnmodel,"modelname":"Default Model"},{"id":"3","model":knnmodel2,"modelname":"KNN Model 2"},{"id":"4","model":knnmodel3,"modelname":"KNN Model 3 - Augmented"},{"id":"5","model":svmmodel1,"modelname":"SVM Model 1"},{"id":"6","model":svmmodel2,"modelname":"SVM Model 2 - Augmented"},{"id":"11","model":predictor,"modelname":"Predictor1"},{"id":"12","model":predictor,"modelname":"Predictor2"}]
+
+            for x in modelperid:
+                if int(x["id"]) == selecteduserid:
+                    selectedmodel = x["model"]
+                    selectedmodelname = x["modelname"]
+
+            with open(os.path.join(settings.BASE_DIR,"predictor2.pickle"), "rb") as f:
+                predictor3 = pickle.load(f)
+            selectedmodel = predictor3
+            selecteduserid = 6
+
+            progress.progress = 5
+            progress.save()
+            print("Reached1")
+            
+            #audiofiles = os.listdir(os.path.join("app","static","audiofiles"))
+            #audiofiles = audiofiles[:23]
+            audiofiles = os.listdir(os.path.join("app","static","examples"))
+            audiofiles = audiofiles[:23]
+            # length = len(audiofiles)
+            # progress = TaskProgress.objects.filter(progressname="PredictDataset").first()
+            # progress.progress = 0
+            # progress.save()
+            print("Reached2")
+            multipred = factory.MultiPredictor()
+            results = multipred.process_audio_files_prob(audiofiles,selectedmodel)
+            progress.progress = 100
+            progress.save()
+            #results = functions.process_audio_files(audiofiles,selectedmodel)
+
+                
+        except json.JSONDecodeError as e:
+            progress.progress = 100
+            progress.save()
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON'})
+    return HttpResponse("OK")
+
 @csrf_exempt
 def return_progress(request):
     #data = json.loads(request.body)
@@ -559,6 +803,16 @@ def get_cough_statistics(request):
         "status": stats,
     }
     return render(request, 'label_stats.html', context)
+
+def get_label_difference_statistics(request, user1, user2):
+    stats = functions.user_label_differences(user1,user2)
+    #return JsonResponse({'Stats':stats})
+    context = {
+        "status": stats,
+        "user1":user1,
+        "user2":user2,
+    }
+    return render(request, 'label_differences.html', context)
 
 class DownloadDBView(APIView):
     def get(self, request):
@@ -651,8 +905,7 @@ def resultsCard(request):
         except:
             return JsonResponse({"Fail":"Fail"})
 
-def config2(request):
-    return render(request, 'blocks/config2.html')
+
 
 
 @csrf_exempt

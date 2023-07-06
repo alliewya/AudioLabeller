@@ -3,6 +3,8 @@
 <head>
   <title>Cough Length Statistics</title>
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  {% load static %}
+  <link rel="shortcut icon" href="{% static 'favicon.ico' %}">
 </head>
 <body>
   <div class="container mt-4">
@@ -104,6 +106,9 @@
         <td>
           <a href="/app/singlewave/{{ outlier|slice:"-4" }}/1">{{ outlier }}</a>
         </td>
+        <td>
+            <input type="checkbox" id="myCheckbox" name="myCheckbox" value="0">
+          </td>
       </tr>
       {% endfor %}
     </tbody>
