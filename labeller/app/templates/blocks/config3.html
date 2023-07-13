@@ -13,7 +13,7 @@
         </h1>
       </div>
     </div>
-    <button onclick="logValues()">Capture Values</button>
+    {% comment %} <button onclick="logValues()">Capture Values</button> {% endcomment %}
     <div class="row mb-3 mt-2 section" id="datasetpickle-row">
       <div class="col">
         <h2>Select Dataset</h2>
@@ -2117,6 +2117,82 @@
             "type": "checkbox",
             "default": false
           },
+          "wavelet_cepstral_wavelet": {
+            "label": "Wavelet",
+            "type": "select",
+            "default": "haar",
+            "options": {
+              "cmor": "cmor",
+              "coif1": "coif1",
+              "coif2": "coif2",
+              "coif3": "coif3",
+              "coif4": "coif4",
+              "coif5": "coif5",
+              "coif6": "coif6",
+              "coif7": "coif7",
+              "coif8": "coif8",
+              "coif9": "coif9",
+              "coif10": "coif10",
+              "coif11": "coif11",
+              "coif12": "coif12",
+              "coif13": "coif13",
+              "coif14": "coif14",
+              "coif15": "coif15",
+              "coif16": "coif16",
+              "coif17": "coif17",
+              "db1": "db1",
+              "db2": "db2",
+              "db3": "db3",
+              "db4": "db4",
+              "db5": "db5",
+              "db6": "db6",
+              "db7": "db7",
+              "db8": "db8",
+              "db9": "db9",
+              "db10": "db10",
+              "db11": "db11",
+              "db12": "db12",
+              "db20": "db20",
+              "db36": "db36",
+              "db37": "db37",
+              "db38": "db38",
+              "dmey": "dmey",
+              "fbsp": "fbsp",
+              "gaus1": "gaus1",
+              "gaus2": "gaus2",
+              "gaus3": "gaus3",
+              "gaus4": "gaus4",
+              "gaus5": "gaus5",
+              "gaus6": "gaus6",
+              "gaus7": "gaus7",
+              "gaus8": "gaus8",
+              "haar": "haar",
+              "mexh": "mexh",
+              "morl": "morl",
+              "shan": "shan",
+              "sym2": "sym2",
+              "sym3": "sym3",
+              "sym4": "sym4",
+              "sym5": "sym5",
+              "sym6": "sym6",
+              "sym7": "sym7",
+              "sym8": "sym8",
+              "sym9": "sym9",
+              "sym10": "sym10",
+              "sym15": "sym15",
+              "sym20": "sym20"
+            }
+          },
+          "wavelet_cepstral_level": {
+            "label": "Level",
+            "type": "input",
+            "default": "5"
+          },          
+          "wavelet_cepstral_include_level": {
+            "label": "Level to include",
+            "type": "input",
+            "default": "5"
+          },
         }
       },
     },
@@ -2145,11 +2221,6 @@
             "label": "Enable Min Max Scaling",
             "type": "checkbox",
             "default": false
-          },
-          "min_max_n_components": {
-            "label": "Number of Components",
-            "type": "input",
-            "default": "150"
           }
         }
       }
@@ -2530,7 +2601,7 @@
     },
     "evaluation": {
       "train_test_split": {
-        "label": "Enable Train Test Split",
+        "label": "Train Test Split",
         "active": true,
         "params": {
           "train_test_split_enable": {
@@ -2611,6 +2682,24 @@
           }
         }
       }
+    },
+    "details":{
+        "metadata": {
+            "label": "Notes",
+            "active": true,
+            "params": {
+              "metadata_name": {
+                "label": "Test Name",
+                "type": "input",
+                "default": ""
+              },
+              "metadata_notes": {
+                "label": "Test Notes",
+                "type": "input",
+                "default": ""
+              },
+            }
+        }    
     }
   };
 

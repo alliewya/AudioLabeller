@@ -1094,8 +1094,16 @@ class ZeroCrossingRateFeatures(FeaturesBase):
         return {'feature': zero_crossing_rates, 'label': audio.label}
 
 class WaveletCepstralFeatures(FeaturesBase):
+
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+        print("Wavelet Cepstral")
+        print(kwargs)
+
+
     """ Wavelet Cepstral Coef"""
     def calculate_wcc(self, audio):
+        kwargs = self.kwargs
         # Pre-emphasis
         pre_emphasis = 0.97
         emphasized_audio = np.append(audio[0], audio[1:] - pre_emphasis * audio[:-1])
@@ -1114,19 +1122,43 @@ class WaveletCepstralFeatures(FeaturesBase):
         windowed_frames = frames * window
 
         # Compute wavelet transform
-        wavelet = 'db4'
+        #wavelet = 'db4'
         #wavelet = 'haar'
+        wavelet = kwargs.get("wavelet", 'haar')
+        level = int(kwargs.get("level", 5))
+
+        # Initialize WCC coefficients
         wcc = []
+
+        # Compute Wavelet Cepstral Coefficients for each frame
         for frame in windowed_frames:
-            coeffs = pywt.wavedec(frame, wavelet)
-            wcc.append(coeffs[0])
+            # Apply wavelet transform
+            coeffs = pywt.wavedec(frame, wavelet=wavelet, level=level)
+
+            # Calculate subband energies
+            subband_energies = [np.sum(np.square(subband)) for subband in coeffs]
+
+            # Replace problematic values with zeros
+            subband_energies = np.where(subband_energies == 0, 0, subband_energies)
+
+            # Apply logarithm to subband energies
+            log_energies = np.log(subband_energies)
+            
+            log_energies = np.nan_to_num(log_energies, nan=0.0)
+
+            # Apply DCT
+            n_ceps = 12  # Number of cepstral coefficients
+            dct_coeffs = dct(log_energies, norm='ortho')[:n_ceps]
+
+            # Append DCT coefficients to WCC
+            wcc.append(dct_coeffs)
 
         wcc = np.array(wcc)
 
         # Apply DCT using scipy.fft.dct
-        n_ceps = 12
-        dct_filters = dct(np.eye(wcc.shape[1]), norm='ortho')
-        wcc = np.dot(wcc, dct_filters.T)
+        # n_ceps = 12
+        # dct_filters = dct(np.eye(wcc.shape[1]), norm='ortho')
+        # wcc = np.dot(wcc, dct_filters.T)
 
 
         # Keep the desired number of coefficients
@@ -1145,6 +1177,8 @@ class WaveletCepstralFeatures(FeaturesBase):
         wcc_std[wcc_std == 0.0] = 1e-8
 
         wcc_normalized = (wcc - wcc_mean) / wcc_std
+
+        wcc_normalized = np.nan_to_num(wcc_normalized,nan=0)
 
         return wcc_normalized
 
@@ -1305,6 +1339,9 @@ class FeaturePreprocessorBase(ABC):
     def preprocess_features(self, features):
         pass
 
+    @abstractmethod
+    def transform_features(self,features):
+        pass
 
 
 class MinMaxScalerPreprocessor(FeaturePreprocessorBase):
@@ -1316,6 +1353,10 @@ class MinMaxScalerPreprocessor(FeaturePreprocessorBase):
         print("Min Max Scaler")
         self.scaler = self.scaler.fit(features)
         scaled_features = self.scaler.transform(features)
+        return scaled_features
+    
+    def transform_features(self,features):
+        scaled_features = self.scaler.transform(features) 
         return scaled_features
 
 class PCAFeaturePreprocessor(FeaturePreprocessorBase):
@@ -1332,7 +1373,10 @@ class PCAFeaturePreprocessor(FeaturePreprocessorBase):
         print(transformed_features[0].shape)
         return transformed_features
 
-
+    def transform_features(self,features):
+        transformed_features = self.pca.transform(features)
+        print(transformed_features[0].shape)
+        return transformed_features
 
 
 
@@ -1737,19 +1781,20 @@ class ConfigProcessor:
 
 
         # Feature Preprocessing
-        preprocessed_features = feature_preprocessor.featurepreprocessing_from_config(features,data['featurepreprocessing'])  # Call feature preprocessing method
-        #preprocessed_features = feature_preprocessor.featurepreprocessing_from_config(features,data) 
+        #preprocessed_features = feature_preprocessor.featurepreprocessing_from_config(features,data['featurepreprocessing'])  # Call feature preprocessing method
+        
 
         #Classifier Create
         mdl = classifier_factory.create_classifier()
         print("Mdl Created")
         
         #Evaluation
-        #scores = self.evaluate_model(mdl,data, data['evaluation'], features, labels)
-        scores = self.evaluate_model(mdl,data, data['evaluation'], preprocessed_features, labels)
+        scores = self.evaluate_model(mdl,data, data['evaluation'], features, labels)
+        #scores = self.evaluate_model(mdl,data, data['evaluation'], preprocessed_features, labels)
 
         #Hyperparamter search enabled
         if bool(data['classifier']['knn']['tune_hyperparameters']) or bool(data['classifier']['svm']['tune_hyperparameters']):
+            print("hyperparameters")
             self.tune_hyperparameters_config( mdl, data, features, labels)
 
         predictor = predictor_saver.save_predictor(mdl, extractor)
@@ -1759,24 +1804,30 @@ class ConfigProcessor:
     def evaluate_model(self, mdl, data,evaluation_data,features, labels):
         scores = {}
         if evaluation_data['train_test_split']['enable']:
-            scores = self.evaluate_train_test(mdl, evaluation_data['train_test_split'],features, labels)
+            scores = self.evaluate_train_test(mdl, data, evaluation_data['train_test_split'],features, labels)
         elif evaluation_data['kfold']['enable']:
             scores = self.evaluate_kfold(mdl,data, evaluation_data, features, labels)
         elif evaluation_data['stratifiedkfold']['enable']:
             scores = self.evaluate_stratified_kfold(mdl, evaluation_data['stratifiedkfold'],features, labels)
         return scores
 
-    def evaluate_train_test(self, mdl, train_test_data,features, labels):
+    def evaluate_train_test(self, mdl, data, train_test_data,features, labels):
+        feature_preprocessor = FeaturePreprocessor()
+        
+        #feature_preprocessor.featurepreprocessing_transform
         params = train_test_data
         print(train_test_data)
         if params['random_state'] == "None":
             X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size=float(params['test_size']),
                                                                 shuffle=params['shuffle'])
+            X_train = feature_preprocessor.featurepreprocessing_from_config(X_train,data['featurepreprocessing'])
+            X_test = feature_preprocessor.featurepreprocessing_transform(X_test,data['featurepreprocessing'])
         else:
             X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size=float(params['test_size']),
                                                                 shuffle=params['shuffle'],
                                                                 random_state=int(params['random_state']))
-
+            X_train = feature_preprocessor.featurepreprocessing_from_config(X_train,data['featurepreprocessing'])
+            X_test = feature_preprocessor.featurepreprocessing_transform(X_test,data['featurepreprocessing'])
         # Fit the model and calculate scores
         clf = mdl.fit(X_train, y_train)
         print(clf.score(X_test,y_test))
@@ -1842,7 +1893,7 @@ class ConfigProcessor:
             #"metric": ["euclidean", "manhattan", "chebyshev", "minkowski"],
             #    "metric_params": [None, {"p": 1}, {"p": 2}, {"p": 3}],
             X_train, X_test, y_train, y_test = train_test_split(features, labels, 
-                    test_size=float(params['train_test']['tts_test_size']), 
+                    test_size=float(params['train_test']['test_size']), 
                     shuffle=params['train_test']['tts_shuffle'])
             mdl = tune_hyperparameters(KNeighborsClassifier(), knn_param_grid, X_train, y_train)
             scores = mdl.cv_results_
@@ -2008,13 +2059,27 @@ class FeaturePreprocessor:
         #featurepreprocessing_config['PCA']['enable'] = True
         print(featurepreprocessing_config)
         if bool(featurepreprocessing_config['min_max']['enable']):
-            features = MinMaxScalerPreprocessor().preprocess_features(features)
+            self.minmax = MinMaxScalerPreprocessor()
+            features = self.minmax.preprocess_features(features)
         if bool(featurepreprocessing_config['pca']['enable']):
             print(featurepreprocessing_config)
             ### ADD HERE RETURNING OF FIT PCA FOR REUSE IN PREDICTOR
-            features = PCAFeaturePreprocessor(n_components=int(featurepreprocessing_config['pca']['n_components'])).preprocess_features(features)
+            self.pca = PCAFeaturePreprocessor(n_components=int(featurepreprocessing_config['pca']['n_components']))
+            features = self.pca.preprocess_features(features)
         #features = PCAFeaturePreprocessor().preprocess_features(features)
         return features
+
+    def featurepreprocessing_transform(self,features,featurepreprocessing_config):
+        print("transform_features")
+        if bool(featurepreprocessing_config['min_max']['enable']):
+            features = self.minmax.transform_features(features)
+        if bool(featurepreprocessing_config['pca']['enable']):
+            print(featurepreprocessing_config)
+            ### ADD HERE RETURNING OF FIT PCA FOR REUSE IN PREDICTOR
+            features = self.pca.transform_features(features)
+        #features = PCAFeaturePreprocessor().preprocess_features(features)
+        return features
+    
 
 # class EvaluationProcessor:
 #     def evaluate_model(self, mdl, evaluation_data, mfc, labels):
