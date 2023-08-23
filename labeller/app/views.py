@@ -438,8 +438,11 @@ def singlefilewaveuser(request, fname, userid):
     
     return render(request, 'waves3.html', {'page_obj': audiopredictions, 'audiolist': audiopredictions, 'user': request.user})
 
-def samepagecomparisonwaves(request,fname, userid, targetuser):
-    audiofiles = AudioLabels.objects.filter(Q(labeluser=userid) | Q(labeluser=targetuser), filename=(str(fname)+".wav"))
+def samepagecomparisonwaves(request,fname, userid, targetuser, targetuser2 = None):
+    if(targetuser2):
+        audiofiles = AudioLabels.objects.filter(Q(labeluser=userid) | Q(labeluser=targetuser) | Q(labeluser=targetuser2), filename=(str(fname)+".wav"))
+    else:
+        audiofiles = AudioLabels.objects.filter(Q(labeluser=userid) | Q(labeluser=targetuser), filename=(str(fname)+".wav"))
     paginator = Paginator(audiofiles, 10)
     paginator.limit_pagination_display = 5
 
@@ -573,36 +576,84 @@ def datasetlist(request):
     return render(request, 'datasetlist.html',{'tableobjs':tableobjs,'tablejson':tablejson})
 
 def datasetlist2(request):
-    audiofiles = os.listdir(os.path.join("app","static","audiofiles"))
-
+    #audiofiles = os.listdir(os.path.join("app","static","audiofiles"))
     tableobjs = []
-    for file in audiofiles:
-        tablerow = {'id':'','filename':'','labelledby':[],'modelregions':"",'humanregions':[],'variation':''}
-        tablerow['filename'] = file
+    a = AudioLabels.objects.filter(labeluser='1')
+    #a = a[:100]
+    total_coughs = 0
+    total_variations = 0
+    hongbo_variations = 0
+    hongbo_variations_count = 0
+    hongbo_variations_clear = 0
+    hongbo_variations_clear_count = 0
+    naseer_variations = 0
+    naseer_variations_count = 0
+    naseer_variations_clear = 0
+    naseer_variations_clear_count = 0
+    for item in a:
+        regions = json.loads(item.labelregions)
+        tablerow = {'id':'','filename':'','labelledby':[],'labelledbyname':[],'niallregions':"",'humanregions':[],'hongboregions':"",'naseerregions':"",'variation1':'','variation2':''}
+        tablerow['filename'] = item.filename
         tablerow['lowquality'] = False
         tablerow['unclear'] = False
-        labels = AudioLabels.objects.filter(filename=file)
+        labels = AudioLabels.objects.filter(filename=item.filename)
         
         for label in labels:
             tablerow['id'] = label.id
-            tablerow['labelledby'].append(label.labelusername)
-            if(label.labelusername == "Model"):
-                tablerow['modelregions'] = (len(json.loads(label.labelregions)))
-            else:
-                tablerow['humanregions'].append(len(json.loads(label.labelregions)))
+            
+            if(label.labeluser == "1"):
+                tablerow['labelledby'].append("1")
+                tablerow['labelledbyname'].append("Niall")
+                tablerow['niallregions'] = (len(json.loads(label.labelregions)))
+            elif(label.labeluser == "10"):
+                tablerow['labelledby'].append("10")
+                tablerow['labelledbyname'].append("Hongbo")
+                tablerow['hongboregions']= (len(json.loads(label.labelregions)))
+            elif(label.labeluser == "9"):
+                tablerow['labelledby'].append("9")
+                tablerow['labelledbyname'].append("Naseer")
+                tablerow['naseerregions'] = (len(json.loads(label.labelregions)))
+            # else:
+            #     tablerow['humanregions'].append(len(json.loads(label.labelregions)))
             if(label.lowquality):
                 tablerow['lowquality'] = True
             if(label.unclear):
                 tablerow['unclear'] = True
             
-        if (bool(tablerow['humanregions'])):
-            if tablerow['modelregions'] != "":
-                tablerow['variation'] = int(tablerow['modelregions'])- int(max(tablerow['humanregions']))
+        if (bool(tablerow['hongboregions'])):
+            if tablerow['niallregions'] != "":
+                tablerow['variation1'] = int(tablerow['niallregions'])- int((tablerow['hongboregions']))
+                if(tablerow['variation1'] != 0):
+                    hongbo_variations_count = hongbo_variations_count + 1
+                    hongbo_variations = hongbo_variations + abs(tablerow['variation1'])
+                    if not label.unclear:
+                        hongbo_variations_clear = hongbo_variations_clear + abs(tablerow['variation1'])
+                        hongbo_variations_clear_count = hongbo_variations_clear_count + 1
+        if (bool(tablerow['naseerregions'])):
+            if tablerow['niallregions'] != "":
+                tablerow['variation2'] = int(tablerow['niallregions'])- int((tablerow['naseerregions']))
+                if(tablerow['variation2'] != 0):
+                    naseer_variations_count = naseer_variations_count + 1
+                    naseer_variations = naseer_variations + abs(tablerow['variation2'])
+                    if not label.unclear:
+                        naseer_variations_clear = naseer_variations_clear + abs(tablerow['variation2'])
+                        naseer_variations_clear_count = naseer_variations_clear_count + 1
+        if(tablerow['variation2'] != 0 or tablerow['variation1'] != 0):
+            total_variations = total_variations + 1
         tableobjs.append(tablerow)
         tablejson = json.dumps(tableobjs)
-        
-    
-    return render(request, 'datasetlist.html',{'tableobjs':tableobjs,'tablejson':tablejson})
+        stats = {
+                "Hongbo_variations_count": hongbo_variations_count,
+                "Hongbo_variations": hongbo_variations,
+                "Naseer_variations_count": naseer_variations_count,
+                "Naseer_variations": naseer_variations,
+                "Hongbo_variations_clear": hongbo_variations_clear,
+                "Hongbo_variations_clear_count": hongbo_variations_clear_count,
+                "Naseer_variations_clear": naseer_variations_clear,
+                "Naseer_variations_clear_count": naseer_variations_clear_count,
+                "Total_with_variation": total_variations,
+            }    
+    return render(request, 'datasetlist2.html',{'tableobjs':tableobjs,'tablejson':tablejson,'stats':stats})
 
 @csrf_exempt
 def save_events_json(request, userid = None):
@@ -798,6 +849,14 @@ def return_progress(request):
 
 def get_cough_statistics(request):
     stats = functions.cough_length_statistics()
+    #return JsonResponse({'Stats':stats})
+    context = {
+        "status": stats,
+    }
+    return render(request, 'label_stats.html', context)
+
+def get_cough_statistics2(request):
+    stats = functions.cough_length_statistics2()
     #return JsonResponse({'Stats':stats})
     context = {
         "status": stats,

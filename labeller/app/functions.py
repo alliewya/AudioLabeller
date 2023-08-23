@@ -451,6 +451,66 @@ def cough_length_statistics():
     }
     return status
 
+def cough_length_statistics2():
+
+
+    status = {}
+    lengths = []
+    unclear_lengths = []
+    low_quality_lengths = []
+    outliers = []
+    a = AudioLabels.objects.filter(labeluser='1')
+    #a = a[:100]
+    total_coughs = 0
+    for item in a:
+        regions = json.loads(item.labelregions)
+        
+    
+    quantity = total_coughs
+    mean = statistics.mean(lengths)
+    standard_deviation = statistics.stdev(lengths)
+    unclear_quantity = len(unclear_lengths)
+    unclear_mean = statistics.mean(unclear_lengths)
+    unclear_standard_deviation = statistics.stdev(unclear_lengths)
+    low_quality_quantity = len(low_quality_lengths)
+    low_quality_mean = statistics.mean(low_quality_lengths)
+    low_quality_standard_deviation = statistics.stdev(low_quality_lengths)
+    minimum = min(lengths)
+    maximum = max(lengths)
+    median = statistics.median(lengths)
+    first_quartile = np.percentile(lengths, 25)
+    third_quartile = np.percentile(lengths, 75)
+    skewness = stats.skew(lengths)
+    kurtosis = stats.kurtosis(lengths)
+    
+    p_value = stats.shapiro(lengths)[1]
+    if p_value > 0.05:
+        distribution = "Normal"
+    else:
+        distribution = "Not Normal"
+    
+    status = {
+        "Quantity": quantity,
+        "Mean": mean,
+        "Standard_Deviation": standard_deviation,
+        "Minimum": minimum,
+        "Maximum": maximum,
+        "Median": median,
+        "First_Quartile": first_quartile,
+        "Third_Quartile": third_quartile,
+        "Skewness": skewness,
+        "Kurtosis": kurtosis,
+        "Distribution": distribution,
+        "Outliers_for_Followup": outliers,
+        "Lengths": lengths,
+        "Unclear_Quantity": unclear_quantity,
+        "Unclear_Mean": unclear_mean,
+        "Unclear_Standard_Deviation": unclear_standard_deviation,
+        "Low_Quality_Quantity": low_quality_quantity,
+        "Low_Quality_Mean": low_quality_mean,
+        "Low_Quality_Standard_Deviation": low_quality_standard_deviation
+    }
+    return status
 
 def user_label_differences(userid1,userid2):
     """

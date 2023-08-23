@@ -1,0 +1,184 @@
+{% extends 'base2.html' %} {% block title %}Dataset List{% endblock %}
+
+<!---->
+
+{% block content%} {% if user.is_authenticated %}
+
+<style>
+  .model-colour {
+    background-color: blue;
+  }
+  thead{
+    position: sticky;
+    top: 0;
+  }
+  .niall-colour {
+    background-color: #d15019;
+  }
+  .colour1 {
+    background-color: #d15019;
+  }
+  .colour9 {
+    background-color: rebeccapurple;
+  }
+  .colour10 {
+    background-color: #004680;
+  }
+</style>
+
+<!--Table enhancement-->
+{% comment %} <link href="https://unpkg.com/tabulator-tables@5.4.3/dist/css/tabulator.min.css" rel="stylesheet" />
+<script type="text/javascript" src="https://unpkg.com/tabulator-tables@5.4.3/dist/js/tabulator.min.js"></script> {% endcomment %}
+<link href="https://cdn.jsdelivr.net/gh/tofsjonas/sortable@latest/sortable.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/gh/tofsjonas/sortable@latest/sortable.min.js"></script>
+<!-- End Table enhancement-->
+
+<div class="Row">
+  <div class="col-12">
+    <div class="d-flex justify-content-center align-items-center p-3">
+      <div>
+        <div class="Row">
+          <div class="col-4">
+            <h2><a href="/app/" class="text-decoration-none">Files</a></h2>
+          </div>
+          <div class="col-4">{{ stats }}</div>
+        <div class="col-4">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="showUnclear" name="filterOption" onchange="handleFilterChange()">
+            <label class="form-check-label" for="showUnclear">Show Only "Unclear"</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="showEmptyUnclear" name="filterOption" onchange="handleFilterChange()">
+            <label class="form-check-label" for="showEmptyUnclear">Hide all "Unclear"</label>
+          </div>
+          {% comment %} <button type="button" class="btn btn-secondary" onclick="resetFilter()">Reset Filter</button> {% endcomment %}
+          
+        </div>
+        </div>
+        <table class="table sortable">
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">Filename</th>
+              <th scope="col">Labelled By</th>
+              <th scope="col">Niall Regions</th>
+              <th scope="col">Hongbo Regions</th>
+              <th scope="col">Variation</th>
+              <th scope="col">Naseer Regions</th>
+              <th scope="col">Variation</th>
+              <th scope="col">Low Quality</th>
+              <th scope="col">Unclear</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in tableobjs %}
+            <tr>
+              <td>{{ row.id }}</td>
+              <td><a href="/app/1/audiolabelled/{{ row.filename|slice:"-4" }}/compare/9/10" class="text-decoration-none">{{ row.filename }}</a></td>
+              <td>
+                {% for name in row.labelledby %}<a href="/app/singlewave/{{ row.filename|slice:"-4" }}/{{ name }}"><span class="badge rounded-pill colour{{ name }}">{% if name == "1" %}Niall{% elif name == "10" %}Hongbo{% elif name == "9" %}Naseer{% endif %}</span></a> {%comment %}{{ name }}-colour {% endcomment%}
+                {% endfor %}
+                
+              </td>
+              <td>{{ row.niallregions }}</td>
+              <td>
+                {{ row.hongboregions }}
+                {% comment %} {% for count in row.humanregions %}{{ count }} {% endfor %} {% endcomment %}
+              </td>
+              <td>{{ row.variation1 }}</td>
+              <td>{{ row.naseerregions }}</td>
+              <td>{{ row.variation2 }}</td>
+              <td>{% if row.lowquality %}Yes{% endif %}</td>
+              <td>{% if row.unclear %}Yes{% endif %}</td>
+            </tr>
+
+            {% endfor %}
+          </tbody>
+        </table>
+        <div id="test"></div>
+        <div id="example-table">
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    console.log("1eeee3q");
+  </script>
+
+  <!-- <script>
+  // document.getElementById("test").innerText =
+  console.log("13q");
+
+  console.log("1q");
+  var tabledata = '{{ tablejson|safe }}';
+  var table = new Tabulator("#example-table", {
+    data:tabledata,
+    columns:[
+    {title:"#",field:"id",sorter:"number"},
+    {title:"Filename",field:"filename",sorter:"string"},
+    {title:"modelregions",field:"modelregions",sorter:"number"},
+    {title:"lowquality",field:"lowquality",},
+    {title:"unclear",field:"unclear",},
+    {title:"variation",field:"variation",sorter:"number"},
+    ]
+  });
+</script> -->
+<script>
+  function handleFilterChange() {
+    const showUnclearCheckbox = document.getElementById('showUnclear');
+    const showEmptyUnclearCheckbox = document.getElementById('showEmptyUnclear');
+
+    // Get all rows in the table body
+    const rows = document.querySelectorAll('table tbody tr');
+
+    // Reset the filter (show all rows) if both checkboxes are unchecked
+    if (!showUnclearCheckbox.checked && !showEmptyUnclearCheckbox.checked) {
+      rows.forEach(function(row) {
+        row.style.display = 'table-row';
+      });
+      return;
+    }
+
+    // Determine the filter value based on the checked checkbox
+    const filterValue = showUnclearCheckbox.checked ? 'Yes' : '';
+
+    // Loop through all rows and hide/show based on the filterValue
+    rows.forEach(function(row) {
+      const unclearCell = row.querySelector('td:nth-child(10)'); // 10th column (unclear)
+      const unclearValue = unclearCell.textContent.trim();
+
+      if (unclearValue === filterValue) {
+        row.style.display = 'table-row'; // Show the row if it matches the filterValue
+      } else {
+        row.style.display = 'none'; // Hide the row if it doesn't match the filterValue
+      }
+    });
+  }
+
+  function resetFilter() {
+    // Uncheck both checkboxes
+    const showUnclearCheckbox = document.getElementById('showUnclear');
+    const showEmptyUnclearCheckbox = document.getElementById('showEmptyUnclear');
+    showUnclearCheckbox.checked = false;
+    showEmptyUnclearCheckbox.checked = false;
+
+    // Apply the reset filter (show all rows)
+    handleFilterChange();
+  }
+</script>
+
+
+  {% else %} .
+  <div class="Row">
+    <div class="col-12">
+      <div class="d-flex justify-content-center align-items-center p-3">
+        <div>
+          <h2><a href="/accounts/login">Login</a></h2>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% endif %} {% endblock %}
