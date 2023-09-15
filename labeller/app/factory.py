@@ -252,11 +252,27 @@ class Dataset:
         for audio in self.samples:
             total_length = total_length + librosa.get_duration(y=audio.audiodata)
         return total_length/len(self.samples)
+    
+    def get_length_stats(self):
+        total_length = 0
+        for audio in self.samples:
+            total_length = total_length + librosa.get_duration(y=audio.audiodata)
+        count = len(self.samples)
+        average = total_length/count
+        return total_length, average, count
 
     def normalize(self):
         for audio in self.samples:
             audio.audiodata = librosa.util.normalize(S = audio.audiodata)
 
+    def return_statistics(self):
+        stats = {}
+
+        stats["Total Length"], stats["Average Length"], stats["Audio"] = self.get_length_stats()
+        stats["Label 1"] = sum(self.labels)
+        stats["Label 0"] = len(self.labels)- stats["Label 1"]
+        stats["Sample Rate"] = self.samples[0].samplerate
+        return stats
 
 
 # ==================================================
@@ -1753,6 +1769,7 @@ class ConfigProcessor:
 
         #Dataset Loading
         dataset = dataset_processor.load_dataset(data['datasetpickle'])
+        print(data['dataset'])
         dataset_processor.process_dataset(dataset, data['dataset'])
         try:
             print(dataset.descriptor)
@@ -2530,3 +2547,29 @@ class MultiPredictor():
             results = pool.starmap(self.returnPredictionProbabilities, [(filename,) for filename in audio_files])
 
         return results
+    
+
+def dataset_stats_calculate(datasetfname):
+    path = os.path.join("app", "static", "datasetpickles", datasetfname)
+    with open(path, 'rb') as f:
+        dataset = pickle.load(f)
+        stats = {}
+        total_length = 0
+        for audio in dataset.samples:
+            total_length = total_length + librosa.get_duration(y=audio.audiodata)
+        count = len(dataset.samples)
+        average = total_length/count
+        stats["Total Length"] = total_length
+        stats["Average Length"] = average
+        stats["Audio"] = count
+        int_list = [int(item) for item in dataset.labels]
+        stats["Label 1"] = sum(int_list)
+        stats["Label 0"] = len(dataset.labels)- stats["Label 1"]
+        stats["Sample Rate"] = dataset.samples[0].samplerate
+        filesizebytes =  os.path.getsize(path)
+        filesizegb = filesizebytes / (1024 ** 3)
+        stats["Filesize"] = f"{filesizegb:.2f}"
+        
+    del dataset
+    print(str(datasetfname) + str(stats))
+    return stats

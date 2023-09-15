@@ -6,6 +6,7 @@ import librosa
 import requests
 
 from django.shortcuts import render, get_object_or_404, redirect
+from django.template.loader import render_to_string
 from django.http import HttpResponse, JsonResponse, FileResponse
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -24,7 +25,7 @@ from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split, GridSearchCV
 
 from app.apps import AppConfig
-from app.models import AudioLabels, TaskProgress, ClassifierResults
+from app.models import AudioLabels, TaskProgress, ClassifierResults,DatasetPicklesStats
 from app import functions
 from app import factory
 
@@ -71,6 +72,10 @@ def utilities(request):
     backups = os.listdir(os.path.join("app","backups",))
     context = {'user':request.user,'backupfiles':backups}
     return render(request, "utility.html", context) 
+
+def classifiermgmt(request):
+    context = {'user':request.user}
+    return render(request, "classifier_mgmt.html",context) 
 
 
 def model_config(request):
@@ -873,6 +878,51 @@ def get_label_difference_statistics(request, user1, user2):
     }
     return render(request, 'label_differences.html', context)
 
+@csrf_exempt
+def delete_classifier_result(request, id):
+    try:
+        # Try to retrieve the ClassifierResults object by ID
+        classifier_result = ClassifierResults.objects.get(id=id)
+        classifier_result.delete()
+        return JsonResponse({"message": "ClassifierResult deleted successfully"})
+    except ClassifierResults.DoesNotExist:
+        return JsonResponse({"error": "ClassifierResult not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+    
+@csrf_exempt
+def calculate_dataset_stats(request):
+    print("stats")
+    try:
+        datasetpickleslist = os.listdir(os.path.join("app","static","datasetpickles"))
+        dataset = None
+        print(datasetpickleslist)
+        for datasetfname in datasetpickleslist:
+            stats = factory.dataset_stats_calculate(datasetfname)
+                            
+            # Try to get an existing entry with the same filename, or create a new one if it doesn't exist
+
+            try:
+                dataset_pickles_stats, created = DatasetPicklesStats.objects.get_or_create(
+                    filename=datasetfname,
+                    defaults={
+                        "stats": json.dumps(stats),
+                        "stats_json": json.dumps(stats),
+                    }
+                )
+            except Exception as e:
+                print(f"An exception occurred: {str(e)}")
+            # If the entry already existed, update its fields
+            if not created:
+                dataset_pickles_stats.stats = json.dumps(stats)
+                dataset_pickles_stats.stats_json = json.dumps(stats)
+                dataset_pickles_stats.save()
+        return JsonResponse({"message": "Dataset stats calculated"})
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
 class DownloadDBView(APIView):
     def get(self, request):
         file_path = os.path.join(settings.BASE_DIR,"db.sqlite3")
@@ -964,7 +1014,89 @@ def resultsCard(request):
         except:
             return JsonResponse({"Fail":"Fail"})
 
+@csrf_exempt
+def datasetStats(request):
+    datasetstats = DatasetPicklesStats.objects.all()
+    b = ""
+    for dataset in datasetstats:
+        a = render_to_string("parts/dataset-stats.html", {'filename':dataset.filename, 'stats': json.loads(dataset.stats)})
+        b = b + a
+    return HttpResponse(b)
 
+@csrf_exempt
+def classifierResults(request):
+    classifierresults = ClassifierResults.objects.all().order_by('-created_at')
+    paginator = Paginator(classifierresults, 10)
+    paginator.limit_pagination_display = 10
+
+    page_number = request.GET.get('page')
+
+    # get the current page
+    page_obj = paginator.get_page(page_number)
+    print(page_obj)
+    # loop through the items on the current page
+    
+    results = []
+
+    for resultobj in page_obj:
+        result = json.loads(resultobj.data)
+        print(result)
+        timestamp = datetime.strptime(result['Timestamp'], "%Y-%m-%dT%H:%M:%S.%f")
+        a = render_to_string("parts/model-results-condensed.html", {'results':result, 'cardid': resultobj.id, 'timestamp':timestamp})
+        results.append(a)
+        #audiopredictions.append({'filename':file.filename,'regions':json.loads(file.labelregions),'labelusername': file.labelusername,'lowquality':file.lowquality,'unclear':file.unclear})
+        
+    # do something with the processed data
+    print(page_obj)
+    return render(request, 'blocks/classifierresults.html', {'page_obj': page_obj,'title': "Latest", 'results': results, 'user': request.user})
+
+@csrf_exempt
+def classifierResults2(request):
+    # Retrieve filtering criteria from URL parameters
+    start_date_str = request.GET.get('start_date', None)
+    end_date_str = request.GET.get('end_date', None)
+
+    # Define default date range (e.g., past 30 days)
+    default_end_date = timezone.now()
+    default_start_date = default_end_date - timezone.timedelta(days=30)
+
+    # Parse date criteria (if provided), or use default values
+    try:
+        if start_date_str:
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+        else:
+            start_date = default_start_date
+        if end_date_str:
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+        else:
+            end_date = default_end_date
+    except ValueError:
+        # Handle invalid date format gracefully or return an error response
+        return render(request, 'error.html', {'message': 'Invalid date format in URL parameters'})
+
+    # Create the title containing start and end dates as a string
+    title = f'Results from {start_date.strftime("%d-%m-%Y")} to {end_date.strftime("%d-%m-%Y")}'
+
+    # Query the ClassifierResults with filtering
+    classifierresults = ClassifierResults.objects.filter(created_at__range=(start_date, end_date)).order_by('-created_at')
+
+    # Pagination setup
+    paginator = Paginator(classifierresults, 10)
+    paginator.limit_pagination_display = 10
+
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Process the data and render templates
+    results = []
+
+    for resultobj in page_obj:
+        result = json.loads(resultobj.data)
+        timestamp = datetime.strptime(result['Timestamp'], "%Y-%m-%dT%H:%M:%S.%f")
+        a = render_to_string("parts/model-results-condensed.html", {'results': result, 'cardid': resultobj.id, 'timestamp': timestamp})
+        results.append(a)
+
+    return render(request, 'blocks/classifierresults.html', {'page_obj': page_obj,'title':title, 'results': results, 'user': request.user})
 
 
 @csrf_exempt
@@ -1280,6 +1412,11 @@ def modelfromconfig(request):
             data = json.loads(request.body)
             config_processor = factory.ConfigProcessor()
             result = config_processor.process_config(data)
+
+            # Create a new ClassifierResults entry with the result as 'data'
+            classifier_result = ClassifierResults(data=json.dumps(result),data_json=json.dumps(result))  # Assuming result is a JSON-serializable object
+            classifier_result.save()
+
             return JsonResponse(result)
         except Exception as e:
             print("An exception occurred:", e)

@@ -1,0 +1,57 @@
+{% extends 'base.html' %} {% block title %}Classifier Mgmt{% endblock %}
+
+<!---->
+
+{% block content%} {% if user.id == 1 %}
+
+<div class="Row">
+  <div class="col-12">
+    <div class="d-flex justify-content-center align-items-center p-3">
+      <div>
+        <h2>Classifier Management</h2>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="Row">
+  <div class="col-12">
+    <div class="d-flex justify-content-center align-items-center p-3">
+      <div>
+        <h3>Stored Results</h3>
+        <p>View all stored results</p>
+        <a href="/app/classifierresults">View</a>
+        <hr>
+        <div>
+        <Strong>Filter Classifier Results</strong>
+          <form action="/app/classifierresults2" method="get">
+              <label for="start_date">Start Date:</label>
+              <input type="date" id="start_date" name="start_date">
+
+              <label for="end_date">End Date:</label>
+              <input type="date" id="end_date" name="end_date">
+
+              <input type="submit" value="Apply Filter">
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div>
+      
+    </div>
+</div>
+
+
+{% else %} .
+<div class="Row">
+  <div class="col-12">
+    <div class="d-flex justify-content-center align-items-center p-3">
+      <div>
+        <h2><a href="/accounts/login">Access Denied</a></h2>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endif %} {% endblock %}
