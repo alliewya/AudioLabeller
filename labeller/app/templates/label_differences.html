@@ -23,6 +23,10 @@
           <th>Total Differences</th>
           <td>{{ status.Difference }}</td>
         </tr>
+        <tr>
+          <th>Length Differences</th>
+          <td>{{ status.Length_Difference }}</td>
+        </tr>
       </tbody>
     </table>
   
@@ -61,6 +65,39 @@
   
 
   <div class="spacer m-3"></div>
+
+  <h2>Mismatched Label Lengths</h2>
+  <table class="table table-bordered">
+    <tbody>
+      <tr>
+        <th>
+          File Name
+        </th>
+        <th>Summed Start Difference</th>
+        <th>Summed End Difference</th>
+        <th>Summed Length Difference</th>
+      </tr>
+      {% for record in status.Length_Difference_list %}
+
+      <tr>
+        <td>
+          <a href="/app/{{ user1 }}/audiolabelled/{{ record.fname|slice:"-4" }}/compare/{{ user2 }}">{{ record.fname }}</a>
+        </td>
+        <td>
+            {{record.StartDifference}}
+          </td>
+          <td>
+            {{record.EndDifference}}
+          </td>
+          <td>
+            {{record.LengthDifference}}
+          </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+
 
 </div>
 

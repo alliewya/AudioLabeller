@@ -521,6 +521,7 @@ def user_label_differences(userid1,userid2):
     a = AudioLabels.objects.filter(labeluser=userid1)
 
     differenceslist = []
+    lengthdifferencelist = []
     matchcount = 0
 
     for item in a:
@@ -534,15 +535,83 @@ def user_label_differences(userid1,userid2):
             if(coughsa != coughsb):
                 c = {"fname":item.filename, "UserA": coughsa, "UserB": coughsb, "Differences": (coughsa - coughsb)}
                 differenceslist.append(c)
-        
+            else:
+                if regionsa != regionsb:
+                    start_difference = float(0)
+                    end_difference = float(0)
+                    length_difference = float(0)
+                    for i, regiona in enumerate(regionsa):
+                        #print(i)
+                        i = int(i)
+                        start_difference += float(regiona["start"]) - float(regionsb[int(i)]["start"])
+                        end_difference += regiona["end"] - regionsb[int(i)]["end"]
+                        length_difference += (regiona["end"]-regiona["start"])-(regionsb[int(i)]["end"]-regionsb[int(i)]["start"])
+                    d = {"fname":item.filename, "StartDifference": start_difference, "EndDifference": end_difference, "LengthDifference": length_difference}
+                    lengthdifferencelist.append(d) 
+
     total_differences = len(differenceslist)
+    total_length_differences = len(lengthdifferencelist)
     percent = (total_differences / matchcount) * 100
 
     
     status = {
         "Both_Labelled": matchcount,
         "Difference": total_differences,
+        "Length_Difference" : total_length_differences,
         "Difference_list": differenceslist,
+        "Length_Difference_list" : lengthdifferencelist,
+    }
+    return status
+
+
+def user_label_differences_2(userid1,userid2,userid3):
+    """
+    Calculates the difference in marking between two users
+
+    """
+    
+    a = AudioLabels.objects.filter(labeluser=userid1)
+
+    differenceslist = []
+    lengthdifferencelist = []
+    matchcount = 0
+
+    for item in a:
+        b = AudioLabels.objects.filter(labeluser=userid2,filename =item.filename).first()
+        c = AudioLabels.objects.filter(labeluser=userid3,filename =item.filename).first()
+        if(b):
+            matchcount = matchcount + 1
+            regionsa = json.loads(item.labelregions)
+            coughsa = len(regionsa)
+            regionsb =json.loads(b.labelregions)
+            coughsb = len(regionsb)
+            if(coughsa != coughsb):
+                c = {"fname":item.filename, "UserA": coughsa, "UserB": coughsb, "Differences": (coughsa - coughsb)}
+                differenceslist.append(c)
+            else:
+                if regionsa != regionsb:
+                    start_difference = 0
+                    end_difference = 0
+                    length_difference = 0
+                    for i, regiona in regionsa:
+                        start_difference += regiona["start"] - regionsb[i]["start"]
+                        end_difference += regiona["start"] - regionsb[i]["start"]
+                        length_difference += (regiona["end"]-regionsa["start"])-(regionsb[i]["end"]-regionsb[i]["start"])
+                    d = {"fname":item.filename, "StartDifference": start_difference, "EndDifference": end_difference, "LengthDifference": length_difference}
+                    lengthdifferencelist.append(d) 
+                #print(regionsa)
+
+    total_differences = len(differenceslist)
+    total_length_differences = len(lengthdifferencelist)
+    percent = (total_differences / matchcount) * 100
+
+    
+    status = {
+        "Both_Labelled": matchcount,
+        "Difference": total_differences,
+        "Length_Difference" : total_length_differences,
+        "Difference_list": differenceslist,
+        "Length_Difference_list" : lengthdifferencelist,
     }
     return status
 

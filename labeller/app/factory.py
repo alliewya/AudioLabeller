@@ -1651,11 +1651,12 @@ class CrossVal():
         if(bool(params['kfold']['enable'])):
             print("Cross Val 2")
             spram = params['kfold']
-            if spram['kfold_random_state'] == 'None':
+            print(spram)
+            if spram['random_state'] == 'None':
                 random_state = None
             else:
-                random_state = int(spram['kfold_random_state'])
-            cv = KFold(n_splits=int(spram['kfold_n_splits']),shuffle=bool(spram['kfold_shuffle']),random_state=random_state)
+                random_state = int(spram['random_state'])
+            cv = KFold(n_splits=int(spram['n_splits']),shuffle=bool(spram['shuffle']),random_state=random_state)
             print("Cross Val 3")
         elif(bool(params['stratifiedkfold']['enable'])):
             spram = params['stratifiedkfold']
@@ -1671,17 +1672,28 @@ class CrossVal():
 
         if bool(clfparm["knn"]['enable']):  
             knn_params = {
-            "n_neighbors": int(clfparm["knn"]["knn_k"]),
-            "algorithm": clfparm["knn"]["knn_algorithm"],
-            "leaf_size": int(clfparm["knn"]["knn_leaf_size"]),
-            "metric": clfparm["knn"]["knn_metric"],
-            "metric_params": {"p": int(clfparm["knn"]["knn_metric_power"])},
-            "weights": clfparm["knn"]["knn_weights"]
+            "n_neighbors": int(clfparm["knn"]["k"]),
+            "algorithm": clfparm["knn"]["algorithm"],
+            "leaf_size": int(clfparm["knn"]["leaf_size"]),
+            "metric": clfparm["knn"]["metric"],
+            "metric_params": {"p": int(clfparm["knn"]["metric_power"])},
+            "weights": clfparm["knn"]["weights"]
             }
             mdl = KNeighborsClassifier(**knn_params)
-        # elif bool(clfparm["svm"]['enable']):
-        #     svm_params = self.kwargs["svm"]
-        #     return SVMModel(**svm_params)
+        elif bool(clfparm["svm"]['enable']):
+            #svm_params = clfparm["svm"]
+            svm_params = {
+                'c': float(clfparm["svm"]["c"]),
+                'degree': int(clfparm["svm"]["degree"]),
+                'gamma' : clfparm["svm"]["gamma"],
+                'shrinking' : clfparm["svm"]["shrinking"],
+                'probability' : clfparm["svm"]["probability"],
+                'tol' : float(clfparm["svm"]["tol"]),
+                'max_iter' : clfparm["svm"]["max_iter"],
+                'kernel' : clfparm["svm"]["kernel"]
+            }
+            print(svm_params)
+            mdl =  SVMModel(**svm_params)
         # elif bool(clfparm["adaboost"]['enable']):
         #     adaboost_params = self.kwargs["adaboost"]
         #     return AdaBoostModel(**adaboost_params)

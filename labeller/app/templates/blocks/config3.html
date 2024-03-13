@@ -13,7 +13,8 @@
         </h1>
       </div>
     </div>
-    {% comment %} <button onclick="logValues()">Capture Values</button> {% endcomment %}
+    {% comment %} <button onclick="logValues()">Capture Values</button> {%
+    endcomment %}
     <div class="row mb-3 mt-2 section" id="datasetpickle-row">
       <div class="col">
         <h2>Select Dataset</h2>
@@ -2187,7 +2188,7 @@
             "label": "Level",
             "type": "input",
             "default": "5"
-          },          
+          },
           "wavelet_cepstral_include_level": {
             "label": "Level to include",
             "type": "input",
@@ -2699,7 +2700,7 @@
                 "default": ""
               },
             }
-        }    
+        }
     }
   };
 
@@ -3882,7 +3883,7 @@
           "kfold_shuffle": {
             "label": "Shuffle",
             "type": "checkbox",
-            "default": false
+            "default": true
           },
           "kfold_random_state": {
             "label": "Random Seed",
