@@ -1,5 +1,5 @@
 import os, time, json, pickle, traceback, math, copy
-from datetime import datetime
+from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
 import librosa
@@ -25,7 +25,7 @@ from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split, GridSearchCV
 
 from app.apps import AppConfig
-from app.models import AudioLabels, TaskProgress, ClassifierResults,DatasetPicklesStats
+from app.models import AudioLabels, TaskProgress, ClassifierResults,DatasetPicklesStats, TrainingTasks
 from app import functions
 from app import factory
 
@@ -1000,7 +1000,14 @@ def generateDatasetFile(request):
     
     status = functions.generate_dataset_file()
     print(status)
-    return JsonResponse({"Bing":"Bong","Count":status["Number"],"Files": status["Files"]}, safe=False)
+    return JsonResponse({"Bing":"Bong","Count":status["Number"]}, safe=False)
+
+def fixDatasetFile(request):
+    print("Fix Dataset")
+    file_path = os.path.join("app", "static", "datasetpickles", "2024-03-26_23-31-04_excluding_unclear__C30448_N22289-ds.pickle")
+    status = functions.load_and_modify_dataset(file_path)
+    print(status)
+    return JsonResponse({"status":status}, safe=False)
 
 
 @csrf_exempt
@@ -1098,6 +1105,22 @@ def classifierResults2(request):
 
     return render(request, 'blocks/classifierresults.html', {'page_obj': page_obj,'title':title, 'results': results, 'user': request.user})
 
+@csrf_exempt
+def classifierResult(request, id):
+    try:
+        classifierresult = ClassifierResults.objects.get(id=id)
+        result = json.loads(classifierresult.data)
+        timestamp = datetime.strptime(result['Timestamp'], "%Y-%m-%dT%H:%M:%S.%f")
+        a = render_to_string("parts/model-results-condensed.html", {'results': result, 'cardid': classifierresult.id, 'timestamp': timestamp})
+        results = []
+        results.append(a)
+        return render(request, 'blocks/classifierresults.html', {'title': "Classifier Result", 'results': results, 'user': request.user})
+    except ClassifierResults.DoesNotExist:
+        return HttpResponse("Classifier result not found.")
+    except Exception as e:
+        print("An exception occurred:", e)
+        traceback.print_exc()
+        return HttpResponse("An error occurred while fetching classifier result.")
 
 @csrf_exempt
 #original model from config
@@ -1412,7 +1435,7 @@ def modelfromconfig(request):
             data = json.loads(request.body)
             config_processor = factory.ConfigProcessor()
             result = config_processor.process_config(data)
-
+            print("Config Processed")
             # Create a new ClassifierResults entry with the result as 'data'
             classifier_result = ClassifierResults(data=json.dumps(result),data_json=json.dumps(result))  # Assuming result is a JSON-serializable object
             classifier_result.save()
@@ -1422,6 +1445,222 @@ def modelfromconfig(request):
             print("An exception occurred:", e)
             traceback.print_exc()
         return JsonResponse({'ok': 'Fail'})
+
+
+@csrf_exempt
+def store_config_in_queue(request):
+    """
+    View to store a JSON configuration in the queue using the TrainingTasks model.
+    This view accepts a POST request with a JSON payload containing the configuration data.
+    It creates a new TrainingTasks instance with the provided configuration and saves it to the database.
+    The view returns a JSON response indicating the success or failure of the operation, along with the task ID.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            metadata = data.get('details', {}).get('metadata', {})
+            name = metadata.get('name', '')
+            notes = metadata.get('notes', '')
+            
+            training_task = TrainingTasks(
+                config=json.dumps(data),
+                config_json=data,
+                priority=data.get('priority', 0),
+                name=name,
+                notes=notes,
+            )
+            training_task.save()
+            return JsonResponse({'ok': 'Success', 'task_id': training_task.id})
+        except Exception as e:
+            print("An exception occurred:", e)
+            traceback.print_exc()
+            return JsonResponse({'ok': 'Fail'})
+
+
+@csrf_exempt
+def remove_config_from_queue(request, task_id):
+    """
+    View to remove a configuration from the queue.
+
+    This view accepts a POST request with the task ID of the configuration to be removed.
+    It retrieves the corresponding TrainingTasks instance based on the provided task ID and deletes it from the database.
+    The view returns a JSON response indicating the success or failure of the operation.
+
+    Args:
+        request: The HTTP request object.
+        task_id: The ID of the task to be removed from the queue.
+
+    Returns:
+        A JSON response indicating the success or failure of the operation.
+    """
+    if request.method == 'POST':
+        try:
+            task = TrainingTasks.objects.get(id=task_id)
+            task.delete()
+            return JsonResponse({'ok': 'Success'})
+        except TrainingTasks.DoesNotExist:
+            return JsonResponse({'ok': 'Fail', 'error': 'Task not found'})
+        except Exception as e:
+            print("An exception occurred:", e)
+            traceback.print_exc()
+            return JsonResponse({'ok': 'Fail', 'error': str(e)})
+    else:
+        return JsonResponse({'ok': 'Fail', 'error': 'Invalid request method'})
+
+
+@csrf_exempt
+def reset_config_in_queue(request, task_id):
+    """
+    View to reset a configuration's status to 'pending'.
+
+    This view accepts a POST request with the task ID of the configuration to be reset.
+    It retrieves the corresponding TrainingTasks instance based on the provided task ID,
+    sets its status to 'pending', clears the start_time, end_time, and error_message fields,
+    and saves the updated instance to the database.
+    The view returns a JSON response indicating the success or failure of the operation.
+
+    Args:
+        request: The HTTP request object.
+        task_id: The ID of the task to be reset.
+
+    Returns:
+        A JSON response indicating the success or failure of the operation.
+    """
+    if request.method == 'POST':
+        try:
+            task = TrainingTasks.objects.get(id=task_id)
+            task.status = 'pending'
+            task.start_time = None
+            task.end_time = None
+            task.error_message = ''
+            task.save()
+            return JsonResponse({'ok': 'Success'})
+        except TrainingTasks.DoesNotExist:
+            return JsonResponse({'ok': 'Fail', 'error': 'Task not found'})
+        except Exception as e:
+            print("An exception occurred:", e)
+            traceback.print_exc()
+            return JsonResponse({'ok': 'Fail', 'error': str(e)})
+    else:
+        return JsonResponse({'ok': 'Fail', 'error': 'Invalid request method'})
+
+@csrf_exempt
+def process_queue(request):
+    """
+    View to process all the items in the queue sequentially, starting with the oldest.
+    This view accepts a POST request to trigger the processing of pending tasks in the queue.
+    It retrieves all the pending tasks from the TrainingTasks model, ordered by creation time and priority.
+    For each pending task, it updates the status to 'in_progress', processes the task using the ConfigProcessor,
+    saves the result to the ClassifierResults model, and updates the task status to 'completed' or 'failed' accordingly.
+    The view returns a JSON response indicating the success or failure of the operation.
+    """
+    if request.method == 'POST':
+        try:
+            pending_tasks = TrainingTasks.objects.filter(status='pending').order_by('created_at', 'priority')
+            
+            for task in pending_tasks:
+                task.status = 'in_progress'
+                task.start_time = timezone.now()
+                task.save()
+                
+                try:
+                    config_processor = factory.ConfigProcessor()
+                    result = config_processor.process_config(task.config_json)
+                    
+                    classifier_result = ClassifierResults(data=json.dumps(result), data_json=json.dumps(result))
+                    classifier_result.save()
+                    
+                    task.status = 'completed'
+                    task.end_time = timezone.now()
+                    task.result_data = result
+                    task.classifier_result = classifier_result
+                    task.save()
+                except Exception as e:
+                    print(f"An exception occurred while processing task {task.id}: {e}")
+                    traceback.print_exc()
+                    task.status = 'failed'
+                    task.error_message = str(e)
+                    task.save()
+            
+            return JsonResponse({'ok': 'Success'})
+        except Exception as e:
+            print("An exception occurred:", e)
+            traceback.print_exc()
+            return JsonResponse({'ok': 'Fail'})
+    else:
+        return JsonResponse({'ok': 'Invalid request method'})
+        
+
+def queue_status(request):
+    """
+    View to build a page showing the status of the queue.
+    
+    This view retrieves the pending, in-progress, and completed tasks (including failed tasks) from the TrainingTasks model.
+    It also retrieves the current task in progress, if any, and its progress percentage.
+    The view renders a template ('queue_status.html') with the retrieved data to display the queue status.
+    
+    Args:
+        request: The HTTP request object.
+    
+    Returns:
+        A rendered HTML page displaying the queue status.
+    """
+    try:
+        pending_tasks = TrainingTasks.objects.filter(status='pending').order_by('priority', 'created_at')
+        in_progress_tasks = TrainingTasks.objects.filter(status='in_progress').order_by('start_time')
+        
+        # Retrieve completed and failed tasks from the last 2 days or last 20 tasks
+        two_days_ago = timezone.now() - timedelta(days=2)
+        completed_tasks = TrainingTasks.objects.filter(
+            Q(status__in=['completed', 'failed']),
+            Q(end_time__gte=two_days_ago) | Q(end_time__isnull=True)
+        ).order_by('-start_time')[:20]
+        
+        current_task = in_progress_tasks.first()
+        progress = 0
+        
+        if current_task:
+            progress_obj = TaskProgress.objects.filter(progressname=current_task.id).first()
+            if progress_obj:
+                progress = progress_obj.progress
+        
+        context = {
+            'pending_tasks': pending_tasks,
+            'in_progress_tasks': in_progress_tasks,
+            'completed_tasks': completed_tasks,
+            'current_task': current_task,
+            'progress': progress
+        }
+        
+        return render(request, 'blocks/queue_status.html', context)
+    except Exception as e:
+        print("An exception occurred:", e)
+        traceback.print_exc()
+        return HttpResponse("An error occurred while fetching queue status.")
+
+@csrf_exempt
+def queue_status_update(request):
+    current_task = TrainingTasks.objects.filter(status='in_progress').first()
+    pending_tasks = TrainingTasks.objects.filter(status='pending').order_by('created_at')
+    # Retrieve completed and failed tasks from the last 2 days or last 20 tasks
+    two_days_ago = timezone.now() - timedelta(days=2)
+    completed_tasks = TrainingTasks.objects.filter(
+        Q(status__in=['completed', 'failed']),
+        Q(end_time__gte=two_days_ago) | Q(end_time__isnull=True)
+    ).order_by('-start_time')[:20]
+
+    current_task_html = render_to_string('parts/current_task.html', {'current_task': current_task})
+    pending_tasks_html = render_to_string('parts/pending_tasks.html', {'pending_tasks': pending_tasks})
+    completed_tasks_html = render_to_string('parts/completed_tasks.html', {'completed_tasks': completed_tasks})
+
+    data = {
+        'current_task_html': current_task_html,
+        'pending_tasks_html': pending_tasks_html,
+        'completed_tasks_html': completed_tasks_html,
+    }
+
+    return JsonResponse(data)
+
 
 @csrf_exempt
 def hyperparam(request):

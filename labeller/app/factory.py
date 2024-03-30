@@ -16,8 +16,11 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score,confusion_matrix, f1_score, precision_score, recall_score, roc_auc_score
+from sklearn import metrics
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.model_selection import cross_validate
+from sklearn.model_selection import KFold, StratifiedKFold
 import traceback, math
 
 import multiprocessing
@@ -40,6 +43,11 @@ import soundfile as sf
 #
 from kymatio.numpy import Scattering1D
 
+#TS Learn - Time Series Machine Learning
+from tslearn.neighbors import KNeighborsTimeSeriesClassifier
+from tslearn.svm import TimeSeriesSVC
+from tslearn.utils import to_time_series_dataset
+
 
 # ==================================================
 #             Data & Dataset
@@ -47,13 +55,14 @@ from kymatio.numpy import Scattering1D
 
 class AudioSample:
 
-    def __init__(self, path=None, audiodata=None, samplerate=None, sourcefile=None, segmented=False, sourcesplit=None, label=None, normalize=False):
+    def __init__(self, path=None, audiodata=None, samplerate=None, sourcefile=None, segmented=False, sourcesplit=None, label=None, normalize=False, flags=None):
         self.audiodata = audiodata
         self.samplerate = samplerate
         self.sourcefile = sourcefile
         self.segmented = segmented
         self.sourcesplit = sourcesplit
         self.label = label
+        self.flags = flags if flags else {"unclear": False, "lowquality": False, "external": False}
         if(normalize == True):
             self.normalize_audio()
         if(path):
@@ -139,7 +148,7 @@ class AudioSample:
 
 class Dataset:
 
-    def __init__(self, path1=None, samplerate=None, labels=None, load=False, config = None):
+    def __init__(self, path1=None, samplerate=None, labels=None, load=False, config = None,  descriptors=None):
         self.path = path1
         self.samplerate = samplerate
         self.labels = labels
@@ -147,7 +156,7 @@ class Dataset:
         self.segmented = False
         self.features = []
         self.crossfolds = False
-        self.descriptors = None
+        self.descriptors = descriptors
         if(load):
             filelist = librosa.util.find_files(self.path, recurse=False)
             print(str(len(filelist))+" Files to load")
@@ -240,12 +249,27 @@ class Dataset:
             samples_new.append(audio)
         self.samples = samples_new
 
+    # def trim_audio(self, **kwargs):
+    #     print("Pre-trim Average length: " + str(self.get_average_length()))
+    #     for audio in self.samples:
+    #         audio.audiodata, index = librosa.effects.trim(y=audio.audiodata,ref=3)
+    #     print("Post-trim Average length: " + str(self.get_average_length()))
+
     def trim_audio(self, **kwargs):
         print("Pre-trim Average length: " + str(self.get_average_length()))
-        for audio in self.samples:
-            audio.audiodata, index = librosa.effects.trim(y=audio.audiodata,ref=3)
+        indices_to_remove = []  # List to store indices of samples to remove
+        for i, audio in enumerate(self.samples):
+            trimmed_audio, index = librosa.effects.trim(y=audio.audiodata, ref=3)
+            if len(trimmed_audio) == 0 or librosa.get_duration(y=trimmed_audio) < 0.01:
+                indices_to_remove.append(i)
+            else:
+                audio.audiodata = trimmed_audio
+        # Remove the samples and corresponding labels
+        print("Removed: " + str(len(indices_to_remove)))
+        for index in sorted(indices_to_remove, reverse=True):
+            del self.samples[index]
+            del self.labels[index]
         print("Post-trim Average length: " + str(self.get_average_length()))
-
 
     def get_average_length(self):
         total_length = 0
@@ -268,9 +292,16 @@ class Dataset:
     def return_statistics(self):
         stats = {}
 
-        stats["Total Length"], stats["Average Length"], stats["Audio"] = self.get_length_stats()
-        stats["Label 1"] = sum(self.labels)
-        stats["Label 0"] = len(self.labels)- stats["Label 1"]
+        #stats["Total Length"], stats["Average Length"], stats["Audio"] = self.get_length_stats()
+        #stats["Label 1"] = sum(int(self.labels))
+        #stats["Label 0"] = len(self.labels)- stats["Label 1"]
+        for label in self.labels:
+            # If the label is already in the dictionary, increment its count by 1
+            if label in stats:
+                stats[label] += 1
+            # If the label is not in the dictionary, initialize its count to 1
+            else:
+                stats[label] = 1
         stats["Sample Rate"] = self.samples[0].samplerate
         return stats
 
@@ -520,7 +551,7 @@ class FeaturesBase():
 
     #Process the dataset using multiple processes
     def features_from_dataset_multi(self, dataset,**kwargs):
-        with multiprocessing.Pool(processes=12) as pool:
+        with multiprocessing.Pool(processes=24) as pool:
             results = pool.starmap(
                 self.process_sample,
                 [(audio, ) for audio in dataset.samples]
@@ -559,7 +590,7 @@ class MFCCFeatures(FeaturesBase):
         norm = kwargs.get('norm', 'ortho')
         n_fft = int(kwargs.get('n_fft', 2048))
         hop_length = int(kwargs.get('hop_length', 512))
-
+        flatten = bool(kwargs.get('flatten', True))
         #FRAMES!!!
 
 
@@ -582,7 +613,8 @@ class MFCCFeatures(FeaturesBase):
                     mfcc_delta2 = librosa.feature.delta(mfcc, order=2)
                     mfcc_delta = np.concatenate((mfcc_delta, mfcc_delta2), axis=1)
                 mfcc = np.concatenate((mfcc, mfcc_delta), axis=1)
-                mfcc = mfcc.ravel()
+                if(flatten):
+                    mfcc = mfcc.ravel()
                 #features = np.concatenate((features, mfcc), axis=0)
                 templist.append({'feature':mfcc, 'label':audio.label})
         else:    
@@ -596,7 +628,9 @@ class MFCCFeatures(FeaturesBase):
                 mfcc = librosa.feature.mfcc(
                     y=audio.audiodata, sr=audio.samplerate, n_mfcc=n_mfcc, center=center, dct_type=dct_type, norm=norm, n_fft=n_fft, hop_length=hop_length
                 )
-                mfcc = mfcc.ravel()
+                if(flatten):
+                    print(flatten)
+                    mfcc = mfcc.ravel()
                 templist.append({'feature':mfcc, 'label':audio.label})
                 #features.append(mfcc)
         features = [x['feature'] for x in templist]
@@ -631,6 +665,7 @@ class MFCCFeatures(FeaturesBase):
         norm = kwargs.get('norm', 'ortho')
         n_fft = int(kwargs.get('n_fft', 2048))
         hop_length = int(kwargs.get('hop_length', 512))
+        flatten = bool(kwargs.get('flatten', True))
         mfcc = librosa.feature.mfcc(
                 y=audioframe, sr=22050, n_mfcc=n_mfcc, center=center, dct_type=dct_type, norm=norm, n_fft=n_fft, hop_length=hop_length
             )
@@ -640,7 +675,8 @@ class MFCCFeatures(FeaturesBase):
                 mfcc_delta2 = librosa.feature.delta(mfcc, order=2)
                 mfcc_delta = np.concatenate((mfcc_delta, mfcc_delta2), axis=1)
             mfcc = np.concatenate((mfcc, mfcc_delta), axis=1)
-        mfcc = mfcc.ravel()
+        if(flatten):
+            mfcc = mfcc.ravel()
         
         features = np.asarray(mfcc)
         return features
@@ -663,6 +699,7 @@ class MFCCFeatures(FeaturesBase):
         n_fft = int(kwargs.get('n_fft', 2048))
         hop_length = int(kwargs.get('hop_length', 512))
         n_mfcc_trun = int(kwargs.get('n_mfcc_trun', n_mfcc))
+        flatten = bool(kwargs.get('flatten', True))
         #print(n_mfcc_trun)
 
         mfcc = librosa.feature.mfcc(
@@ -684,7 +721,9 @@ class MFCCFeatures(FeaturesBase):
                 mfcc_delta = np.concatenate((mfcc_delta, mfcc_delta2), axis=1)
             mfcc = np.concatenate((mfcc, mfcc_delta), axis=1)
         
-        mfcc = mfcc.ravel()
+        if(flatten):
+            #print("Flatten")
+            mfcc = mfcc.ravel()
         
         return {'feature': mfcc, 'label': audio.label}
 
@@ -1518,51 +1557,223 @@ class DecisionTreeModel(ModelBase, DecisionTreeClassifier):
         )
 
 
+# class GMMHMMModel(ModelBase):
+#     def __init__(self, **kwargs):
+#         self.kwargs = kwargs
+#         self.models = []
+
+#     def fit(self, X, y):
+#         for label in np.unique(y):
+#             X_label = [X[i] for i in range(len(X)) if y[i] == label]
+#             #model = self.train_hmm_gmm_model(X_label, int(self.kwargs['n_components']), self.kwargs['n_mix'])
+#             model = self.train_hmm_gmm_model(X_label)
+#             self.models.append(model)
+#         return self
+
+#     def train_hmm_gmm_model(self, X, n_states=2, n_mixtures=2, n_iter=100):
+#         model = hmm.GMMHMM(n_components=n_states)
+#         model.fit(X)
+#         return model
+
+#     def predict(self, X):
+#         max_logprob = float('-inf')
+#         best_label = -1
+#         for i, model in enumerate(self.models):
+#             logprob = model.score(X)
+#             if logprob > max_logprob:
+#                 max_logprob = logprob
+#                 best_label = i
+#         print(best_label)
+#         return best_label
+
+#     def predict_proba(self, X):
+#         max_logprob = float('-inf')
+#         best_label = -1
+#         for i, model in enumerate(self.models):
+#             logprob = model.score(X)
+#             if logprob > max_logprob:
+#                 max_logprob = logprob
+#                 best_label = i
+#         return best_label
+
+#     def score(self, X, y):
+#         print("Scrore start")
+#         #y_pred = [self.predict(x) for x in X]
+#         y_pred = [self.predict(x.reshape(1,-1)) for x in X]
+#         accuracy = accuracy_score(y, y_pred)
+#         return accuracy
+
 class GMMHMMModel(ModelBase):
     def __init__(self, **kwargs):
         self.kwargs = kwargs
         self.models = []
+        self.labels = []
 
     def fit(self, X, y):
-        for label in np.unique(y):
+        unique_labels = np.unique(y)
+        for label in unique_labels:
             X_label = [X[i] for i in range(len(X)) if y[i] == label]
-            #model = self.train_hmm_gmm_model(X_label, int(self.kwargs['n_components']), self.kwargs['n_mix'])
             model = self.train_hmm_gmm_model(X_label)
             self.models.append(model)
+            self.labels.append(label)
         return self
 
     def train_hmm_gmm_model(self, X, n_states=2, n_mixtures=2, n_iter=100):
-        model = hmm.GMMHMM(n_components=n_states)
+        model = hmm.GMMHMM(n_components=n_states, n_mix=n_mixtures, covariance_type='diag', n_iter=n_iter)
         model.fit(X)
         return model
 
     def predict(self, X):
-        max_logprob = float('-inf')
-        best_label = -1
-        for i, model in enumerate(self.models):
-            logprob = model.score(X)
-            if logprob > max_logprob:
-                max_logprob = logprob
-                best_label = i
-        print(best_label)
-        return best_label
+        y_pred = []
+        for x in X:
+            log_likelihoods = []
+            for model in self.models:
+                log_likelihood = model.score(x.reshape(1, -1))
+                log_likelihoods.append(log_likelihood)
+            best_label_index = np.argmax(log_likelihoods)
+            best_label = self.labels[best_label_index]
+            y_pred.append(best_label)
+        return np.array(y_pred)
 
     def predict_proba(self, X):
-        max_logprob = float('-inf')
-        best_label = -1
-        for i, model in enumerate(self.models):
-            logprob = model.score(X)
-            if logprob > max_logprob:
-                max_logprob = logprob
-                best_label = i
-        return best_label
+        probabilities = []
+        for x in X:
+            log_likelihoods = []
+            for model in self.models:
+                log_likelihood = model.score(x.reshape(1, -1))
+                log_likelihoods.append(log_likelihood)
+            log_likelihoods = np.array(log_likelihoods)
+            probs = np.exp(log_likelihoods - np.max(log_likelihoods))
+            probs /= np.sum(probs)
+            probabilities.append(probs)
+        return np.array(probabilities)
+
 
     def score(self, X, y):
-        print("Scrore start")
-        #y_pred = [self.predict(x) for x in X]
-        y_pred = [self.predict(x.reshape(1,-1)) for x in X]
+        y_pred = []
+        for x in X:
+            log_likelihoods = []
+            for model in self.models:
+                log_likelihood = model.score(x.reshape(1, -1))
+                log_likelihoods.append(log_likelihood)
+            best_label_index = np.argmax(log_likelihoods)
+            best_label = self.labels[best_label_index]
+            y_pred.append(best_label)
         accuracy = accuracy_score(y, y_pred)
         return accuracy
+
+class TSLearnKNNModel(ModelBase, KNeighborsTimeSeriesClassifier):
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+        if(kwargs["n_jobs"]=="-1"):
+            n_jobs= kwargs["n_jobs"]
+        else:
+            n_jobs=int(kwargs["n_jobs"])
+        super().__init__(
+            n_neighbors=int(kwargs["k"]),
+            metric=kwargs["metric"],
+            weights=kwargs["weights"],
+            n_jobs= n_jobs
+        )
+
+    def fit(self, X, y):
+        # Convert input dataset to time series format
+        X_timeseries = to_time_series_dataset(X)
+        
+        # Fit the model
+        super().fit(X_timeseries, y)
+        return self
+
+    def predict(self, X):
+        # Convert input dataset to time series format
+        X_timeseries = to_time_series_dataset(X)
+        
+        # Make predictions
+        y_pred = super().predict(X_timeseries)
+        return y_pred
+
+    def predict_proba(self, X):
+        # Convert input dataset to time series format
+        X_timeseries = to_time_series_dataset(X)
+        
+        # Get prediction probabilities
+        y_prob = super().predict_proba(X_timeseries)
+        return y_prob
+
+    def score(self, X, y):
+        # Convert input dataset to time series format
+        X_timeseries = to_time_series_dataset(X)
+        
+        # Calculate accuracy score
+        accuracy = super().score(X_timeseries, y)
+        return accuracy
+
+class TSLearnSVMModel(ModelBase, TimeSeriesSVC):
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+        print(kwargs)
+        if kwargs["n_jobs"] == "-1":
+            n_jobs = kwargs["n_jobs"]
+        else:
+            n_jobs = int(kwargs["n_jobs"])
+        
+        if kwargs["kernel_gamma"] == "auto":
+            kernel_gamma = kwargs["kernel_gamma"]
+        else:
+            kernel_gamma = float(kwargs["kernel_gamma"])
+        
+        if kwargs["c"] == "None":
+            svm_c = None
+        else:
+            svm_c = float(kwargs["c"])
+        
+        if kwargs["probability"] == "True":
+            probability = True
+        else:
+            probability = False
+        
+        super().__init__(
+            C=svm_c,
+            kernel=kwargs["kernel"],
+            degree=int(kwargs["kernel_degree"]),
+            gamma=kernel_gamma,
+            coef0=float(kwargs["kernel_coef0"]),
+            tol=float(kwargs["tol"]),
+            max_iter=int(kwargs["max_iter"]),
+            probability=probability,
+            n_jobs=12
+        )
+    
+    def fit(self, X, y):
+        # Convert input dataset to time series format
+        X_timeseries = to_time_series_dataset(X)
+        # Fit the model
+        super().fit(X_timeseries, y)
+        return self
+    
+    def predict(self, X):
+        # Convert input dataset to time series format
+        X_timeseries = to_time_series_dataset(X)
+        # Make predictions
+        y_pred = super().predict(X_timeseries)
+        return y_pred
+    
+    def predict_proba(self, X):
+        # Convert input dataset to time series format
+        X_timeseries = to_time_series_dataset(X)
+        # Get prediction probabilities
+        y_prob = super().predict_proba(X_timeseries)
+        return y_prob
+    
+    def score(self, X, y):
+        # Convert input dataset to time series format
+        X_timeseries = to_time_series_dataset(X)
+        # Calculate accuracy score
+        accuracy = super().score(X_timeseries, y)
+        return accuracy
+
+
+
 
 class ClassifierFactory:
     def __init__(self, **kwargs):
@@ -1584,9 +1795,15 @@ class ClassifierFactory:
         elif bool(self.kwargs["decision_tree"]['enable']):
             dt_params = self.kwargs["decision_tree"]
             return DecisionTreeModel(**dt_params)
-        elif bool(self.kwargs["GMMHMM"]['enable']):
-            GMMHMM_params = self.kwargs['GMMHMM']
+        elif bool(self.kwargs["gmm_hmm"]['enable']):
+            GMMHMM_params = self.kwargs['gmm_hmm']
             return GMMHMMModel(**GMMHMM_params)
+        elif bool(self.kwargs["ts_knn"]['enable']):
+            TSLearnKnn_params = self.kwargs['ts_knn']
+            return TSLearnKNNModel(**TSLearnKnn_params)
+        elif bool(self.kwargs["ts_svm"]['enable']):
+            TSLearnSVM_params = self.kwargs['ts_svm']
+            return TSLearnSVMModel(**TSLearnSVM_params)
         else:
             return None
 
@@ -1619,7 +1836,8 @@ def common_scores(clf, X_test, y_test):
     end_time = time.time()
     scores["timetaken"] = end_time - start_time
     if isinstance(clf, GMMHMMModel):
-        return scores
+        print("Gmmhmm check")
+        #return scores
     print("2")
     scores["f1"] = f1_score(y_test, y_pred, average='binary', pos_label='0')
     scores["precision"] = precision_score(y_test, y_pred, average='binary', pos_label='0')
@@ -1636,15 +1854,54 @@ def common_scores(clf, X_test, y_test):
     return scores
 
 
-from sklearn.model_selection import cross_validate
-from sklearn.model_selection import KFold, StratifiedKFold
+
 
 class CrossVal():
     
     def __init__(self, **kwargs):
         self.kwargs = kwargs
 
-    def do_cross_validate(self,clfin, clfparm, X, y):
+
+    def custom_cross_validate(self,estimator, X, y, cv, scoring, config):
+        results = {score: [] for score in scoring}
+        for train_index, test_index in cv.split(X):
+            X = np.asarray(X)
+            y = np.asarray(y)
+            # train_index = train_index.astype(int)
+            # test_index = test_index.astype(int)
+            X_train, X_test = X[train_index], X[test_index]
+            y_train, y_test = y[train_index], y[test_index]
+            
+            # Create a new FeaturePreprocessor instance for each split
+            feature_preprocessor = FeaturePreprocessor()
+            
+            # Apply feature preprocessing to train and test sets
+            X_train = feature_preprocessor.featurepreprocessing_from_config(X_train, config['featurepreprocessing'])
+            X_test = feature_preprocessor.featurepreprocessing_transform(X_test, config['featurepreprocessing'])
+
+
+            estimator.fit(X_train, y_train)
+            y_pred = estimator.predict(X_test)
+            
+            for score_name in scoring:
+                if score_name == 'accuracy_score':
+                    #score = np.mean(y_pred == y_test)
+                    score = metrics.accuracy_score(y_test,y_pred)
+                elif score_name == 'confusion_matrix':
+                    score = metrics.confusion_matrix(y_test,y_pred)
+                elif score_name == 'recall_score' or score_name == 'precision_score' or score_name == "f1_score":
+                    score = getattr(metrics, score_name)(y_test, y_pred, pos_label='0')
+                else:
+                    #score = ""
+                    #score = getattr(metrics, score_name)(y_test, y_pred, average='macro')
+                    score = getattr(metrics, score_name)(y_test, y_pred)
+                results[score_name].append(score)
+        
+        return {score: np.array(values) for score, values in results.items()}
+
+
+
+    def do_cross_validate(self,clfin, clfparm, X, y,config):
         print("Cross Val 1")
         params = self.kwargs
         #print(self.kwargs)
@@ -1667,33 +1924,33 @@ class CrossVal():
             cv = StratifiedKFold(n_splits=int(spram['stratifiedkfold_n_splits']),shuffle=bool(spram['stratifiedkfold_shuffle']),random_state=random_state)
         print("Cross Val 4")
         print(clfin)
-        #modelfactory = ClassifierFactory(**clfin)
+        #modelfactory = ClassifierFactory(**clfparm)
         #mdl = modelfactory.create_classifier()
-
-        if bool(clfparm["knn"]['enable']):  
-            knn_params = {
-            "n_neighbors": int(clfparm["knn"]["k"]),
-            "algorithm": clfparm["knn"]["algorithm"],
-            "leaf_size": int(clfparm["knn"]["leaf_size"]),
-            "metric": clfparm["knn"]["metric"],
-            "metric_params": {"p": int(clfparm["knn"]["metric_power"])},
-            "weights": clfparm["knn"]["weights"]
-            }
-            mdl = KNeighborsClassifier(**knn_params)
-        elif bool(clfparm["svm"]['enable']):
-            #svm_params = clfparm["svm"]
-            svm_params = {
-                'c': float(clfparm["svm"]["c"]),
-                'degree': int(clfparm["svm"]["degree"]),
-                'gamma' : clfparm["svm"]["gamma"],
-                'shrinking' : clfparm["svm"]["shrinking"],
-                'probability' : clfparm["svm"]["probability"],
-                'tol' : float(clfparm["svm"]["tol"]),
-                'max_iter' : clfparm["svm"]["max_iter"],
-                'kernel' : clfparm["svm"]["kernel"]
-            }
-            print(svm_params)
-            mdl =  SVMModel(**svm_params)
+        mdl = clfin
+        # if bool(clfparm["knn"]['enable']):  
+        #     knn_params = {
+        #     "n_neighbors": int(clfparm["knn"]["k"]),
+        #     "algorithm": clfparm["knn"]["algorithm"],
+        #     "leaf_size": int(clfparm["knn"]["leaf_size"]),
+        #     "metric": clfparm["knn"]["metric"],
+        #     "metric_params": {"p": int(clfparm["knn"]["metric_power"])},
+        #     "weights": clfparm["knn"]["weights"]
+        #     }
+        #     mdl = KNeighborsClassifier(**knn_params)
+        # elif bool(clfparm["svm"]['enable']):
+        #     #svm_params = clfparm["svm"]
+        #     svm_params = {
+        #         'c': float(clfparm["svm"]["c"]),
+        #         'degree': int(clfparm["svm"]["degree"]),
+        #         'gamma' : clfparm["svm"]["gamma"],
+        #         'shrinking' : clfparm["svm"]["shrinking"],
+        #         'probability' : clfparm["svm"]["probability"],
+        #         'tol' : float(clfparm["svm"]["tol"]),
+        #         'max_iter' : clfparm["svm"]["max_iter"],
+        #         'kernel' : clfparm["svm"]["kernel"]
+        #     }
+        #     print(svm_params)
+        #     mdl =  SVMModel(**svm_params)
         # elif bool(clfparm["adaboost"]['enable']):
         #     adaboost_params = self.kwargs["adaboost"]
         #     return AdaBoostModel(**adaboost_params)
@@ -1708,8 +1965,13 @@ class CrossVal():
         # else:
         #     return None
 
-        scoring = ['accuracy', 'precision_macro', 'recall_macro', 'f1_macro']
-        cv_results = cross_validate(estimator=mdl, X=X, y=y, cv=cv, n_jobs=-1, verbose=1, scoring=scoring)
+        #scoring = ['accuracy', 'precision_macro', 'recall_macro', 'f1_macro']
+
+        scoring = ['accuracy_score', 'precision_score', 'recall_score', 'f1_score', 'confusion_matrix']
+        
+        #cv_results = cross_validate(estimator=mdl, X=X, y=y, cv=cv, n_jobs=-1, verbose=1, scoring=scoring)
+        cv_results = self.custom_cross_validate(estimator=mdl, X=X, y=y, cv=cv, scoring=scoring, config=config)
+        
         #clfin.set_params(**clfparm)
         #cv_results = cross_validate(estimator=clfin, X=X, y=y, cv=cv, n_jobs=-1, verbose=1)
         # h = KNeighborsClassifier()
@@ -1784,7 +2046,7 @@ class ConfigProcessor:
         print(data['dataset'])
         dataset_processor.process_dataset(dataset, data['dataset'])
         try:
-            print(dataset.descriptor)
+            print(dataset.descriptors)
         except:
             print("Older Dataset without descriptor")
         print("Dataset processed")
@@ -1808,9 +2070,9 @@ class ConfigProcessor:
 
         print("Features Extracted " + str(features[0].shape))
 
-
         # Feature Preprocessing
         #preprocessed_features = feature_preprocessor.featurepreprocessing_from_config(features,data['featurepreprocessing'])  # Call feature preprocessing method
+        # Removed from here and moved into the evaluation step so that the test set doesnt contaminate the preprocessor
         
 
         #Classifier Create
@@ -1820,13 +2082,16 @@ class ConfigProcessor:
         #Evaluation
         scores = self.evaluate_model(mdl,data, data['evaluation'], features, labels)
         #scores = self.evaluate_model(mdl,data, data['evaluation'], preprocessed_features, labels)
-
+        print("Scores Calculated")
         #Hyperparamter search enabled
         if bool(data['classifier']['knn']['tune_hyperparameters']) or bool(data['classifier']['svm']['tune_hyperparameters']):
             print("hyperparameters")
             self.tune_hyperparameters_config( mdl, data, features, labels)
 
-        predictor = predictor_saver.save_predictor(mdl, extractor)
+        #dataset_stats = dataset.return_statistics()
+        #scores["Dataset Stats"] = dataset_stats
+
+        #predictor = predictor_saver.save_predictor(mdl, extractor)
         return {"Status": "Success", "Scores": scores, "Config": data, "Timestamp": datetime.now().isoformat()}
 
 
@@ -1868,29 +2133,38 @@ class ConfigProcessor:
         cv = CrossVal(**evaluationdata)
         print(data)
         print(evaluationdata)
-        results = cv.do_cross_validate(clfin=mdl, clfparm=data['classifier'], X=features, y=labels)
+        results = cv.do_cross_validate(clfin=mdl, clfparm=data['classifier'], X=features, y=labels, config=data)
         scores = {}
+        #scores = results
+        print(results)
+        scores['accuracy'] = np.mean(results['accuracy_score'])
+        scores['accuracy_mean'] = np.mean(results['accuracy_score'])
+        scores['accuracy_standard_deviation'] = np.std(results['accuracy_score'])
+        scores['precision_mean'] = np.mean(results['precision_score'])
+        scores['precision_macro_standard_deviation'] = np.std(results['precision_score'])
+        scores['recall_macro_mean'] = np.mean(results['recall_score'])
+        scores['recall_macro_standard_deviation'] = np.std(results['recall_score'])
+        scores['f1_macro_mean'] = np.mean(results['f1_score'])
+        scores['f1_macro_standard_deviation'] = np.std(results['f1_score'])
+        # scores['fit_time_mean'] = np.mean(results['fit_time'])
+        # scores['fit_time_standard_deviation'] = np.std(results['fit_time'])
+        # scores['score_time_mean'] = np.mean(results['score_time'])
+        # scores['score_time_standard_deviation'] = np.std(results['score_time'])
 
-        scores['accuracy_mean'] = np.mean(results['test_accuracy'])
-        scores['accuracy_standard_deviation'] = np.std(results['test_accuracy'])
-        scores['precision_macro_mean'] = np.mean(results['test_precision_macro'])
-        scores['precision_macro_standard_deviation'] = np.std(results['test_precision_macro'])
-        scores['recall_macro_mean'] = np.mean(results['test_recall_macro'])
-        scores['recall_macro_standard_deviation'] = np.std(results['test_recall_macro'])
-        scores['f1_macro_mean'] = np.mean(results['test_f1_macro'])
-        scores['f1_macro_standard_deviation'] = np.std(results['test_f1_macro'])
-        scores['fit_time_mean'] = np.mean(results['fit_time'])
-        scores['fit_time_standard_deviation'] = np.std(results['fit_time'])
-        scores['score_time_mean'] = np.mean(results['score_time'])
-        scores['score_time_standard_deviation'] = np.std(results['score_time'])
+
+        scores['test_accuracy'] = results['accuracy_score'].tolist()
+        scores['test_precision'] = results['precision_score'].tolist()
+        scores['test_recall_macro'] = results['recall_score'].tolist()
+        scores['test_f1'] = results['f1_score'].tolist()
+        # scores['fit_time'] = results['fit_time'].tolist()
+        # scores['score_time'] = results['score_time'].tolist()
+        scores["confusion_matrix_1"] = results['confusion_matrix'][0].tolist()
+        scores["confusion_matrix_2"] = results['confusion_matrix'][1].tolist()
+        scores["confusion_matrix_3"] = results['confusion_matrix'][2].tolist()
+        scores["confusion_matrix_4"] = results['confusion_matrix'][3].tolist()
+        scores["confusion_matrix_5"] = results['confusion_matrix'][4].tolist()
 
 
-        scores['test_accuracy'] = results['test_accuracy'].tolist()
-        scores['test_precision_macro'] = results['test_precision_macro'].tolist()
-        scores['test_recall_macro'] = results['test_recall_macro'].tolist()
-        scores['test_f1_macro'] = results['test_f1_macro'].tolist()
-        scores['fit_time'] = results['fit_time'].tolist()
-        scores['score_time'] = results['score_time'].tolist()
         return scores
 
     def evaluate_stratified_kfold(self, mdl, stratified_kfold_data, mfc, labels, scatter, labels2):
@@ -2088,10 +2362,11 @@ class FeaturePreprocessor:
         #featurepreprocessing_config['PCA']['enable'] = True
         print(featurepreprocessing_config)
         if bool(featurepreprocessing_config['min_max']['enable']):
+            print("Min Max Enable")
             self.minmax = MinMaxScalerPreprocessor()
             features = self.minmax.preprocess_features(features)
         if bool(featurepreprocessing_config['pca']['enable']):
-            print(featurepreprocessing_config)
+            print("PCA Enable")
             ### ADD HERE RETURNING OF FIT PCA FOR REUSE IN PREDICTOR
             self.pca = PCAFeaturePreprocessor(n_components=int(featurepreprocessing_config['pca']['n_components']))
             features = self.pca.preprocess_features(features)
@@ -2099,11 +2374,11 @@ class FeaturePreprocessor:
         return features
 
     def featurepreprocessing_transform(self,features,featurepreprocessing_config):
-        print("transform_features")
+        #print("transform_features")
         if bool(featurepreprocessing_config['min_max']['enable']):
             features = self.minmax.transform_features(features)
         if bool(featurepreprocessing_config['pca']['enable']):
-            print(featurepreprocessing_config)
+            #print(featurepreprocessing_config)
             ### ADD HERE RETURNING OF FIT PCA FOR REUSE IN PREDICTOR
             features = self.pca.transform_features(features)
         #features = PCAFeaturePreprocessor().preprocess_features(features)

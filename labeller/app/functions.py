@@ -253,17 +253,18 @@ def generate_dataset_file():
     Returns:
         status (dict): a dictionary containing the number of files and their names
     """
-    dataset_folder = "dataset4"
-
+    dataset_folder = "dataset5"
+    print("Started " + str(dataset_folder) )
     audio_files = os.listdir(os.path.join("app", "static", "audiofiles"))
     list1 = []
     cough = []
     not_cough = []
     for file in audio_files:
         a = AudioLabels.objects.filter(filename=file, labeluser='1').first()
-        # if( a.unclear == True or a.lowquality == True):
-        #     break
-        if a:
+
+       
+        #if a:
+        if a and not (a.unclear or a.lowquality):    #Filter to remove unclear/low quality -> Return to fix
             list1.append(file)
             #print(a)
             #print(type(json.loads(a.labelregions)))
@@ -273,6 +274,8 @@ def generate_dataset_file():
                 not_coughs = []
                 sorted_regions = sorted(json.loads(a.labelregions), key=lambda x: x['start'])
                 not_coughs.append({"start": 0, "end": sorted_regions[0]["start"]})
+
+                
                 for i, region in enumerate(sorted_regions):
                     if i == len(sorted_regions) - 1:
                         not_coughs.append({"start": region["end"], "end": file_length})
@@ -290,7 +293,8 @@ def generate_dataset_file():
                 
                 #Remove shorter than 0.5 seconds - only for not coughs!
                 #sorted_regions_samples = [region for region in sorted_regions_samples if region["end"] - region["start"] >= 0.5 * sr]
-                sorted_not_cough = [region for region in sorted_not_cough if region["end"] - region["start"] >= 0.2 * sr]
+                sorted_not_cough = [region for region in sorted_not_cough if region["end"] - region["start"] >= 0.05 * sr]
+
 
                 for i, region in enumerate(sorted_regions_samples):
                     regionaudio = audio[region["start"]:region["end"]]
@@ -309,30 +313,33 @@ def generate_dataset_file():
                     
     print(cough)
     print(not_cough)
-    status = {"Number": len(list1), "Files": list1, }
+    #status = {"Number": len(list1), "Files": list1, }
 
     cough = factory.Dataset(path1=os.path.join("app", "static", dataset_folder, "cough"), load=True, samplerate=22050)
     cough.set_label("1")
     print(str(len(cough.samples))+" Cough Samples")
     print(str(len(cough.labels))+" Cough Labels")
+    coughlengths = len(cough.labels)
     notcough = factory.Dataset(path1=os.path.join("app", "static",dataset_folder, "notcough"),load=True, samplerate=22050)
     notcough.set_label("0")
     print(str(len(notcough.samples))+" Not Cough Samples")
     print(str(len(notcough.labels))+" Not Cough Labels")  
 
     notcoughlength = len(notcough.labels)
-    status["Coughs"] = len(cough.labels)
+    #status["Coughs"] = len(cough.labels)
     combineddataset = cough.combine_dataset(notcough)
     #combineddataset2 = combineddataset
 
 
     notcoughexternal = factory.Dataset(path1=os.path.join("app", "static", dataset_folder, "external"), load=True, samplerate=22050)
     notcoughexternal.set_label("0")
+    for sample in notcoughexternal.samples:
+        sample.flags["external"] = True
     print(str(len(notcoughexternal.samples))+"External Not Cough Samples")
     print(str(len(notcoughexternal.labels))+"External Not Cough Labels")  
 
     notcoughlengths = (len(notcoughexternal.labels)) + notcoughlength
-    status["Not Coughs"] = notcoughlengths
+    #status["Not Coughs"] = notcoughlengths
 
     combineddataset2 = combineddataset.combine_dataset(notcoughexternal)
     # #combineddataset2 = combineddataset
@@ -341,18 +348,64 @@ def generate_dataset_file():
     print(str(len(combineddataset2.samples))+" Combined Samples")
     print(str(len(combineddataset2.labels))+" Combined Labels")
 
-    combineddataset2.descriptors = status
+        # Create descriptors dictionary
+    descriptors = {
+        "Number": len(list1),
+        "Coughs": coughlengths,
+        "Not Coughs": notcoughlengths,
+        "External": len(notcoughexternal.labels),
+        "Total Samples": len(combineddataset2.samples),
+        "Total Labels": len(combineddataset2.labels),
+        "Sample Rate": combineddataset2.samplerate,
+        "Dataset Folder": dataset_folder
+    }
+
+    # Add descriptors to the combined dataset
+    combineddataset2.descriptors = descriptors
 
     try:
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        fname = timestamp + "expanded-external" + "_C" + str(status["Coughs"]) +"_N" + str(status["Not Coughs"]) + "-ds.pickle"
-        with open(os.path.join("app", "static", "datasetpickles", fname ), "wb") as f:
+        fname = timestamp + "_excluding_unclear_" + "_C" + str(descriptors["Coughs"]) + "_N" + str(descriptors["Not Coughs"]) + "-ds.pickle"
+        with open(os.path.join("app", "static", "datasetpickles", fname), "wb") as f:
             pickle.dump(combineddataset2, f)
         print("Pickled")
     except:
         print("Pickle failed")
     
-    return status
+    return descriptors
+
+
+def load_and_modify_dataset(file_path):
+    try:
+        # Load the pickled dataset
+        with open(file_path, "rb") as f:
+            dataset = pickle.load(f)
+        
+        # Check if the dataset has descriptors
+        if hasattr(dataset, "descriptors") and isinstance(dataset.descriptors, dict):
+            print("Has Descriptors")
+            # Remove the "Files" key from the descriptors dictionary
+            if "Files" in dataset.descriptors:
+                print("Has Files")
+                del dataset.descriptors["Files"]
+            dataset.descriptors["Coughs"] = "8159"
+            # Re-pickle the modified dataset
+            try:
+                with open(file_path, "wb") as f:
+                    pickle.dump(dataset, f)
+                print("Dataset updated and re-pickled successfully.")
+                return("Success")
+            except Exception as e:
+                print(f"Error occurred while re-pickling the dataset: {str(e)}")
+        else:
+            print("The loaded dataset does not have a valid descriptors dictionary.")
+    
+    except FileNotFoundError:
+        print(f"File not found: {file_path}")
+    except Exception as e:
+        print(f"Error occurred while loading the dataset: {str(e)}")
+
+
 
 def cough_length_statistics():
     """

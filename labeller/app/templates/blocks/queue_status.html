@@ -1,0 +1,252 @@
+{% extends 'base2.html' %}
+{% block title %}Queue Status{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="row mb-3 mt-2">
+    <div class="col">
+      <h1>Queue Status</h1>
+    </div>
+  </div>
+  <div class="row mb-3">
+    <div class="col">
+      <button id="process-queue-btn" class="btn btn-primary">Process Queue</button>
+    </div>
+  </div>
+  <div class="row mb-3 mt-2" id="outer-container">
+    <!-- Current Task -->
+    <div id="current-task-container">
+        <div class="row mb-3 mt-2 configrow" id="current-task-row">
+        <div class="col">
+            <h2>Current Task</h2>
+            {% if current_task %}
+            <p><strong>ID:</strong> {{ current_task.id }}</p>
+            <p><strong>Name:</strong> {{ current_task.name }}</p>
+            <p><strong>Notes:</strong> {{ current_task.notes }}</p>
+            <p><strong>Date Added:</strong> {{ current_task.created_at }}</p>
+            <p><strong>Status:</strong> {{ current_task.status }}</p>
+            <p><strong>Progress:</strong> {{ progress }}%</p>
+            <button class="btn btn-danger btn-sm remove-task" data-task-id="{{ current_task.id }}" title="Remove task from queue">
+                <i class="fas fa-times"></i>
+            </button>
+            <button class="btn btn-warning btn-sm reset-task" data-task-id="{{ current_task.id }}" title="Reset task status to pending">
+                <i class="fas fa-undo"></i>
+            </button>
+            {% else %}
+            <p>No task currently in progress.</p>
+            {% endif %}
+        </div>
+        </div>
+    </div>
+
+    <!-- Pending Tasks -->
+    <div id="pending-tasks-container">
+        <div class="row mb-3 mt-2 configrow" id="pending-tasks-row">
+        <div class="col">
+            <h2>Pending Tasks</h2>
+            {% if pending_tasks %}
+            <table class="table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Notes</th>
+                    <th>Date Added</th>
+                    <th>Priority</th>
+                    <th>Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for task in pending_tasks %}
+                    <tr>
+                    <td>{{ task.id }}</td>
+                    <td>{{ task.name }}</td>
+                    <td>{{ task.notes }}</td>
+                    <td>{{ task.created_at }}</td>
+                    <td>{{ task.priority }}</td>
+                    <td>
+                        <button class="btn btn-danger btn-sm remove-task" data-task-id="{{ task.id }}" title="Remove task from queue">
+                        <i class="fas fa-times"></i>
+                        </button>
+                    </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                    <td colspan="6">No pending tasks.</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>No pending tasks in the queue.</p>
+            {% endif %}
+        </div>
+        </div>
+    </div>
+
+    <!-- Completed Tasks -->
+    <div id="completed-tasks-container">
+        <div class="row mb-3 mt-2 configrow" id="completed-tasks-row">
+        <div class="col">
+            <h2>Completed Tasks</h2>
+            {% if completed_tasks %}
+            <table class="table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Notes</th>
+                    <th>Date Added</th>
+                    <th>Status</th>
+                    <th>Start Time</th>
+                    <th>End Time</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for task in completed_tasks %}
+                    <tr>
+                    <td>{{ task.id }}</td>
+                    <td>
+                        {% if task.classifier_result %}
+                        <a href="{% url 'classifierResult' task.classifier_result.id %}">{{ task.name }}</a>
+                        {% else %}
+                        {{ task.name }}
+                        {% endif %}
+                    </td>
+                    <td>{{ task.notes }}</td>
+                    <td>{{ task.created_at }}</td>
+                    <td>{{ task.status }}</td>
+                    <td>{{ task.start_time }}</td>
+                    <td>{{ task.end_time }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                    <td colspan="7">No completed tasks.</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>No completed tasks in the queue.</p>
+            {% endif %}
+        </div>
+        </div>
+    </div>
+  </div>
+
+  <div class="row mb-5 mt-5">
+    <nav aria-label="Page navigation example">
+      <ul class="pagination justify-content-center">
+        <!-- Pagination code goes here -->
+      </ul>
+    </nav>
+  </div>
+</div>
+
+<script>
+  // Button code
+  document.getElementById('process-queue-btn').addEventListener('click', function() {
+    fetch('/app/api/process_queue', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token }}',
+      },
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.ok === 'Success') {
+        // Refresh the page or update the UI as needed
+        //location.reload();
+        fetchQueueStatus();
+      } else {
+        // Handle error
+        console.error('Failed to process queue:', data);
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+    });
+  });
+
+  // Remove task from queue
+  document.querySelectorAll('.remove-task').forEach(function(button) {
+    button.addEventListener('click', function() {
+      const taskId = this.dataset.taskId;
+      fetch(`/app/api/remove_config_from_queue/${taskId}/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token }}',
+        },
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.ok === 'Success') {
+          // Refresh the page or update the UI as needed
+          //location.reload();
+          fetchQueueStatus();
+        } else {
+          // Handle error
+          console.error('Failed to remove task from queue:', data);
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+      });
+    });
+  });
+
+  // Reset task status to pending
+  document.querySelectorAll('.reset-task').forEach(function(button) {
+    button.addEventListener('click', function() {
+      const taskId = this.dataset.taskId;
+      fetch(`/app/api/reset_config_in_queue/${taskId}/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token }}',
+        },
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.ok === 'Success') {
+          // Refresh the page or update the UI as needed
+          location.reload();
+        } else {
+          // Handle error
+          console.error('Failed to reset task status:', data);
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+      });
+    });
+  });
+
+  // Refreshing code
+  // Function to fetch the updated queue status
+  function fetchQueueStatus() {
+    fetch('/app/api/queue_status_update/')
+      .then(response => response.json())
+      .then(data => {
+        // Update the current task section
+        const currentTaskContainer = document.getElementById('current-task-container');
+        currentTaskContainer.innerHTML = data.current_task_html;
+
+        // Update the pending tasks section
+        const pendingTasksContainer = document.getElementById('pending-tasks-container');
+        pendingTasksContainer.innerHTML = data.pending_tasks_html;
+
+        // Update the completed tasks section
+        const completedTasksContainer = document.getElementById('completed-tasks-container');
+        completedTasksContainer.innerHTML = data.completed_tasks_html;
+      })
+      .catch(error => {
+        console.error('Error:', error);
+      });
+  }
+
+  // Call fetchQueueStatus every 15 seconds
+  setInterval(fetchQueueStatus, 15000);
+</script>
+{% endblock %}

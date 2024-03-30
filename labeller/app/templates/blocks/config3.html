@@ -13,8 +13,8 @@
         </h1>
       </div>
     </div>
-    {% comment %} <button onclick="logValues()">Capture Values</button> {%
-    endcomment %}
+    {% comment %}
+    <button onclick="logValues()">Capture Values</button> {%endcomment %}
     <div class="row mb-3 mt-2 section" id="datasetpickle-row">
       <div class="col">
         <h2>Select Dataset</h2>
@@ -43,6 +43,20 @@
       <button id="submit-config" class="btn btn-primary">
         Submit Configuration
       </button>
+    </div>
+    <div class="row mt-3 mb-3 p-3">
+      <div class="col-9">
+        <button id="queue-config" class="btn btn-primary">
+          Queue Configuration
+        </button>
+        <a href="/app/queuestatus" target="_blank" class="btn btn-primary">
+          Queue Status
+        </a>
+      </div>
+      <div class="col-3">
+        
+      </div>
+      
     </div>
     <div class="row mt-1 mb-1 invisible" id="runningspinner">
       <div class="d-flex align-items-center">
@@ -268,6 +282,11 @@
           label: "hop_length",
           type: "text",
           default: "512",
+        },
+        mfcc_flatten:{
+          label: "Flatten",
+          type: "checkbox",
+          default: true,
         },
         mfcc_delta: {
           label: "Delta MFCC",
@@ -1723,6 +1742,11 @@
             "type": "input",
             "default": "512"
           },
+          "mfcc_flatten":{
+            "label": "Flatten",
+            "type": "checkbox",
+            "default": true,
+          },
           "mfcc_delta": {
             "label": "Delta MFCC",
             "type": "checkbox",
@@ -2588,12 +2612,157 @@
           }
         }
       },
-      "GMMHMM": {
-        "label": "GMMHMM",
-        "active": false,
+      "gmm_hmm": {
+        "label": "GMM-HMM",
+        "active": true,
         "params": {
-          "GMMHMM_enable": {
-            "label": "Enable GMMHMM",
+          "gmm_hmm_enable": {
+            "label": "Enable GMM-HMM",
+            "type": "checkbox",
+            "default": false
+          },
+          "gmm_hmm_n_states": {
+            "label": "Number of States",
+            "type": "input",
+            "default": "2"
+          },
+          "gmm_hmm_n_mixtures": {
+            "label": "Number of Mixtures",
+            "type": "input",
+            "default": "2"
+          },
+          "gmm_hmm_covariance_type": {
+            "label": "Covariance Type",
+            "type": "select",
+            "default": "diag",
+            "options": {
+              "diag": "Diagonal",
+              "full": "Full",
+              "tied": "Tied",
+              "spherical": "Spherical"
+            }
+          },
+          "gmm_hmm_n_iter": {
+            "label": "Number of Iterations",
+            "type": "input",
+            "default": "100"
+          },
+          "gmm_hmm_tune_hyperparameters": {
+            "label": "Tune Hyperparameters",
+            "type": "checkbox",
+            "default": false
+          }
+        }
+      },
+      "ts_knn": {
+        "label": "TS-KNN",
+        "active": true,
+        "params": {
+          "ts_knn_enable": {
+            "label": "Enable TS-KNN",
+            "type": "checkbox",
+            "default": false
+          },
+          "ts_knn_k": {
+            "label": "Number of K",
+            "type": "input",
+            "default": "5"
+          },
+          "ts_knn_metric": {
+            "label": "Metric",
+            "type": "select",
+            "default": "dtw",
+            "options": {
+              "dtw": "Dynamic Time Warping",
+              "euclidean": "Euclidean",
+              "sqeuclidean": "Squared Euclidean",
+              "cityblock": "Manhattan"
+            }
+          },
+          "ts_knn_weights": {
+            "label": "Weights",
+            "type": "select",
+            "default": "uniform",
+            "options": {
+              "uniform": "Uniform",
+              "distance": "Distance"
+            }
+          },
+          "ts_knn_n_jobs": {
+            "label": "Number of Jobs",
+            "type": "input",
+            "default": "5"
+          },
+          "ts_knn_tune_hyperparameters": {
+            "label": "Tune Hyperparameters",
+            "type": "checkbox",
+            "default": false
+          }
+        }
+      },
+      "ts_svm": {
+        "label": "TS-SVM",
+        "active": true,
+        "params": {
+          "ts_svm_enable": {
+            "label": "Enable TS-SVM",
+            "type": "checkbox",
+            "default": false
+          },
+          "ts_svm_kernel": {
+            "label": "Kernel",
+            "type": "select",
+            "default": "gak",
+            "options": {
+              "gak": "Global Alignment Kernel",
+              "rbf": "Radial Basis Function",
+              "linear": "Linear",
+              "poly": "Polynomial",
+              "sigmoid": "Sigmoid"
+            }
+          },
+          "ts_svm_c": {
+            "label": "Regularization Parameter C",
+            "type": "input",
+            "default": "1.0"
+          },
+          "ts_svm_kernel_gamma": {
+            "label": "Kernel Coefficient Gamma",
+            "type": "input",
+            "default": "0.1"
+          },
+          "ts_svm_kernel_degree": {
+            "label": "Degree for Polynomial Kernel",
+            "type": "input",
+            "default": "3"
+          },
+          "ts_svm_kernel_coef0": {
+            "label": "Independent Term",
+            "type": "input",
+            "default": "0.0"
+          },
+          "ts_svm_tol": {
+            "label": "Tolerance for Stopping Criterion",
+            "type": "input",
+            "default": "0.001"
+          },
+          "ts_svm_max_iter": {
+            "label": "Maximum Number of Iterations",
+            "type": "input",
+            "default": "-1"
+          },
+          "ts_svm_probability": {
+            "label": "Estimate Probability Estimates",
+            "type": "checkbox",
+            "default": true
+          },
+          "ts_svm_n_jobs": {
+            "label": "Number of Jobs",
+            "type": "input",
+            "default": "-1"
+          },
+          "ts_svm_tune_hyperparameters": {
+            "label": "Tune Hyperparameters",
             "type": "checkbox",
             "default": false
           }
@@ -2648,7 +2817,7 @@
           "kfold_shuffle": {
             "label": "Shuffle",
             "type": "checkbox",
-            "default": false
+            "default": true
           },
           "kfold_random_state": {
             "label": "Random Seed",
@@ -4022,6 +4191,24 @@
     return result;
   }
 
+  async function storeConfig(config) {
+    const response = await fetch("/app/api/store_config_in_queue", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(config),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to post config: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    return result;
+  }
+
+
   async function postData(url = "", data = {}) {
     const response = await fetch(url, {
       method: "POST",
@@ -4061,6 +4248,24 @@
           console.error("Error:", error);
         });
     });
+
+
+      // Submit Handling
+  document
+  .getElementById("queue-config")
+  .addEventListener("click", function () {
+    document.getElementById("runningspinner").classList.add("visible");
+    document.getElementById("runningspinner").classList.remove("invisible");
+    storeConfig(getValues())
+      .then((result) => {
+        console.log(result);
+        document.getElementById("runningspinner").classList.remove("visible");
+        document.getElementById("runningspinner").classList.add("invisible");
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+      });
+  });
 </script>
 
 <script>
