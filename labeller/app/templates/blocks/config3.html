@@ -53,10 +53,7 @@
           Queue Status
         </a>
       </div>
-      <div class="col-3">
-        
-      </div>
-      
+      <div class="col-3"></div>
     </div>
     <div class="row mt-1 mb-1 invisible" id="runningspinner">
       <div class="d-flex align-items-center">
@@ -1547,6 +1544,27 @@
           }
         }
       },
+      "padded": {
+        "label": "Fixed Length with Random Padding",
+        "active": true,
+        "params": {
+          "padded_enable": {
+            "label": "Enable Fixed Length with Padding",
+            "type": "checkbox",
+            "default": false
+          },
+          "padded_length": {
+            "label": "Fixed Length In Seconds",
+            "type": "input",
+            "default": "1"
+          },
+          "padded_size": {
+            "label": "Size of the padding added",
+            "type": "input",
+            "default": "0.1"
+          }
+        }
+      },
       "frame": {
         "label": "Framing",
         "active": false,
@@ -1802,7 +1820,17 @@
               "1": "1 - Energy",
               "2": "2 - Power"
             }
-          }
+          },
+          "mel_spec_n_mels": {
+            "label": "Number of Mels",
+            "type": "input",
+            "default": "128"
+          },
+          "mel_spec_flatten":{
+            "label": "Flatten",
+            "type": "checkbox",
+            "default": true,
+          },
         }
       },
       "wavedec": {
@@ -2248,6 +2276,58 @@
             "default": false
           }
         }
+      },
+      "melspec_preprocessor": {
+        "label": "Mel-Spectrogram to VGG16 Preprocessor",
+        "active": false,
+        "params": {
+          "melspec_preprocessor_enable": {
+            "label": "Enable Mel-Spectrogram to VGG16 Preprocessor",
+            "type": "checkbox",
+            "default": false
+          },
+          "melspec_preprocessor_resize": {
+            "label": "Resize Features",
+            "type": "checkbox",
+            "default": true
+          },
+          "melspec_preprocessor_input_size_width": {
+            "label": "Input Size Width",
+            "type": "input",
+            "default": "224"
+          },
+          "melspec_preprocessor_input_size_height": {
+            "label": "Input Size Height",
+            "type": "input",
+            "default": "224"
+          }
+        }
+      },
+      "mfcc_preprocessor": {
+        "label": "MFCC to VGG16 Preprocessor",
+        "active": false,
+        "params": {
+          "mfcc_preprocessor_enable": {
+            "label": "Enable MFCC to VGG16 Preprocessor",
+            "type": "checkbox",
+            "default": false
+          },
+          "mfcc_preprocessor_resize": {
+            "label": "Resize Features",
+            "type": "checkbox",
+            "default": true
+          },
+          "mfcc_preprocessor_input_size_width": {
+            "label": "Input Size Width",
+            "type": "input",
+            "default": "224"
+          },
+          "mfcc_preprocessor_input_size_height": {
+            "label": "Input Size Height",
+            "type": "input",
+            "default": "224"
+          }
+        }
       }
     },
     "classifier": {
@@ -2560,6 +2640,11 @@
             "label": "Intercept Scaling",
             "type": "input",
             "default": "1"
+          },
+          "logistic_regression_tune_hyperparameters": {
+            "label": "Tune Hyperparameters",
+            "type": "checkbox",
+            "default": false
           }
         }
       },
@@ -2767,6 +2852,91 @@
             "default": false
           }
         }
+      },
+      "vgg16": {
+        "label": "VGG16",
+        "active": false,
+        "params": {
+            "vgg16_enable": {
+                "label": "Enable VGG16",
+                "type": "checkbox",
+                "default": false
+            },
+            "vgg16_weights": {
+                "label": "Weights",
+                "type": "select",
+                "default": "imagenet",
+                "options": {
+                    "imagenet": "imagenet",
+                    "none": null
+                }
+            },
+            "vgg16_epochs": {
+              "label": "Epochs",
+              "type": "input",
+              "default": "10"
+          },
+            "vgg16_trainable": {
+                "label": "Trainable",
+                "type": "checkbox",
+                "default": false
+            },
+            "vgg16_fine_tune": {
+              "label": "Fine Tune",
+              "type": "checkbox",
+              "default": false
+          },
+            "vgg16_target_batch_size": {
+              "label": "Batch Size",
+              "type": "input",
+              "default": "32"
+            },
+            "vgg16_target_size_width": {
+                "label": "Target Size Width",
+                "type": "input",
+                "default": "224"
+            },
+            "vgg16_target_size_height": {
+                "label": "Target Size Height",
+                "type": "input",
+                "default": "224"
+            },
+            "vgg16_dense_units": {
+                "label": "Dense Units",
+                "type": "input",
+                "default": "256"
+            },
+            "vgg16_dense_activation": {
+                "label": "Dense Activation",
+                "type": "select",
+                "default": "relu",
+                "options": {
+                    "relu": "relu",
+                    "sigmoid": "sigmoid",
+                    "tanh": "tanh"
+                }
+            },
+            "vgg16_optimizer": {
+                "label": "Optimizer",
+                "type": "select",
+                "default": "adam",
+                "options": {
+                    "adam": "adam",
+                    "sgd": "sgd",
+                    "rmsprop": "rmsprop"
+                }
+            },
+            "vgg16_loss": {
+                "label": "Loss",
+                "type": "select",
+                "default": "categorical_crossentropy",
+                "options": {
+                    "categorical_crossentropy": "categorical_crossentropy",
+                    "binary_crossentropy": "binary_crossentropy",
+                    "mean_squared_error": "mean_squared_error"
+                }
+            }
+        }
       }
     },
     "evaluation": {
@@ -2886,6 +3056,22 @@
             "default": false
           },
           "fixed_size": {
+            "label": "Fixed Length In Seconds",
+            "type": "input",
+            "default": "1"
+          }
+        }
+      },
+      "fixed_padded": {
+        "label": "Fixed Length with Random Padding",
+        "active": true,
+        "params": {
+          "fixed_padded_enable": {
+            "label": "Enable Fixed Length with Padding",
+            "type": "checkbox",
+            "default": false
+          },
+          "fixed_padded_size": {
             "label": "Fixed Length In Seconds",
             "type": "input",
             "default": "1"
@@ -4208,7 +4394,6 @@
     return result;
   }
 
-
   async function postData(url = "", data = {}) {
     const response = await fetch(url, {
       method: "POST",
@@ -4249,23 +4434,22 @@
         });
     });
 
-
-      // Submit Handling
+  // Submit Handling
   document
-  .getElementById("queue-config")
-  .addEventListener("click", function () {
-    document.getElementById("runningspinner").classList.add("visible");
-    document.getElementById("runningspinner").classList.remove("invisible");
-    storeConfig(getValues())
-      .then((result) => {
-        console.log(result);
-        document.getElementById("runningspinner").classList.remove("visible");
-        document.getElementById("runningspinner").classList.add("invisible");
-      })
-      .catch((error) => {
-        console.error("Error:", error);
-      });
-  });
+    .getElementById("queue-config")
+    .addEventListener("click", function () {
+      document.getElementById("runningspinner").classList.add("visible");
+      document.getElementById("runningspinner").classList.remove("invisible");
+      storeConfig(getValues())
+        .then((result) => {
+          console.log(result);
+          document.getElementById("runningspinner").classList.remove("visible");
+          document.getElementById("runningspinner").classList.add("invisible");
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+        });
+    });
 </script>
 
 <script>

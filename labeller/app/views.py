@@ -33,27 +33,65 @@ import multiprocessing
 from multiprocessing import Manager,Pool
 from functools import partial
 
+import tensorflow as tf
 
-with open(os.path.join(settings.BASE_DIR,"app","models","coughknn5mfcc40.bark"), "rb") as f:
-    knnmodel = pickle.load(f)
+#Tensor Flow GPU Support Test & Memory allocation config
+print(tf.config.list_physical_devices('GPU'))
+gpus = tf.config.list_physical_devices('GPU')
+if gpus:
+  try:
+    # Currently, memory growth needs to be the same across GPUs
+    for gpu in gpus:
+      tf.config.experimental.set_memory_growth(gpu, True)
+    logical_gpus = tf.config.list_logical_devices('GPU')
+    print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+  except RuntimeError as e:
+    # Memory growth must be set before GPUs have been initialized
+    print(e)
 
-with open(os.path.join(settings.BASE_DIR,"app","models","knn5mfcc40Coughvid.bark"), "rb") as f:
-    knnmodel2 = pickle.load(f)
+# with open(os.path.join(settings.BASE_DIR,"app","models","coughknn5mfcc40.bark"), "rb") as f:
+#     knnmodel = pickle.load(f)
 
-with open(os.path.join(settings.BASE_DIR,"app","models","knn5mfcc40Coughvid1.bark"), "rb") as f:
-    knnmodel3 = pickle.load(f)
+# with open(os.path.join(settings.BASE_DIR,"app","models","knn5mfcc40Coughvid.bark"), "rb") as f:
+#     knnmodel2 = pickle.load(f)
 
-with open(os.path.join(settings.BASE_DIR,"app","models","SVMmfcc40Coughvid.bark"), "rb") as f:
-    svmmodel1 = pickle.load(f)
+# with open(os.path.join(settings.BASE_DIR,"app","models","knn5mfcc40Coughvid1.bark"), "rb") as f:
+#     knnmodel3 = pickle.load(f)
 
-with open(os.path.join(settings.BASE_DIR,"app","models","SVMmfcc40CoughvidFrames.bark"), "rb") as f:
-    svmmodel2 = pickle.load(f)
+# with open(os.path.join(settings.BASE_DIR,"app","models","SVMmfcc40Coughvid.bark"), "rb") as f:
+#     svmmodel1 = pickle.load(f)
+
+# with open(os.path.join(settings.BASE_DIR,"app","models","SVMmfcc40CoughvidFrames.bark"), "rb") as f:
+#     svmmodel2 = pickle.load(f)
 
 with open(os.path.join(settings.BASE_DIR,"app","models","predictor.pickle"), "rb") as f:
     predictor = pickle.load(f)
 
 with open(os.path.join(settings.BASE_DIR,"predictor1.pickle"), "rb") as f:
     predictor1 = pickle.load(f)
+
+with open(os.path.join(settings.BASE_DIR,"predictor5.pickle"), "rb") as f:
+    predictor5 = pickle.load(f)
+
+with open(os.path.join(settings.BASE_DIR,"predictor4.pickle"), "rb") as f:
+    #predictor4 = pickle.load(f)
+
+    with open("feature_extractor_vgg16.pickle", "rb") as file:
+        feature_extractor = pickle.load(file)
+    
+    with open("feature_preprocessor_vgg16.pickle", "rb") as file:
+        featurepre = pickle.load(file)
+
+    # Load the TensorFlow model
+    #mdl = tf.keras.models.load_model("model.h5")
+    
+    #mdl = factory.VGG16Model(target_size_width=224,target_size_height=224, weights="imagenet", trainable=False,dense_units=265,dense_activation="relu",optimizer="adam",loss="categorical_crossentropy")
+    mdl = factory.VGG16Model(loading=True)
+
+    #predictor4.classifier.load("model.h5")
+    #mdl = mdl.load("model.h5")
+    
+    predictor4 = factory.Predictor(featureeex=feature_extractor, clf=mdl,featurepre=featurepre)
 
 #Retrieve user id's and names for caching
 userlist = User.objects.values_list('id', 'username')
@@ -511,7 +549,7 @@ def lowqualitywaves(request, userid):
     print(page_obj)
     return render(request, 'waves3.html', {'page_obj': page_obj, 'audiolist': audiolist, 'user': request.user})
 
-def display_pred_from_file(request):
+def display_pred_from_file(request, userid):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -536,6 +574,30 @@ def display_pred_from_file(request):
     # do something with the processed data
     print(page_obj)
     return render(request, 'waves3.html', {'page_obj': page_obj, 'audiolist': audiolist, 'user': request.user})
+
+def predict_files(request):
+    #Select files from static/examples and generate predictions from them 
+    if request.method == 'POST':
+        file_paths = json.loads(request.POST.get('file_paths', '[]'))
+        print(file_paths)
+        audiopredictions = []
+        
+        for file in file_paths:
+            try:
+                print(file)    
+                pred = functions.returnPredictions(predictor5, file)
+                pred['labelusername'] = "New Model Prediction"
+                audiopredictions.append(pred)
+                #print(pred)
+            except Exception as e:
+                print("Prediction Failed:", e)
+                traceback.print_exc()
+            print("Beep")
+        print(audiopredictions)
+        return render(request, 'waves3.html', {'page_obj': audiopredictions, 'audiolist': audiopredictions, 'user': request.user})
+    
+    return render(request, 'upload.html')
+
 
 def listoflabelusers(request, fname):
     #Returns a list of users who have labelled the audiofile
@@ -1001,6 +1063,12 @@ def generateDatasetFile(request):
     status = functions.generate_dataset_file()
     print(status)
     return JsonResponse({"Bing":"Bong","Count":status["Number"]}, safe=False)
+
+def generateKFolds(request):
+    status = functions.generate_kfolds()
+    #print(status)
+    return JsonResponse({"Bing":"Bong","Count":status},safe=False) 
+
 
 def fixDatasetFile(request):
     print("Fix Dataset")

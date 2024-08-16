@@ -22,6 +22,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import cross_validate
 from sklearn.model_selection import KFold, StratifiedKFold
 import traceback, math
+import gc
 
 import multiprocessing
 from hmmlearn import hmm
@@ -48,6 +49,20 @@ from tslearn.neighbors import KNeighborsTimeSeriesClassifier
 from tslearn.svm import TimeSeriesSVC
 from tslearn.utils import to_time_series_dataset
 
+
+# Deep Learning
+# import tensorflow as tf
+# from tensorflow.keras.applications import VGG16
+# from tensorflow.keras.layers import Dense, Flatten, InputLayer, Resizing
+# from tensorflow.keras.models import Sequential
+import cv2
+import csv
+
+#Garbage Collection for TF
+import gc
+
+#Kfold Madness
+from sklearn.model_selection import BaseCrossValidator
 
 # ==================================================
 #             Data & Dataset
@@ -248,6 +263,30 @@ class Dataset:
             audio.audiodata = librosa.util.fix_length(audio.audiodata, size=int(t_len))
             samples_new.append(audio)
         self.samples = samples_new
+
+    def fix_length_padded(self, length, size=0.1):
+        samples_new = []
+        print("Fixed Padding")
+        for audio in self.samples:
+            # Fix the length of the audio
+            t_len = float(length) * int(self.samplerate)
+            fixed_audio = librosa.util.fix_length(audio.audiodata, size=int(t_len))
+            
+            # Calculate padding samples
+            padding_samples = int(float(size) * self.samplerate)
+            start_padding = np.random.randint(0, padding_samples + 1)
+            end_padding = padding_samples - start_padding
+            
+            # Create padded audio
+            padded_audio = np.zeros(len(fixed_audio) + padding_samples)
+            padded_audio[start_padding:start_padding+len(fixed_audio)] = fixed_audio
+            
+            # Update audio object
+            audio.audiodata = padded_audio
+            samples_new.append(audio)
+        
+        self.samples = samples_new
+
 
     # def trim_audio(self, **kwargs):
     #     print("Pre-trim Average length: " + str(self.get_average_length()))
@@ -551,7 +590,7 @@ class FeaturesBase():
 
     #Process the dataset using multiple processes
     def features_from_dataset_multi(self, dataset,**kwargs):
-        with multiprocessing.Pool(processes=24) as pool:
+        with multiprocessing.Pool(processes=10) as pool:
             results = pool.starmap(
                 self.process_sample,
                 [(audio, ) for audio in dataset.samples]
@@ -559,6 +598,48 @@ class FeaturesBase():
         features = [x['feature'] for x in results]
         labels = [x['label'] for x in results]
         return features, labels
+
+    # def features_from_dataset_alt(self, dataset, **kwargs):
+    #     with multiprocessing.Pool(processes=8) as pool:
+    #         results = pool.starmap(
+    #             self.process_sample,
+    #             [(sample,) for sample in dataset.samples]
+    #         )
+    #     print("beeep")
+    #     for sample, features in zip(dataset.samples, results):
+    #         sample.features = features['feature']
+
+    #     labels = []
+    #     for sample in dataset.samples:
+    #         labels.append(sample.label)
+
+    #     print("Break")
+    #     return dataset
+    
+    def chunkify(self, lst, n):
+        """Divide list lst into n-sized chunks."""
+        for i in range(0, len(lst), n):
+            yield lst[i:i + n]
+
+    def features_from_dataset_alt(self, dataset, chunk_size=100, **kwargs):
+        all_results = []
+        with multiprocessing.Pool(processes=12) as pool:
+            for chunk in self.chunkify(dataset.samples, chunk_size):
+                chunk_results = pool.starmap(
+                    self.process_sample,
+                    [(sample,) for sample in chunk]
+                )
+                all_results.extend(chunk_results)
+
+        print("beeep")
+        for sample, features in zip(dataset.samples, all_results):
+            sample.features = features['feature']
+
+        labels = [sample.label for sample in dataset.samples]
+
+        print("Break")
+        return dataset
+
 
     #Print the input config
     def testfeaturekwargs(self, **kwargs):
@@ -725,8 +806,9 @@ class MFCCFeatures(FeaturesBase):
             #print("Flatten")
             mfcc = mfcc.ravel()
         
-        return {'feature': mfcc, 'label': audio.label}
 
+
+        return {'feature': mfcc, 'label': audio.label}
 
 
 class MelSpectrogramFeatures(FeaturesBase):
@@ -734,60 +816,94 @@ class MelSpectrogramFeatures(FeaturesBase):
     def __init__(self, **kwargs):
         self.kwargs = kwargs
 
-
-    def features_from_dataset(self, dataset,**kwargs):
-        #features = np.empty((0,128))
+    def features_from_dataset(self, dataset, **kwargs):
         features = []
         n_fft = int(self.kwargs.get('n_fft', 2048))
-        hop_length = int(self.kwargs.get('hop_length',512))
-        window=self.kwargs.get('window','hann')
-        center=bool(self.kwargs.get('center',True))
-        pad_mode=self.kwargs.get('pad_mode','constant')
-        power=float(self.kwargs.get('power',2.0))
+        hop_length = int(self.kwargs.get('hop_length', 512))
+        window = self.kwargs.get('window', 'hann')
+        center = bool(self.kwargs.get('center', True))
+        pad_mode = self.kwargs.get('pad_mode', 'constant')
+        power = float(self.kwargs.get('power', 2.0))
+        flatten = bool(self.kwargs.get('flatten', True))
+        n_mels = int(self.kwargs.get('n_mels', 128))
 
         for audio in dataset.samples:
             melspec = librosa.feature.melspectrogram(
-                y=audio.audiodata, sr=audio.samplerate, n_fft=n_fft,hop_length=hop_length,
-                window=window,center=center,pad_mode=pad_mode,
-                power=power
+                y=audio.audiodata, sr=audio.samplerate, n_fft=n_fft, hop_length=hop_length,
+                window=window, center=center, pad_mode=pad_mode,
+                power=power, n_mels = n_mels
             )
+            if flatten:
+                melspec = melspec.ravel()
             features.append(melspec)
             #features = np.concatenate((features, melspec),axis=0)
         return features
 
-    def single_features(self, audiosample, **kwargs):
-        features = np.empty((0,128))
+    def single_features(self,audiosample=None,audioframe = None, **kwargs):
+        n_fft = int(self.kwargs.get('n_fft', 2048))
+        hop_length = int(self.kwargs.get('hop_length', 512))
+        window = self.kwargs.get('window', 'hann')
+        center = bool(self.kwargs.get('center', True))
+        pad_mode = self.kwargs.get('pad_mode', 'constant')
+        power = float(self.kwargs.get('power', 2.0))
+        flatten = bool(self.kwargs.get('flatten', True))
+        n_mels = int(self.kwargs.get('n_mels', 128))
+
+
+        if(audioframe.any()):
+            print("Boop")
+            audiosample = AudioSample(audiodata=audioframe, samplerate=kwargs.get('samplerate', 22050))
+
         melspec = librosa.feature.melspectrogram(
-                y=audiosample.audiodata, sr=audiosample.samplerate, n_fft=self.kwargs.get('n_fft', 2048),hop_length=self.kwargs.get('hop_length',512),
-                window=self.kwargs.get('window','hann'),center=self.kwargs.get('center',True),pad_mode=self.kwargs.get('pad_mode','constant'),
-                power=self.kwargs.get('power',2.0)
-            )
-        features = np.concatenate((features, melspec),axis=0)
-        return features
+            y=audiosample.audiodata, sr=audiosample.samplerate, n_fft=n_fft, hop_length=hop_length,
+            window=window, center=center, pad_mode=pad_mode, n_mels = n_mels,
+            power=power
+        )
+        if flatten:
+            melspec = melspec.ravel()
+        print(melspec.shape)
+
+        return melspec
 
     def single_features_from_audio(self, audiofilepath, **kwargs):
-        
-        audiosample = AudioSample(path=audiofilepath, samplerate=kwargs.get('samplerate',22050))
-        features = np.empty((0,128))
+        audiosample = AudioSample(path=audiofilepath, samplerate=kwargs.get('samplerate', 22050))
+        n_fft = int(self.kwargs.get('n_fft', 2048))
+        hop_length = int(self.kwargs.get('hop_length', 512))
+        window = self.kwargs.get('window', 'hann')
+        center = bool(self.kwargs.get('center', True))
+        pad_mode = self.kwargs.get('pad_mode', 'constant')
+        power = float(self.kwargs.get('power', 2.0))
+        flatten = bool(self.kwargs.get('flatten', True))
+
         melspec = librosa.feature.melspectrogram(
-                y=audiosample.audiodata, sr=audiosample.samplerate, n_fft=self.kwargs.get('n_fft', 2048),hop_length=self.kwargs.get('hop_length',512),
-                window=self.kwargs.get('window','hann'),center=self.kwargs.get('center',True),pad_mode=self.kwargs.get('pad_mode','constant'),
-                power=self.kwargs.get('power',2.0)
-            )
-        features = np.concatenate((features, melspec),axis=0)
-        return features
+            y=audiosample.audiodata, sr=audiosample.samplerate, n_fft=n_fft, hop_length=hop_length,
+            window=window, center=center, pad_mode=pad_mode,
+            power=power
+        )
+        if flatten:
+            melspec = melspec.ravel()
+        return melspec
 
     def process_sample(self, audio):
         kwargs = self.kwargs
-        melspec = librosa.feature.melspectrogram(
-                y=audio.audiodata, sr=audio.samplerate, n_fft=int(self.kwargs.get('n_fft', 2048)),hop_length=int(self.kwargs.get('hop_length',512)),
-                window=self.kwargs.get('window','hann'),center=self.kwargs.get('center',True),pad_mode=self.kwargs.get('pad_mode','constant'),
-                power=float(self.kwargs.get('power',2.0))
-            )
-        melspec = melspec.ravel()
-        
-        return {'feature': melspec, 'label': audio.label}
+        n_fft = int(self.kwargs.get('n_fft', 2048))
+        hop_length = int(self.kwargs.get('hop_length', 512))
+        window = self.kwargs.get('window', 'hann')
+        center = bool(self.kwargs.get('center', True))
+        pad_mode = self.kwargs.get('pad_mode', 'constant')
+        power = float(self.kwargs.get('power', 2.0))
+        flatten = bool(self.kwargs.get('flatten', True))
+        n_mels = int(self.kwargs.get('n_mels', 128))
 
+        melspec = librosa.feature.melspectrogram(
+            y=audio.audiodata, sr=audio.samplerate, n_fft=n_fft, hop_length=hop_length,
+            window=window, center=center, pad_mode=pad_mode,
+            power=power, n_mels = n_mels
+        )
+        if flatten:
+            melspec = melspec.ravel()
+
+        return {'feature': melspec, 'label': audio.label}
 
 class WaveletDecFeatures(FeaturesBase):
 
@@ -805,7 +921,7 @@ class WaveletDecFeatures(FeaturesBase):
 
 
 
-    def process_sample(self, audio, kwargs):
+    def process_sample(self, audio, **kwargs):
 
         sample_rate = 22050
 
@@ -813,10 +929,10 @@ class WaveletDecFeatures(FeaturesBase):
         # w = pywt.Wavelet('db4')
         # print (pywt.dwt_max_level(data_len=len(audio.audiodata), filter_len=w.dec_len))
         
-        # lvl = int(self.kwargs.get('level',None))
-        # cooef = pywt.wavedec(audio.audiodata, wavelet=self.kwargs.get('wavelet', 'haar'), mode=self.kwargs.get('mode', 'sym'), level=lvl)
-        # print(len(cooef))
-        # print(type(cooef[0]))
+        lvl = int(self.kwargs.get('level',None))
+        cooef = pywt.wavedec(audio.audiodata, wavelet=self.kwargs.get('wavelet', 'haar'), mode=self.kwargs.get('mode', 'sym'), level=lvl)
+        #print(len(cooef))
+        #print(type(cooef[0]))
 
 
         # melspec = librosa.feature.melspectrogram(
@@ -832,11 +948,11 @@ class WaveletDecFeatures(FeaturesBase):
 
 
         #denoise
-        coeffs = pywt.wavedec(audio.audiodata, 'db4', level=5)
+        #coeffs = pywt.wavedec(audio.audiodata, 'db4', level=5)
         # Apply thresholding to the wavelet coefficients
-        threshold = np.std(coeffs[-1]) * 3  # Adjust the threshold as needed - threshold is set as twice the standard deviation of the last level coefficients. 
-        coeffs = [pywt.threshold(c, threshold) for c in coeffs]
-        denoised_audio = pywt.waverec(coeffs, 'db4')
+        #threshold = np.std(coeffs[-1]) * 3  # Adjust the threshold as needed - threshold is set as twice the standard deviation of the last level coefficients. 
+        #coeffs = [pywt.threshold(c, threshold) for c in coeffs]
+        #denoised_audio = pywt.waverec(coeffs, 'db4')
 
         # melspec2 = librosa.feature.melspectrogram(
         #                 y=denoised_audio, sr=audio.samplerate, n_fft=self.kwargs.get('n_fft', 2048),hop_length=self.kwargs.get('hop_length',512),
@@ -850,7 +966,9 @@ class WaveletDecFeatures(FeaturesBase):
         # wafn2 = "C:/Users/Alliewya/Documents/Cough Monitor/Spectrograms/Denoise_2/" + fn2 + ".wav"
         # sf.write(wafn2, audio.audiodata, audio.samplerate)
 
-        feats = coeffs[0].ravel()
+        #feats = coeffs[0].ravel()
+        feats = cooef[0].ravel()
+
         return {'feature':feats, 'label':audio.label}
 
 
@@ -1347,7 +1465,7 @@ class FeaturesFactory():
         else:
             bing = 1
             print(type(dataset.samples))
-            with multiprocessing.Pool() as pool:
+            with multiprocessing.Pool(processes=8) as pool:
                 results = pool.starmap(
                     self.process_sample_multi_extractor,
                     (audiosamp,bing)
@@ -1433,8 +1551,89 @@ class PCAFeaturePreprocessor(FeaturePreprocessorBase):
         print(transformed_features[0].shape)
         return transformed_features
 
+class MFCCToVGG16Preprocessor(FeaturePreprocessorBase):
+    def __init__(self, resize=True, input_size=(224, 224)):
+        self.resize = resize
+        self.input_size = input_size
+
+    def preprocess_features(self, features):
+        print("MFCC to VGG16 Preprocessor")
+        preprocessed_features = []
+        for feature in features:
+            preprocessed_feature = self._preprocess_single_feature(feature)
+            preprocessed_features.append(preprocessed_feature)
+        return np.array(preprocessed_features)
+
+    def transform_features(self, features):
+        preprocessed_features = []
+        for feature in features:
+            preprocessed_feature = self._preprocess_single_feature(feature)
+            preprocessed_features.append(preprocessed_feature)
+        return np.array(preprocessed_features)
+
+    def _preprocess_single_feature(self, feature):
+        if self.resize:
+            feature = cv2.resize(feature, self.input_size, interpolation=cv2.INTER_LINEAR)
+        else:
+            feature = self._expand_dimensions(feature)
+        feature = self._convert_to_rgb(feature)
+        feature = np.expand_dims(feature, axis=0)
+        return feature
+
+    def _expand_dimensions(self, feature):
+        return np.expand_dims(feature, axis=-1)
+
+    def _convert_to_rgb(self, feature):
+        return np.repeat(feature, 3, axis=-1)
 
 
+class MelSpectrogramToVGG16Preprocessor(FeaturePreprocessorBase):
+    def __init__(self, resize=True, input_size=(224, 224)):
+        self.resize = resize
+        self.input_size = input_size
+
+    def preprocess_features(self, features):
+        print("Mel-Spectrogram to VGG16 Preprocessor")
+        print("Input Shape: {}", features[0].shape)
+        preprocessed_features = []
+        for feature in features:
+            preprocessed_feature = self._preprocess_single_feature(feature)
+            preprocessed_features.append(preprocessed_feature)
+        preprocessed_features = np.concatenate(preprocessed_features, axis=0)
+        print(preprocessed_features.shape)
+        return preprocessed_features
+
+    def transform_features(self, features):
+        preprocessed_features = []
+        for feature in features:
+            preprocessed_feature = self._preprocess_single_feature(feature)
+            preprocessed_features.append(preprocessed_feature)
+        return np.concatenate(preprocessed_features, axis=0)
+
+    def _preprocess_single_feature(self, feature):
+        # Convert to decibel scale (log scale)
+        feature = librosa.power_to_db(feature, ref=np.max)
+        if self.resize:
+            feature = cv2.resize(feature, self.input_size, interpolation=cv2.INTER_LINEAR)
+        else:
+            feature = self._expand_dimensions(feature)
+        
+        feature = self._normalize(feature)
+        feature = self._convert_to_rgb(feature)
+        
+        # Reshape the feature to match the expected input shape of VGG16
+        feature = np.reshape(feature, (1, *self.input_size, 3))
+        
+        return feature
+
+    def _normalize(self, feature):
+        return (feature - np.min(feature)) / (np.max(feature) - np.min(feature))
+
+    def _expand_dimensions(self, feature):
+        return np.expand_dims(feature, axis=-1)
+
+    def _convert_to_rgb(self, feature):
+        return np.stack((feature,) * 3, axis=-1)
 
 # =======================================================
 #               Model Section
@@ -1467,7 +1666,7 @@ class KNNModel(ModelBase, KNeighborsClassifier):
             algorithm=kwargs["algorithm"],
             leaf_size=int(kwargs["leaf_size"]),
             metric=kwargs["metric"],
-            metric_params={"p": int(kwargs["metric_power"])},
+            #metric_params={"p": int(kwargs["metric_power"])},
             weights=kwargs["weights"],
         )
 
@@ -1772,6 +1971,195 @@ class TSLearnSVMModel(ModelBase, TimeSeriesSVC):
         accuracy = super().score(X_timeseries, y)
         return accuracy
 
+class VGG16Model(ModelBase):
+    def __init__(self, input_shape=(224, 224, 3), num_classes=2, batch_size=32, loading=False, **kwargs):
+        if(loading == False):
+            self.input_shape = input_shape
+            self.num_classes = num_classes
+            self.target_size = (int(kwargs["target_size_width"]), int(kwargs["target_size_height"]))
+            self.batch_size = batch_size
+            self.kwargs = kwargs
+            self.fine_tune = bool(kwargs.get("fine_tune", False))  
+            self.epochs = int(kwargs.get("epochs", 10))
+            print(f"Input shape: {self.input_shape}")
+            print(f"Number of classes: {self.num_classes}")
+            print(f"Target size: {self.target_size}")
+            print(f"VGG16 model configuration: {self.kwargs}")
+            self.model = self.build_model()
+
+    def build_model(self):
+        base_model = VGG16(weights=self.kwargs["weights"], include_top=False, input_shape=self.target_size + (3,))
+        print(f"Base model loaded: {base_model}")
+
+        if self.fine_tune:
+            # Freeze all base model layers
+            for layer in base_model.layers:
+                layer.trainable = False
+
+            # Make only the top 2 layers trainable
+            for layer in base_model.layers[-2:]:
+                layer.trainable = True
+        else:
+            # Freeze or unfreeze base model layers based on the "trainable" parameter
+            for layer in base_model.layers:
+                layer.trainable = bool(self.kwargs["trainable"])
+
+        print(f"Base model layers trainable: {[layer.trainable for layer in base_model.layers]}")
+
+        model = Sequential([
+            InputLayer(input_shape=self.input_shape),
+            Resizing(*self.target_size),
+            base_model,
+            Flatten(),
+            Dense(int(self.kwargs["dense_units"]), activation=self.kwargs["dense_activation"]),
+            Dense(self.num_classes, activation='softmax')
+        ])
+        print(f"Model architecture: {model.summary()}")
+        model.compile(optimizer=self.kwargs["optimizer"], loss=self.kwargs["loss"], metrics=['accuracy'])
+        print(f"Model compiled with optimizer: {self.kwargs['optimizer']}, loss: {self.kwargs['loss']}")
+        return model
+
+    def fit(self, X, y, **kwargs):
+            print(f"Input features shape: {X.shape}")
+            print(f"Labels shape: {len(y)}")
+            # Convert labels to categorical format
+            y = tf.keras.utils.to_categorical(y, num_classes=self.num_classes)
+            # Create a data generator for batching
+            data_generator = tf.keras.preprocessing.image.ImageDataGenerator()
+            data_generator.fit(X)
+            # Train the model using the data generator
+            self.model.fit(
+                data_generator.flow(X, y, batch_size=self.batch_size),
+                steps_per_epoch=len(X) // self.batch_size,
+                epochs=self.epochs,
+                **kwargs
+            )
+            return self
+
+    def predict(self, X):
+        # Create a data generator for batching
+        data_generator = tf.keras.preprocessing.image.ImageDataGenerator()
+        data_generator.fit(X)
+
+        # Calculate the number of steps needed to cover all samples
+        steps = len(X) // self.batch_size
+        if len(X) % self.batch_size != 0:
+            steps += 1
+
+        # Make predictions using the data generator
+        predictions = self.model.predict(
+            data_generator.flow(X, batch_size=self.batch_size),
+            steps=steps
+        )
+
+        # Convert predictions to class labels
+        labels = tf.argmax(predictions, axis=1)
+        return labels
+
+    def score(self, X, y):
+        # Convert labels to categorical format
+        y_true = tf.keras.utils.to_categorical(y, num_classes=self.num_classes)
+
+
+        # Create a data generator for batching
+        data_generator = tf.keras.preprocessing.image.ImageDataGenerator()
+        data_generator.fit(X)
+
+        # Calculate the number of steps needed to cover all samples
+        steps = len(X) // self.batch_size
+        if len(X) % self.batch_size != 0:
+            steps += 1
+
+        # Evaluate the model using the data generator
+        print("Evaluating the model...")
+        loss, accuracy = self.model.evaluate(
+            data_generator.flow(X, y_true, batch_size=self.batch_size, shuffle=False),
+            steps=steps
+        )
+        print(f"Loss: {loss}, Accuracy: {accuracy}")  # Print the loss and accuracy
+
+        # Make predictions using the data generator
+        y_pred = self.model.predict(
+            data_generator.flow(X, batch_size=self.batch_size, shuffle=False),
+            steps=steps
+        )
+        print(f"y_pred shape: {y_pred.shape}")  # Check the shape of the predictions
+
+        # Convert predictions to class labels
+        y_pred_labels = np.argmax(y_pred, axis=1)
+        y_true_labels = np.argmax(y_true, axis=1)
+
+
+        # Adjust the threshold for predictions
+        threshold = 0.5  # You can experiment with different thresholds
+        y_pred_labels = (y_pred[:, 1] > threshold).astype(int)
+
+        # Calculate metrics with average='weighted'
+        f1 = f1_score(y_true_labels, y_pred_labels, average='weighted')
+        precision = precision_score(y_true_labels, y_pred_labels, average='weighted')
+        recall = recall_score(y_true_labels, y_pred_labels, average='weighted')
+        cm = confusion_matrix(y_true_labels, y_pred_labels).tolist()
+
+        # Create a dictionary with the results
+        scores = {
+            'accuracy': accuracy,
+            'f1': f1,
+            'precision': precision,
+            'recall': recall,
+            'confusion_matrix': cm,
+            'loss': loss
+        }
+
+        # # Save predicted labels and true labels to a CSV file
+        # with open('labels.csv', 'w', newline='') as csvfile:
+        #     writer = csv.writer(csvfile)
+        #     writer.writerow(['true_labels', 'predicted_labels', 'predicted_probs', 'true_probs'])
+        #     for true_label, pred_label, pred_probs, true_probs in zip(y_true_labels, y_pred_labels, y_pred, y_true):
+        #         pred_probs_rounded = [round(prob, 4) for prob in pred_probs]
+        #         true_probs_rounded = [round(prob, 4) for prob in true_probs]
+        #         writer.writerow([true_label, pred_label, pred_probs_rounded, true_probs_rounded])
+
+        return scores
+    
+    def save(self, path):
+        # Save the model architecture
+        with open(path + "_architecture.json", "w") as f:
+            f.write(self.model.to_json())
+        
+        # Save the model weights
+        self.model.save_weights(path + "_weights.h5")
+        
+        # Save the model configuration
+        config = {
+            "input_shape": self.input_shape,
+            "num_classes": self.num_classes,
+            "target_size": self.target_size,
+            "batch_size": self.batch_size,
+            "fine_tune": self.fine_tune,
+            "epochs": self.epochs,
+            "kwargs": self.kwargs
+        }
+        with open(path + "_config.pickle", "wb") as f:
+            pickle.dump(config, f)
+
+    def load(self, path):
+        # Load the model configuration
+        with open(path + "_config.pickle", "rb") as f:
+            config = pickle.load(f)
+        
+        print(config)
+
+        # Create a new instance of the VGG16Model class
+        #model = cls(**config, **config['kwargs'])
+        
+        # Load the model architecture
+        with open(path + "_architecture.json", "r") as f:
+            self.model = tf.keras.models.model_from_json(f.read())
+        
+        # Load the model weights
+        self.model.load_weights(path + "_weights.h5")
+        
+        return self.model
 
 
 
@@ -1794,7 +2182,7 @@ class ClassifierFactory:
             return LogisticRegressionModel(**logreg_params)
         elif bool(self.kwargs["decision_tree"]['enable']):
             dt_params = self.kwargs["decision_tree"]
-            return DecisionTreeModel(**dt_params)
+            return DecisionTreeModel(**dt_params)       
         elif bool(self.kwargs["gmm_hmm"]['enable']):
             GMMHMM_params = self.kwargs['gmm_hmm']
             return GMMHMMModel(**GMMHMM_params)
@@ -1804,6 +2192,9 @@ class ClassifierFactory:
         elif bool(self.kwargs["ts_svm"]['enable']):
             TSLearnSVM_params = self.kwargs['ts_svm']
             return TSLearnSVMModel(**TSLearnSVM_params)
+        elif bool(self.kwargs["vgg16"]['enable']):
+            VGG16_params = self.kwargs['vgg16']
+            return VGG16Model(**VGG16_params)
         else:
             return None
 
@@ -1822,38 +2213,119 @@ from sklearn.metrics import roc_auc_score
 from sklearn.metrics import roc_auc_score
 import time
 
+# def common_scores(clf, X_test, y_test):
+#     print("Scores Start")
+#     scores = {}
+#     # Calculate the accuracy score
+#     #print("1")
+#     #print(X_test.shape)
+#     scores["accuracy"] = clf.score(X_test, y_test)
+#     start_time = time.time()                        
+#     y_pred = clf.predict(X_test)
+#     #print(y_test)
+#     #print(y_pred)
+#     end_time = time.time()
+#     scores["timetaken"] = end_time - start_time
+#     if isinstance(clf, GMMHMMModel):
+#         print("Gmmhmm check")
+#         #return scores
+#     print("2")
+    
+#     print(len(y_test))
+#     print(len(y_pred))
+
+#     # Convert labels to NumPy arrays
+#     y_test = np.array(y_test)
+#     y_pred = np.array(y_pred)
+
+#     # Convert labels to consistent type (e.g., string)
+#     y_test = y_test.astype(str)
+#     y_pred = y_pred.astype(str)
+
+#     try:
+#         scores["f1"] = f1_score(y_test, y_pred, average='binary', pos_label='0')
+#         scores["precision"] = precision_score(y_test, y_pred, average='binary', pos_label='0')
+#         scores["recall"] = recall_score(y_test, y_pred, average='binary', pos_label='0')
+#     except: 
+#         print("Error")
+#     print("3")
+#     #y_score = clf.predict_proba(X_test)
+#     try:
+#         y_score = clf.predict_proba(X_test)[:,1]
+#         scores["roc_auc"] = roc_auc_score(y_test, y_score)
+#     except Exception as e:
+#         print(f"An error occurred: {e}")
+#     #print("4")
+#     #scores["confusion_matrix"] = confusion_matrix(y_test, y_pred, labels=['1', '0']).tolist()
+#     scores["confusion_matrix"] = confusion_matrix(y_test, y_pred).tolist()
+#     #scores["confusion_matrix"]= scores["confusion_matrix"]
+#     print(scores)
+#     return scores
+
 def common_scores(clf, X_test, y_test):
     print("Scores Start")
     scores = {}
-    # Calculate the accuracy score
-    #print("1")
-    #print(X_test.shape)
-    scores["accuracy"] = clf.score(X_test, y_test)
-    start_time = time.time()                        
-    y_pred = clf.predict(X_test)
-    #print(y_test)
-    #print(y_pred)
-    end_time = time.time()
-    scores["timetaken"] = end_time - start_time
-    if isinstance(clf, GMMHMMModel):
-        print("Gmmhmm check")
-        #return scores
-    print("2")
-    scores["f1"] = f1_score(y_test, y_pred, average='binary', pos_label='0')
-    scores["precision"] = precision_score(y_test, y_pred, average='binary', pos_label='0')
-    scores["recall"] = recall_score(y_test, y_pred, average='binary', pos_label='0')
-    print("3")
-    #y_score = clf.predict_proba(X_test)
-    y_score = clf.predict_proba(X_test)[:,1]
-    scores["roc_auc"] = roc_auc_score(y_test, y_score)
-    #print("4")
-    #scores["confusion_matrix"] = confusion_matrix(y_test, y_pred, labels=['1', '0']).tolist()
-    scores["confusion_matrix"] = confusion_matrix(y_test, y_pred).tolist()
-    #scores["confusion_matrix"]= scores["confusion_matrix"]
+
+
+    clf_scores = clf.score(X_test, y_test)
+    if isinstance(clf_scores, dict):
+        scores.update(clf_scores)
+    else:
+        scores["accuracy"] = clf_scores
+
+        start_time = time.time()
+        y_pred = clf.predict(X_test)
+        end_time = time.time()
+        scores["timetaken"] = end_time - start_time
+
+        # if isinstance(clf, GMMHMMModel):
+        #     print("Gmmhmm check")
+        #     return scores
+
+        print("2")
+        print(len(y_test))
+        print(len(y_pred))
+
+        # Convert labels to NumPy arrays
+        y_test = np.array(y_test)
+        y_pred = np.array(y_pred)
+
+        # Convert labels to consistent type (e.g., string)
+        y_test = y_test.astype(str)
+        y_pred = y_pred.astype(str)
+
+        if "f1" not in scores:
+            try:
+                scores["f1"] = f1_score(y_test, y_pred, average='binary', pos_label='0')
+            except ValueError:
+                scores["f1"] = f1_score(y_test, y_pred, average='macro')
+
+        if "precision" not in scores:
+            try:
+                scores["precision"] = precision_score(y_test, y_pred, average='binary', pos_label='0')
+            except ValueError:
+                scores["precision"] = precision_score(y_test, y_pred, average='macro')
+
+        if "recall" not in scores:
+            try:
+                scores["recall"] = recall_score(y_test, y_pred, average='binary', pos_label='0')
+            except ValueError:
+                scores["recall"] = recall_score(y_test, y_pred, average='macro')
+
+        print("3")
+
+        if "roc_auc" not in scores:
+            try:
+                y_score = clf.predict_proba(X_test)[:, 1]
+                scores["roc_auc"] = roc_auc_score(y_test, y_score)
+            except (AttributeError, ValueError) as e:
+                print(f"An error occurred while calculating ROC AUC: {e}")
+
+        if "confusion_matrix" not in scores:
+            scores["confusion_matrix"] = confusion_matrix(y_test, y_pred).tolist()
+
     print(scores)
     return scores
-
-
 
 
 class CrossVal():
@@ -1862,9 +2334,11 @@ class CrossVal():
         self.kwargs = kwargs
 
 
-    def custom_cross_validate(self,estimator, X, y, cv, scoring, config):
+    def custom_cross_validate(self,estimator, X, y, cv, scoring, config,cv2):
         results = {score: [] for score in scoring}
-        for train_index, test_index in cv.split(X):
+        check = cv.split(X)
+        check2 = cv2.split(X)
+        for train_index, test_index in cv2.split(X):
             X = np.asarray(X)
             y = np.asarray(y)
             # train_index = train_index.astype(int)
@@ -1901,7 +2375,7 @@ class CrossVal():
 
 
 
-    def do_cross_validate(self,clfin, clfparm, X, y,config):
+    def do_cross_validate(self,clfin, clfparm, X, y,config, fold_numbers = None):
         print("Cross Val 1")
         params = self.kwargs
         #print(self.kwargs)
@@ -1969,8 +2443,14 @@ class CrossVal():
 
         scoring = ['accuracy_score', 'precision_score', 'recall_score', 'f1_score', 'confusion_matrix']
         
+
+        ##### From Dataset CV
+        if(fold_numbers != None):
+            cv2 = CustomCrossValidatorFromDataset(fold_numbers=fold_numbers)
+
+
         #cv_results = cross_validate(estimator=mdl, X=X, y=y, cv=cv, n_jobs=-1, verbose=1, scoring=scoring)
-        cv_results = self.custom_cross_validate(estimator=mdl, X=X, y=y, cv=cv, scoring=scoring, config=config)
+        cv_results = self.custom_cross_validate(estimator=mdl, X=X, y=y, cv=cv, scoring=scoring, config=config,cv2=cv2)
         
         #clfin.set_params(**clfparm)
         #cv_results = cross_validate(estimator=clfin, X=X, y=y, cv=cv, n_jobs=-1, verbose=1)
@@ -1986,18 +2466,35 @@ class CrossVal():
         print(cv_results)
         return cv_results
 
+class CustomCrossValidatorFromDataset(BaseCrossValidator):
+    def __init__(self, fold_numbers):
+        self.fold_numbers = fold_numbers
+        self.unique_folds = np.unique(fold_numbers)
+        print("Folds "+str(self.unique_folds))
 
+    def split(self, X, y=None, groups=None):
+        X = np.asarray(X)
+        for fold in self.unique_folds:
+            test_indices = np.where(np.array(self.fold_numbers) == fold)[0]
+            train_indices = np.where(np.array(self.fold_numbers) != fold)[0]
+            yield train_indices, test_indices
+
+    def get_n_splits(self, X=None, y=None, groups=None):
+        return len(self.unique_folds)
 
 class Predictor():
 
-    def __init__(self,featureeex, clf, **kwargs):
+    def __init__(self,featureeex, clf, featurepre, **kwargs):
          self.featureextractor = featureeex
+         self.featurepreprocessor = featurepre
          self.classifier = clf
 
     def make_prediction(self,audio):
         features = self.featureextractor.single_features(audioframe=audio)
         features = features.reshape(1, -1)
+        #features = self.featurepreprocessor.featurepreprocessing_transform_no_config(features)
         prediction = self.classifier.predict(features)
+        gc.collect()  # Manually trigger garbage collection
         return prediction
         
     def make_prediction_probability(self, audio):
@@ -2012,7 +2509,8 @@ class Predictor():
 
 
 def tune_hyperparameters( clf, param_grid, X, y, cv=5):
-    grid_search = GridSearchCV(estimator=clf, param_grid=param_grid, cv=cv,n_jobs=10)
+    #grid_search = GridSearchCV(estimator=clf, param_grid=param_grid, cv=cv,n_jobs=10, verbose=10)
+    grid_search = GridSearchCV(estimator=clf, param_grid=param_grid, cv=cv,n_jobs=10, verbose=10,error_score='raise')
     grid_search.fit(X, y)
     return grid_search
 
@@ -2029,7 +2527,7 @@ class ConfigProcessor:
         feature_extractor = FeatureExtractor()
         dataset_processor = DatasetProcessor()
         audio_preprocessor = PreprocessingProcessor()
-        feature_preprocessor = FeaturePreprocessor()  # Create an instance of the feature preprocessing class
+        feature_preprocessor = FeaturePreprocessor(**data['featurepreprocessing'])  # Create an instance of the feature preprocessing class
         classifier_factory = ClassifierFactory(**data['classifier'])
         # evaluation_processor = EvaluationProcessor()
         predictor_saver = PredictorSaver()
@@ -2061,11 +2559,40 @@ class ConfigProcessor:
         # print("Mfcc extracted")
         # scatter, labels2 = feature_extractor.create_wavelet_scatter_features(**data['features']).features_from_dataset_multi(dataset)
         # print("Scatter extracted")
-        features, labels = extractor.features_from_dataset_multi(dataset)
+        start_time = time.time()
+        
+        #temp disable for new kfold approach
+        #features, labels = extractor.features_from_dataset_multi(dataset)
+        
+
+
+        dataset = extractor.features_from_dataset_alt(dataset)
+
+        features = []
+        labels = []
+        folds = []
+        count = 0
+        for sample in dataset.samples:
+            try:
+                if(sample.kfold):
+                    features.append(sample.features)
+                    labels.append(sample.label)
+                    folds.append(sample.kfold)
+            except:
+                count = count + 1
+        print(count)
+
+        feature_extraction_time = time.time() - start_time
+        ########################################################
+        ### Testing clearing dataset here
+        ########################################################
+        print("break")
+        dataset = None
+        gc.collect()
+
 
         #for i in range(len(features)):
         #    features[i] = np.array([np.random.random()])
-
 
 
         print("Features Extracted " + str(features[0].shape))
@@ -2080,33 +2607,41 @@ class ConfigProcessor:
         print("Mdl Created")
         
         #Evaluation
-        scores = self.evaluate_model(mdl,data, data['evaluation'], features, labels)
+        start_time = time.time()
+        scores = self.evaluate_model(mdl,data, data['evaluation'], features, labels, folds)
+        evaluation_time = time.time() - start_time
         #scores = self.evaluate_model(mdl,data, data['evaluation'], preprocessed_features, labels)
         print("Scores Calculated")
         #Hyperparamter search enabled
-        if bool(data['classifier']['knn']['tune_hyperparameters']) or bool(data['classifier']['svm']['tune_hyperparameters']):
+        if bool(data['classifier']['knn']['tune_hyperparameters']) or bool(data['classifier']['svm']['tune_hyperparameters']) or bool(data['classifier']['logistic_regression']['tune_hyperparameters']) or bool(data['classifier']['gmm_hmm']['tune_hyperparameters']):
             print("hyperparameters")
             self.tune_hyperparameters_config( mdl, data, features, labels)
 
         #dataset_stats = dataset.return_statistics()
         #scores["Dataset Stats"] = dataset_stats
 
-        #predictor = predictor_saver.save_predictor(mdl, extractor)
+        # Add feature extraction and evaluation times to scores
+        scores["Feature Extraction Time"] = feature_extraction_time
+        scores["Evaluation Time"] = evaluation_time
+
+        predictor = predictor_saver.save_predictor2(mdl, extractor,feature_preprocessor)
+        #predictor = predictor_saver.save_predictor(mdl, extractor,feature_preprocessor)
+
         return {"Status": "Success", "Scores": scores, "Config": data, "Timestamp": datetime.now().isoformat()}
 
 
-    def evaluate_model(self, mdl, data,evaluation_data,features, labels):
+    def evaluate_model(self, mdl, data,evaluation_data,features, labels, folds=None):
         scores = {}
         if evaluation_data['train_test_split']['enable']:
             scores = self.evaluate_train_test(mdl, data, evaluation_data['train_test_split'],features, labels)
         elif evaluation_data['kfold']['enable']:
-            scores = self.evaluate_kfold(mdl,data, evaluation_data, features, labels)
+            scores = self.evaluate_kfold(mdl,data, evaluation_data, features, labels,folds)
         elif evaluation_data['stratifiedkfold']['enable']:
             scores = self.evaluate_stratified_kfold(mdl, evaluation_data['stratifiedkfold'],features, labels)
         return scores
 
     def evaluate_train_test(self, mdl, data, train_test_data,features, labels):
-        feature_preprocessor = FeaturePreprocessor()
+        feature_preprocessor = FeaturePreprocessor(**data['featurepreprocessing'])
         
         #feature_preprocessor.featurepreprocessing_transform
         params = train_test_data
@@ -2124,16 +2659,16 @@ class ConfigProcessor:
             X_test = feature_preprocessor.featurepreprocessing_transform(X_test,data['featurepreprocessing'])
         # Fit the model and calculate scores
         clf = mdl.fit(X_train, y_train)
-        print(clf.score(X_test,y_test))
+        #print(clf.score(X_test,y_test))
         scores = common_scores(clf, X_test=X_test, y_test=y_test)
 
         return scores
 
-    def evaluate_kfold(self, mdl, data,evaluationdata, features, labels):
+    def evaluate_kfold(self, mdl, data,evaluationdata, features, labels, folds=None):
         cv = CrossVal(**evaluationdata)
         print(data)
         print(evaluationdata)
-        results = cv.do_cross_validate(clfin=mdl, clfparm=data['classifier'], X=features, y=labels, config=data)
+        results = cv.do_cross_validate(clfin=mdl, clfparm=data['classifier'], X=features, y=labels, config=data, fold_numbers=folds)
         scores = {}
         #scores = results
         print(results)
@@ -2178,6 +2713,7 @@ class ConfigProcessor:
     def tune_hyperparameters_config(self, clf, data, features, labels):
         if bool(data['classifier']['knn']['tune_hyperparameters']):
             params = data['evaluation']
+            print(params)
             knn_param_grid = {
                 "n_neighbors": list(range(1, 15)),
                 "weights": ["uniform", "distance"],
@@ -2186,18 +2722,32 @@ class ConfigProcessor:
                 
             }
             knn_param_grid = {
-                "n_neighbors": list(range(1, 31)),
+                "n_neighbors": list(range(1, 15)),
                 "weights": ["uniform", "distance"],
                 "algorithm": ["auto", "ball_tree", "kd_tree", "brute"],
-                "leaf_size": [20],
+                "leaf_size": [10,20,30],
                 "metric": ["euclidean", "manhattan", "chebyshev", "minkowski"],
                 "metric_params": [None, {"p": 1}, {"p": 2}, {"p": 3}],
+            }
+            knn_param_grid = {
+                "n_neighbors": list(range(1,5)),
+                "weights": ["uniform", "distance"],
+                "algorithm": ["auto", "ball_tree", "kd_tree", "brute"],
+                "leaf_size": [10],
+                "metric": ["euclidean", "manhattan"],
+            }
+            knn_param_grid = {
+                "n_neighbors": list(range(4,10)),
+                "weights": [ "distance"],
+                "algorithm": ["auto",],
+                "leaf_size": [10],
+                "metric": ["euclidean"],
             }
             #"metric": ["euclidean", "manhattan", "chebyshev", "minkowski"],
             #    "metric_params": [None, {"p": 1}, {"p": 2}, {"p": 3}],
             X_train, X_test, y_train, y_test = train_test_split(features, labels, 
-                    test_size=float(params['train_test']['test_size']), 
-                    shuffle=params['train_test']['tts_shuffle'])
+                    test_size=float(params['train_test_split']['test_size']), 
+                    shuffle=params['train_test_split']['shuffle'])
             mdl = tune_hyperparameters(KNeighborsClassifier(), knn_param_grid, X_train, y_train)
             scores = mdl.cv_results_
             #saving = ClassifierResults(data = str(scores))
@@ -2209,25 +2759,7 @@ class ConfigProcessor:
             #saving.save()
         elif bool(data['classifier']['svm']['tune_hyperparameters']):
                 params = data['evaluation']
-                # svm_param_grid = {
-                #     'C': [0.1, 1, 10, 100, 1000],
-                #     'kernel': ['linear', 'poly', 'rbf', 'sigmoid'],
-                #     'degree': [2, 3, 4, 5],  # Only used for the 'poly' kernel
-                #     'gamma': ['scale', 'auto'] + list(np.logspace(-3, 2, 6)),  # 'scale', 'auto', and some values between 0.001 and 100
-                #     'shrinking': [True, False],
-                #     'probability': [True],
-                #     'tol': [1e-4, 1e-3, 1e-2, 1e-1, 1],
-                #     'max_iter': [-1, 100, 500, 1000, 5000],
-                # }
-                # svm_param_grid = {
-                #     'C': [0.1, 1, 100, 1000],
-                #     'kernel': ['linear', 'rbf',],
-                #     'gamma': ['scale', 'auto'] + list(np.logspace(-3, 2, 6)),  # 'scale', 'auto', and some values between 0.001 and 100
-                #     'shrinking': [True, False],
-                #     'probability': [True],
-                #     'tol': [1e-4, 1e-3, 1e-2, 1e-1, 1],
-                #     'max_iter': [-1, 100, 500],
-                # }
+
                 svm_param_grid = {
                     'C': [0.1, 1, 100, 1000],
                     'kernel': ['linear', 'rbf',],
@@ -2236,12 +2768,42 @@ class ConfigProcessor:
                     'probability': [True],
                     'max_iter': [-1, 100, 500],
                 }
-                knn_param_grid = {
-                    "n_neighbors": list(range(1, 15)),
-                    "weights": ["uniform", "distance"],
-                    "algorithm": ["auto", "ball_tree", "kd_tree", "brute"],
-                    "leaf_size": [10, 20, 30],
-
+                svm_param_grid = {
+                    'C': [0.1, 1, 100, 1000],
+                    'kernel': ['linear', 'rbf', 'sigmoid'],
+                    'gamma': ['scale', 'auto'] + list(np.logspace(-3, 2, 6)),  # 'scale', 'auto', and some values between 0.001 and 100
+                    'shrinking': [False, True],
+                    'probability': [True],
+                    'max_iter': [100, 500, 1000, 5000],
+                }
+                svm_param_grid = {
+                    'C': [100, 200, 400, 1000, 2000],
+                    'kernel': [ 'rbf',],
+                    'gamma': ['scale', 'auto'] + list(np.logspace(-3, 2, 6)),  # 'scale', 'auto', and some values between 0.001 and 100
+                    'shrinking': [True],
+                    'class_weight': ['balanced', None],
+                    'probability': [True],
+                    'tol': [1e-4, 1e-3, 1e-2, 1e-1, 1],
+                    'max_iter': [1000, 3000, 5000, 10000],
+                }
+                svm_param_grid = {
+                    'C': [150,175,200,300],
+                    'kernel': [ 'rbf',],
+                    'gamma': ['scale'] ,  # 'scale', 'auto', and some values between 0.001 and 100
+                    'shrinking': [True],
+                    'class_weight': ['balanced', None],
+                    'probability': [True],
+                    'tol': [1e-1],
+                    'max_iter': [4000, 5000, 6000, 7000],
+                }
+                svm_param_grid = {
+                    'C': [10,100,1000],
+                    'kernel': ['linear', 'rbf',],
+                    'gamma': ['scale','auto'] ,  # 'scale', 'auto', and some values between 0.001 and 100
+                    'shrinking': [True],
+                    'probability': [True],
+                    'tol': [1e-1],
+                    'max_iter': [ 1000,5000,],
                 }
                 # X_train, X_test, y_train, y_test = train_test_split(mfc3, labels2,
                 #                                                     test_size=float(
@@ -2249,8 +2811,8 @@ class ConfigProcessor:
                 #                                                     shuffle=params['train_test']['tts_shuffle'])
                 X_train, X_test, y_train, y_test = train_test_split(features, labels,
                                                                     test_size=float(
-                                                                        params['train_test']['tts_test_size']),
-                                                                    shuffle=params['train_test']['tts_shuffle'])
+                                                                        params['train_test_split']['test_size']),
+                                                                    shuffle=params['train_test_split']['shuffle'])
                 mdl = tune_hyperparameters(
                     SVC(), svm_param_grid, X_train, y_train)
                 scores = mdl.cv_results_
@@ -2263,7 +2825,70 @@ class ConfigProcessor:
                 df.to_csv(fname, index=False)
                 #saving.save()
         #mdl = tune_hyperparameters(clf, param_grid, X_train, y_train)
+        elif bool(data['classifier']['gmm_hmm']['tune_hyperparameters']):
+            params = data['evaluation']
+            
+            gmmhmm_param_grid = {
+                'n_components': [1,2, 3, 4, 5],
+                'n_mix': [2, 3, 4, 5],
+                'covariance_type': ['diag', 'full'],
+                'n_iter': [10, 20, 30],
+                'algorithm': ['viterbi', 'map'],
+            }
+            
+            X_train, X_test, y_train, y_test = train_test_split(features, labels,
+                                                                test_size=float(params['train_test_split']['test_size']),
+                                                                shuffle=params['train_test_split']['shuffle'])
+            
+            mdl = tune_hyperparameters(hmm.GMMHMM(), gmmhmm_param_grid, X_train, y_train)
+            scores = mdl.cv_results_
+            df = pd.DataFrame(scores)
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            fname = timestamp + "-gmmhmm_result.csv"
+            df.to_csv(fname, index=False)
+        
+        elif bool(data['classifier']['logistic_regression']['tune_hyperparameters']):
+            params = data['evaluation']
+            
+            lr_param_grid = {
+                'penalty': ['l1', 'l2', 'elasticnet', 'none'],
+                'C': [0.1, 1, 10, 100],
+                'solver': ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'],
+                'max_iter': [100, 500, 1000],
+                'multi_class': ['auto', 'ovr', 'multinomial'],
+            }
+            
+            lr_param_grid = {
+                'penalty': ['l1', 'l2', ],
+                'C':  [0.05, 0.2, 0.5, 1, 2, 5, 10, 20, 50],
+                'solver': ['liblinear', 'sag', 'saga'],
+                'max_iter': [100, 200],
+                'multi_class': ['auto','multinomial'],
+                'class_weight' : [None, 'balanced'],
+                'tol' :  [1e-4, 1e-5, 1e-6],
+            }
+            lr_param_grid = {
+                'C': [0.001,0.05, 0.01, 0.1, 1, 10 ],
+                'solver': ['sag', 'saga', 'liblinear'],
+                'penalty': ['l1', 'l2'],
+                'tol': [1e-4, 1e-5, 1e-6, ],
+                'max_iter': [100, 200, 500,],
+                'fit_intercept': [True, False],
+                'intercept_scaling': [0.1, 1, 10]
+                }
+            X_train, X_test, y_train, y_test = train_test_split(features, labels,
+                                                                test_size=float(params['train_test_split']['test_size']),
+                                                                shuffle=params['train_test_split']['shuffle'])
+            
+            mdl = tune_hyperparameters(LogisticRegression(), lr_param_grid, X_train, y_train)
+            scores = mdl.cv_results_
+            df = pd.DataFrame(scores)
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            fname = timestamp + "-logistic_regression_result.csv"
+            df.to_csv(fname, index=False)
+        
         return mdl
+
 
 
 class FeatureExtractor:
@@ -2341,6 +2966,9 @@ class DatasetProcessor:
         if bool(dataset_config['fixed']['enable']):
             dataset.fix_length(length=dataset_config['fixed']['length'])
             print(dataset.samples[1].audiodata.shape)
+        if bool(dataset_config['padded']['enable']):
+            dataset.fix_length_padded(length=dataset_config['padded']['length'], size=dataset_config['padded']['size'])
+            print(dataset.samples[1].audiodata.shape)
         elif bool(dataset_config['frame']['enable']):
             dataset.create_frames(frame_size=int(dataset_config['frame']['length']),
                                   hop_length=int(dataset_config['frame']['hop_length']))
@@ -2358,6 +2986,28 @@ class PreprocessingProcessor:
 
 class FeaturePreprocessor:
 
+    def __init__(self, **kwargs):
+         self.config = kwargs
+         print(self.config)
+         try:
+            if bool(self.config['melspec_preprocessor']['enable']):
+                resize = bool(self.config['melspec_preprocessor']['resize'])
+                input_size = (
+                    int(self.config['melspec_preprocessor']['input_size_width']),
+                    int(self.config['melspec_preprocessor']['input_size_height'])
+                )
+                self.melspec_preprocessor = MelSpectrogramToVGG16Preprocessor(resize=resize, input_size=input_size)
+         except:
+             print("Mel Spec preprocessor error")
+
+    def featurepreprocessing_no_config(self, features):
+        features = self.featurepreprocessing_from_config(features,self.config)
+        return features
+    
+    def featurepreprocessing_transform_no_config(self, features):
+        features = self.featurepreprocessing_transform(features,self.config)
+        return features
+
     def featurepreprocessing_from_config(self, features, featurepreprocessing_config):
         #featurepreprocessing_config['PCA']['enable'] = True
         print(featurepreprocessing_config)
@@ -2370,6 +3020,27 @@ class FeaturePreprocessor:
             ### ADD HERE RETURNING OF FIT PCA FOR REUSE IN PREDICTOR
             self.pca = PCAFeaturePreprocessor(n_components=int(featurepreprocessing_config['pca']['n_components']))
             features = self.pca.preprocess_features(features)
+
+        if bool(featurepreprocessing_config['melspec_preprocessor']['enable']):
+            print("Mel-Spectrogram to VGG16 Preprocessor Enable")
+            resize = bool(featurepreprocessing_config['melspec_preprocessor']['resize'])
+            input_size = (
+                int(featurepreprocessing_config['melspec_preprocessor']['input_size_width']),
+                int(featurepreprocessing_config['melspec_preprocessor']['input_size_height'])
+            )
+            self.melspec_preprocessor = MelSpectrogramToVGG16Preprocessor(resize=resize, input_size=input_size)
+            features = self.melspec_preprocessor.preprocess_features(features)
+
+        if bool(featurepreprocessing_config['mfcc_preprocessor']['enable']):
+            print("MFCC to VGG16 Preprocessor Enable")
+            resize = bool(featurepreprocessing_config['mfcc_preprocessor']['resize'])
+            input_size = (
+                int(featurepreprocessing_config['mfcc_preprocessor']['input_size_width']),
+                int(featurepreprocessing_config['mfcc_preprocessor']['input_size_height'])
+            )
+            self.mfcc_preprocessor = MFCCToVGG16Preprocessor(resize=resize, input_size=input_size)
+            features = self.mfcc_preprocessor.preprocess_features(features)
+
         #features = PCAFeaturePreprocessor().preprocess_features(features)
         return features
 
@@ -2381,6 +3052,12 @@ class FeaturePreprocessor:
             #print(featurepreprocessing_config)
             ### ADD HERE RETURNING OF FIT PCA FOR REUSE IN PREDICTOR
             features = self.pca.transform_features(features)
+
+        if bool(featurepreprocessing_config['melspec_preprocessor']['enable']):
+            features = self.melspec_preprocessor.transform_features(features)
+
+        if bool(featurepreprocessing_config['mfcc_preprocessor']['enable']):
+            features = self.mfcc_preprocessor.transform_features(features)
         #features = PCAFeaturePreprocessor().preprocess_features(features)
         return features
     
@@ -2410,12 +3087,30 @@ class FeaturePreprocessor:
 
 
 class PredictorSaver:
-    def save_predictor(self, mdl, feature_extractor):
-        predictor = Predictor(featureeex=feature_extractor, clf=mdl)
-        with open("predictor4.pickle", "wb") as file:
+    def save_predictor2(self, mdl, feature_extractor, featurepre):
+        predictor = Predictor(featureeex=feature_extractor, clf=mdl, featurepre=featurepre)
+        with open("predictor5.pickle", "wb") as file:
             pickle.dump(predictor, file)
         return predictor
     
+    def save_predictor(self, mdl, feature_extractor, featurepre):
+        predictor = Predictor(featureeex=feature_extractor, clf=mdl, featurepre=featurepre)
+        
+        with open("predictor4.pickle", "wb") as file:
+            pickle.dump(predictor, file)
+
+        # Save the feature extractor
+        with open("feature_extractor_vgg16.pickle", "wb") as file:
+            pickle.dump(feature_extractor, file)
+        
+        with open("feature_preprocessor_vgg16.pickle", "wb") as file:
+            pickle.dump(featurepre, file)
+        
+
+        # Save the TensorFlow model
+        mdl.save("model.h5")
+        
+        return predictor
 
 
 #########################

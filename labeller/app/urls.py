@@ -25,6 +25,7 @@ urlpatterns = [
     path('<userid>/audiolabelled/not/<targetuser>', views.audiowaves_not_other_user, name="audiowaves_not_other_user"),
     path('<userid>/audiolabelled/<fname>/compare/<targetuser>', views.samepagecomparisonwaves, name="samepagecomparisonwaves"),
     path('<userid>/audiolabelled/<fname>/compare/<targetuser>/<targetuser2>', views.samepagecomparisonwaves, name="samepagecomparisonwaves2"),
+    path('predictfiles',views.predict_files, name='predict_files'), #Shows a page that selects some files to rrun default predictor on
     path('datasetlist', views.datasetlist, name='datasetlist'),
     path('datasetlist2', views.datasetlist2, name='datasetlist2'),
     path('datasetstats',views.datasetStats, name="datasetstats"),
@@ -39,6 +40,7 @@ urlpatterns = [
     path('api/copylabelsfromexternal/<key>/<local>',views.copylabelsfromexternal, name="copylabels"),
     path('api/providelabelsforcopy/<key>',views.providelabelsforcopy, name="providelabelsforcopy"),
     path('api/generateDatasetFile',views.generateDatasetFile, name="generateDatasetFile"),
+    path('api/generateKFolds',views.generateKFolds, name="generateKFolds"),
     path('api/fixDatasetFile',views.fixDatasetFile, name="fixDatasetFile"),
     path('api/config',views.modelfromconfig, name="modelfromconfig"),
     path('api/store_config_in_queue', views.store_config_in_queue, name="storeConfiginQueue"),
@@ -56,7 +58,7 @@ urlpatterns = [
     path('api/get_label_difference_statistics/<user1>/<user2>', views.get_label_difference_statistics, name="getlabeldifferencestatistics"),
     path('api/delete_ct/<id>', views.delete_classifier_result, name="delete_classifier_result"),
     path('backups/<backup>', views.jsonbackupdownload, name="jsonbackupdownload"),
-    path('register/', views.register, name='register'),
+    path('register/', views.register , name='register'),
     path('config2',views.config2, name="config2test"),
 ]
 

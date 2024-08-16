@@ -13,6 +13,7 @@ import multiprocessing
 from multiprocessing import Pool
 import pickle
 
+from sklearn.model_selection import KFold
 
 def returnPredictions(classifier, filename, framelen=0.2):
 
@@ -22,7 +23,7 @@ def returnPredictions(classifier, filename, framelen=0.2):
     audio, sr = librosa.load(filepath,sr=22050)
     #framelength = sr // 5
     framelength = int(sr * 0.3)
-    framelength = 7350
+    #framelength = 7350
     #framelength = int(sr * framelen)
     hop_length = sr // 25
 
@@ -59,9 +60,16 @@ def returnPredictions(classifier, filename, framelen=0.2):
         
         
         prediction = classifier.make_prediction(frame)
-        predictions.append(prediction[0])
-        #predictions.append[prediction]
-        if(prediction[0] == '1'):
+        # pic max - for tf prredicion
+        print(prediction)
+        #prediction = np.argmax(prediction)
+        print(prediction)
+
+
+        #predictions.append(prediction[0])
+        predictions.append(prediction)
+        #if(prediction[0] == '1'):
+        if(prediction == '1'):
             
             starttime = i * hop_length / sr
             endtime = starttime + (framelength / sr)
@@ -125,7 +133,7 @@ def returnPredictions(classifier, filename, framelen=0.2):
         "filename": filename,
         "regions": regions2
     }
-    #print(predictiondata)
+    print(predictiondata)
     #print(predictions)
     return(predictiondata)
 
@@ -170,6 +178,11 @@ def returnPredictionsfromFile(classifier, filepath):
         
         
         prediction = classifier.make_prediction(frame)
+
+        # pic max - for tf prredicion
+        prediction = np.argmax(prediction)
+        print(prediction)
+
         predictions.append(prediction[0])
         #predictions.append[prediction]
         if(prediction[0] == '0'):
@@ -703,3 +716,94 @@ def process_audio_files(audio_files, classifier):
         results = pool.starmap(returnPredictions, [(filename, classifier) for filename in audio_files])
 
     return results
+
+
+
+def generate_kfolds():
+
+    dataset_folder = "dataset5"
+    print("Started " + str(dataset_folder) )
+    audio_files = os.listdir(os.path.join("app", "static", "audiofiles"))
+    list1 = []
+    cough = []
+    not_cough = []
+    for file in audio_files:
+        a = AudioLabels.objects.filter(filename=file, labeluser='1').first()
+
+       
+        #if a:
+        if a and not (a.unclear or a.lowquality):    #Filter to remove unclear/low quality -> Return to fix
+            list1.append(file)
+
+            
+
+    # Get the list of filenames from both folders
+    folder1 = r"C:\Users\Alliewya\Documents\Cough Monitor\AudioLabeller\labeller\app\static\audiofiles"
+    folder2 = r"C:\Users\Alliewya\Documents\Cough Monitor\AudioLabeller\labeller\app\static\dataset5\external"
+
+
+    # Get the list of filenames from both folders
+    filenames1 = os.listdir(folder2)
+    filenames2 = list1
+
+
+    # Combine the filenames from both folders
+    filenames = filenames1 + filenames2
+
+    # Create an instance of KFold with k=5
+    kf = KFold(n_splits=5, shuffle=True, random_state=42)
+
+    # Create a dictionary to store the filenames and their corresponding fold numbers
+    filename_fold_dict = {}
+
+    # Iterate over the folds
+    for fold, (train_index, test_index) in enumerate(kf.split(filenames)):
+        # Get the filenames assigned to the test set for the current fold
+        test_filenames = [filenames[i] for i in test_index]
+        
+        # Update the dictionary with the filenames and their corresponding fold numbers
+        for filename in test_filenames:
+            filename_fold_dict[filename] = fold + 1  
+
+    # Print the dictionary of filenames and their corresponding fold numbers
+    print(filename_fold_dict)
+
+    with open(os.path.join("app", "static", "datasetpickles", "2024-05-01_01-59-33_excluding_unclear__C8159_N22289-ds.pickle"), 'rb') as f:
+        dataset = pickle.load(f)
+
+    print("Beep")
+    
+    notfoundlist = []
+    notfoundcount = 0
+
+    for sample in dataset.samples:
+        if len(sample.sourcefile) > 20:
+            matchname = sample.sourcefile[:-5]
+            matchname = matchname + ".wav"
+            if matchname in filename_fold_dict:
+                sample.kfold = filename_fold_dict[matchname]
+            else:
+                matchname = sample.sourcefile[:-6]
+                matchname = matchname + ".wav"
+                if matchname in filename_fold_dict:
+                    sample.kfold = filename_fold_dict[matchname]
+                else:
+                    print("Not found:", matchname)
+                    notfoundlist.append(matchname)
+                    notfoundcount = notfoundcount + 1
+        else:
+            matchname = sample.sourcefile
+            if matchname in filename_fold_dict:
+                sample.kfold = filename_fold_dict[matchname]
+            else:
+                print("Not found Shorter:", matchname)
+                notfoundlist.append(matchname)
+                notfoundcount = notfoundcount + 1
+
+    print("Boop")
+    print(notfoundcount)
+    with open(os.path.join("app", "static", "datasetpickles", "2024-05-01_01-59-33_excluding_unclear__C8159_N22289-ds-kf.pickle"), 'wb') as f:
+        pickle.dump(dataset, f)
+    print("saved")
+    dataset = None
+    return(filename_fold_dict)
